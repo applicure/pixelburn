@@ -357,7 +357,7 @@ Notes on the numbers:
 - Ad PDA bump search adds a variable ~1.5k CU per extra bump iteration, which is covered by the 50k base.
 - Priority fee: `buildBuyTx` / `estimatePriorityFee` call `getRecentPrioritizationFees` on the canvas account (every buy write-locks it). They take the 75th percentile of non-zero fees, clamp it to [1,000, 200,000] micro-lamports/CU (configurable), and fall back to the floor when there is no data or the RPC errors. Max priority cost at the cap for a 1×1 SOL buy (51.2k CU) is about 10,240 lamports.
 
-## Devnet launch (PLAN, not executed; needs the lead's approval)
+## Devnet launch (executed 2026-11-02, see DEVNET.md for every tx)
 
 ### Findings (read-only checks against devnet, 2026-11-02; nothing sent, no SOL spent)
 - **pump.fun is live on devnet.** These are all deployed and executable at their mainnet addresses: `6EF8rrecthR5Dkzon8Nwu78hRvfCKubJ14M5uBEwF6P` (pump), `pAMMBay6oceH9fJKBRHGP5D4bD4sWpmSwMn52FMfXEA` (PumpSwap) and `metaqbxx…` (Metaplex).
@@ -488,6 +488,111 @@ Every successful pump.fun coin graduates: when the curve's real token reserves h
   7. token buy on the pool
   8. a keeper buyback via PumpSwap (needs the pump-swap SDK route: services' keeper, or a small addition to `devnet-verify.ts`)
 - **Cost:** ≈ 0.05 SOL plus fees from the deployer (5.27 SOL available).
+
+## Mainnet launch checklist (DOC ONLY, nothing here has been run; every mainnet step needs explicit sign-off)
+
+Constraint that shapes the order: `initialize` requires **admin == upgrade authority** at init time (audit fix for init front-running). So:
+1. Deploy with a hot **launch key** as upgrade authority.
+2. Initialize with that same key as admin.
+3. Hand both roles to multisigs in the same session (step 1 below).
+
+Total exposure window: minutes.
+
+### 0. Prerequisites (go / no-go)
+- [ ] The commit to ship is tagged. `anchor test` (11 + 53 at 9665023) and SDK tests are green on that commit, and the auditor has signed off on the exact commit.
+- [ ] A **mainnet script set** exists and is reviewed (**deferred: written only after the customer confirms launch parameters**). Today's scripts are deliberately devnet-only (genesis guard), and no mainnet script is written yet. Requirements:
+  - separate files (`mainnet-*.ts`);
+  - hard guard on the mainnet genesis hash `5eykt4UsFv8P8NJdTREpY1vzqKqZKvdpKuc147dw2N9d`;
+  - an explicit `--mainnet-i-understand` flag;
+  - dry run by default;
+  - an RPC from `MAINNET_RPC_URL` only (never `SOLANA_RPC` by accident).
+- [x] `security_txt!` embedded (crate `solana-security-txt` =1.1.3, `lib.rs`; .so grows to 579,968 B, still fits the extended devnet programdata). **Placeholder values** (`security@applicure.io`, `https://pixelburn.applicure.io`, repo URL, policy URL): confirm with the customer before the verified build. Pending the auditor's glance; to be batched into the next devnet upgrade.
+- [ ] **Program id (decided: fresh, generated offline; do NOT reuse `A4uaXC9s…`).** On an offline machine, run `solana-keygen new -o pixel-mainnet.json`. Then set `declare_id!`, `Anchor.toml [programs.mainnet]`, `anchor keys sync`, the verified rebuild, and SDK `sync-idl`. The SDK's default `PROGRAM_ID` then becomes the mainnet id, and devnet users pass `programId` explicitly (or we ship a cluster-keyed map: decide before the switch).
+
+### 1. Squads multisig + timelock (upgrade authority and admin)
+Two multisigs with different timelocks, because the admin needs to act fast (pause, graduation switch) while upgrades should be slow. **Members and thresholds are the customer's decision. The table is our recommendation, marked "customer to confirm".**
+
+| role | Squads v4 multisig | threshold | timelock | why |
+|---|---|---|---|---|
+| **upgrade authority** | `UPGRADE_MS` | 3-of-5 *(customer to confirm)* | **48 h** *(customer to confirm)* | an upgrade can take every lamport; the community gets 48 h to see it coming |
+| **config admin** | `OPS_MS` | 2-of-3 *(customer to confirm)* | 0–15 min *(customer to confirm)* | pause, `set_price_source` at graduation, `set_params`, `set_keeper`. Admin cannot withdraw funds; its worst case is collusion with a keeper, ≤ 50 SOL/h, visible on-chain. |
+
+- Treasury: a third address, ideally a Squads vault with no timelock (it only receives).
+- Commands (with `@sqds/multisig` v4 or the Squads app; the vault PDA is index 0 of each multisig):
+  ```bash
+  # after deploy + initialize with the launch key (keys never printed)
+  # a) upgrade authority -> UPGRADE_MS vault (Squads vault PDAs can't co-sign, hence the skip flag)
+  solana program set-upgrade-authority <PROGRAM_ID> \
+    --upgrade-authority launch-admin.json \
+    --new-upgrade-authority <UPGRADE_MS_VAULT> --skip-new-upgrade-authority-signer-check -u mainnet-beta
+  # b) config admin -> OPS_MS vault (two-step, in the program)
+  #    propose: launch key signs  proposeAdminIx({ admin: launchAdmin, newAdmin: OPS_MS_VAULT })
+  #    accept:  Squads vault tx   acceptAdminIx({ newAdmin: OPS_MS_VAULT })   (created, approved, executed in OPS_MS)
+  # c) verify, then destroy the launch key
+  solana program show <PROGRAM_ID> -u mainnet-beta        # Authority == UPGRADE_MS_VAULT
+  # fetchConfig(): admin == OPS_MS_VAULT, pendingAdmin == default
+  ```
+- Upgrades afterwards: `solana program write-buffer` → `set-buffer-authority` to `UPGRADE_MS_VAULT` → a Squads "program upgrade" tx, executable only after the 48 h timelock. Extend programdata beforehand if the .so grows (on CLI 3.x, `program extend` must be signed by the upgrade authority, so it also becomes a Squads tx).
+
+### 2. Program verification
+- Build reproducibly: `solana-verify build --library-name pixel` from `chain/` (Docker, pinned toolchain), and **deploy exactly that .so**. A local `anchor build` .so will not hash-match a verified build.
+- Verify locally against the deployment: `solana-verify verify-from-repo -um --program-id <PROGRAM_ID> https://github.com/<org>/<repo> --commit-hash <TAG_SHA> --library-name pixel --mount-path chain`.
+- The **OtterSec registry** needs a verification PDA written by the upgrade authority. With Squads as authority:
+  - `solana-verify export-pda-tx … --uploader <UPGRADE_MS_VAULT>`, then execute it as a Squads tx. Note it is subject to the 48 h timelock, so do it before or right after the authority transfer, while the launch key still holds the authority.
+  - Then `solana-verify remote submit-job --program-id <PROGRAM_ID> --uploader <UPGRADE_MS_VAULT>`.
+- Also check what we checked on devnet: the sha256 of `solana program dump`, trimmed to the .so length, equals the verified .so, and the trailing bytes are zero.
+
+### 3. Mainnet initialize parameters
+| param | value | note |
+|---|---|---|
+| `token_mint` / `token_program` | the real coin's mint; Token-2022 if created via pump `create_v2` | init detects the token program from the mint owner |
+| `price_source` | `BondingCurve{ PDA(["bonding-curve", mint], pump) }` | enforced canonical |
+| `initial_token_ema_price_sol` | **median of curve spot sampled every 10 s over ≥ 10 min** before init (off-chain, read-only) | never a single read: the program's seed band (±25% at the first crank) and warm-up (10 cranks / ≥ 600 s) are the backstop, but the input should already be robust. Abort if the sample's max/min ratio is > 1.25 (market too wild to seed). |
+| `max_price_age_secs` | 120 | the sponsored Pyth SOL/USD account updates about every 60 s |
+| `token_blocks_cap_per_hour` | **250** at launch, raise to 1000 after a week | bounds manipulation extraction during the first days |
+| `buyback_cap_lamports_per_hour` | 2 SOL at launch (hard max 50) | keeper burst ≤ cap; any 1 h ≤ 2 × cap |
+| `buyback_max_slippage_bps` | 1500 | the rate bar vs the fast EMA; the backstop separately enforces post-trade spot ≤ fast EMA × 1.12 |
+| treasury | Squads treasury vault | fund to rent-exempt (init.ts-style step) |
+| keeper | dedicated keeper pubkey (§5) | |
+
+- After init, the keeper cranks every 45 s. Token payments open once `tokenPricingStatus` is ok, about 10 minutes later; SOL payments are live immediately.
+- Launch-day smoke test: one 1×1 SOL buy and one 1×1 token buy, from a team wallet.
+
+### 4. Graduation (mainnet) with a pre-built multisig tx
+- The pool address is deterministic before graduation: `canonicalPumpPoolPda(mint)`, and the vaults are its ATAs. Pre-compute these and store them in the ops runbook at launch.
+- The seed (pool spot) is only known after migration, and Squads freezes tx contents at proposal time. So **pre-build the tooling, not the tx**: a reviewed script `mainnet-graduation-propose.ts` that waits for `curve.complete` and for the canonical pool to exist (pump's bot migrates within seconds; we never call migrate on mainnet). It then reads the pool spot (median over 60 s, aborting on more than 10% dispersion during the boost wave), builds `setPriceSourceIx(Pool, seed)`, creates the vault tx + proposal in `OPS_MS`, and pages the signers.
+- With a 0–15 min ops timelock, the token-payment gap is migration (seconds) + approval + timelock + ≥ 10 min warm-up + any boost-wave deviation pause (≈ 4–6 min on devnet). SOL payments are unaffected throughout.
+- The first crank after the switch checks pool spot within ±25% of the seed. If the boost wave moved it further, it fails `EmaSeedMismatch` and ops re-proposes with a fresh seed.
+- Keeper: on `curve.complete`, stop releases and refund any outstanding release. After the switch, route buybacks via PumpSwap. The backstop blocks spend buybacks while spot is above fast EMA × 1.12.
+- Stats: label pump boost burns as external; the headline is our program's burns only.
+
+### 5. Keeper key handling
+- Use a dedicated hot key, used for nothing else. Keep it in the deployment secret store (Coolify secret, file mode 600), never in git or logs. Services already never prints it.
+- Float: ≤ 0.5 SOL for fees and one-time rents. Release SOL passes through the key only within the atomic release→swap→record tx, so nothing should stay outstanding.
+- Monitoring and alerts:
+  - `buyback_outstanding_lamports > 0` for more than 15 min;
+  - any `BuybackWrittenOff`;
+  - cranks failing more than 5 min in a row;
+  - EMA age over 10 min;
+  - keeper balance under 0.1 SOL.
+- Rotation: `set_keeper(new)` from `OPS_MS`, which also writes off any outstanding release so a lost or compromised key can't block rotation. Rotate on any suspicion, and at least quarterly.
+- Worst case for a compromised keeper: the hourly bucket (burst ≤ cap, sustained ≤ cap/h). Pause (`set_paused`) is the brake.
+
+### 6. SOL funding (mainnet rent = (bytes + 128) × 6,960 lamports)
+| item | SOL | note |
+|---|---|---|
+| program deploy: buffer (temporary) | 4.03 | refunded after deploy |
+| programdata (exact size 579,541 B) | 4.03 | **5.04** with 25% headroom for future upgrades (recommended `--max-len`) |
+| deploy tx fees + priority | ~0.05 | ~600 write txs |
+| **deployer peak** | **≈ 9.2** | net ≈ 5.1 after the buffer refund |
+| initialize (config 0.0047 + canvas 0.0101 + vault 0.0009) + treasury rent | ~0.02 | launch key |
+| Squads: 2–3 multisigs + vault txs (authority transfer, accept_admin, verify PDA) | ~0.1 | |
+| keeper float | 0.5 | |
+| launch smoke tests | ~1.1 + tokens | one 1×1 SOL buy ≈ $100 |
+| **total to have ready** | **≈ 11 SOL** | of which ≈ 5 is locked as program rent |
+
+- Final-auction rents are paid by whoever starts or settles it: auction 0.0101 and the lot ad 0.0051.
+- Ad rent (0.0051) is paid by each buyer.
 
 ## Deploy (devnet, dry-run by default)
 ```bash

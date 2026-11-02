@@ -16,6 +16,20 @@ pub use state::*;
 
 declare_id!("A4uaXC9sU3UrbqcPZL4ZJMd2aKzmo5Rq4yDvRm8gpTS");
 
+// Embedded security contact (https://github.com/neodyme-labs/solana-security-txt). PLACEHOLDER values: confirm the
+// contact, policy and source URLs with the customer before the verified mainnet build.
+#[cfg(not(feature = "no-entrypoint"))]
+solana_security_txt::security_txt! {
+    name: "The Million Pixel Burn (pixel)",
+    project_url: "https://pixelburn.applicure.io",
+    contacts: "email:security@applicure.io",
+    policy: "https://pixelburn.applicure.io/security",
+    preferred_languages: "en,de",
+    source_code: "https://github.com/applicure/pixelburn",
+    source_release: "",
+    auditors: "Internal review 2026-11 (see chain/NOTES.md, audit rounds 1-4)"
+}
+
 #[program]
 pub mod pixel {
     use super::*;

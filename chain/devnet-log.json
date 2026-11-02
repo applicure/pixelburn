@@ -327,5 +327,26 @@
     "tokensBurned": "3133646523252",
     "supplyBefore": "472896323282668",
     "supplyAfter": "469762676759416"
+  },
+  {
+    "step": "upgrade: program extend +19,896 bytes (admin)",
+    "sig": "2P4FSfkYBjuDyJ8qqf91hNDrir793aneyuP6dBFqeAnjcZXrC75mriwVkAkWx5h2TcMRiVdhtB29c67WtJf8UZwY",
+    "explorer": "https://explorer.solana.com/tx/2P4FSfkYBjuDyJ8qqf91hNDrir793aneyuP6dBFqeAnjcZXrC75mriwVkAkWx5h2TcMRiVdhtB29c67WtJf8UZwY?cluster=devnet",
+    "at": "2026-11-02T14:06:12.859Z",
+    "slot": 517878972
+  },
+  {
+    "step": "upgrade: deploy commit 9665023 (backstop)",
+    "sig": "qF5ZeV62yiQHGGjobQqEB29R3sCZ1XQaeQuLwXHvRQzLtQjmW1WcpHgBkm6GeyyXcUT6j5UtEpzzEjtj6ixcSD7",
+    "explorer": "https://explorer.solana.com/tx/qF5ZeV62yiQHGGjobQqEB29R3sCZ1XQaeQuLwXHvRQzLtQjmW1WcpHgBkm6GeyyXcUT6j5UtEpzzEjtj6ixcSD7?cluster=devnet",
+    "at": "2026-11-02T14:06:12.860Z",
+    "slot": 517879057,
+    "soSha256": "f7b08356d0dc64d488034688895e7affd9152aea7389888b2b2d7c111a9e3eb6"
+  },
+  {
+    "step": "transfer 250M PXTEST admin -> buyer (web wallet test, lead-approved)",
+    "sig": "2EJfwrZU4awViyqe5EbzuN6NUhMrzH9PtRrYTR5xgzMERHgYhXgZPgYEkFcHyNKu7aqsXNBSeh567G4Gginqq9C7",
+    "explorer": "https://explorer.solana.com/tx/2EJfwrZU4awViyqe5EbzuN6NUhMrzH9PtRrYTR5xgzMERHgYhXgZPgYEkFcHyNKu7aqsXNBSeh567G4Gginqq9C7?cluster=devnet",
+    "at": "2026-11-02T14:12:54.248Z"
   }
 ]

@@ -21,8 +21,8 @@ EXTEND=0; if (( NEW > LEN )); then EXTEND=$(( NEW - LEN + 16384 )); fi   # + 16 
 echo "programdata: $LEN bytes, new .so: $NEW bytes, extend by: $EXTEND"
 echo "payer balance: $(solana balance -k $PAYER --url "$URL")  (buffer needs ~$(solana rent "$NEW" --url "$URL" | awk '{print $3}') SOL temporarily, refunded)"
 echo "commands:"
-(( EXTEND > 0 )) && echo "  solana program extend $PROGRAM_ID $EXTEND --keypair $PAYER --url <$LABEL>"
+(( EXTEND > 0 )) && echo "  solana program extend $PROGRAM_ID $EXTEND --keypair $ADMIN --url <$LABEL>   # CLI 3.x: extend must be signed (and paid) by the upgrade authority"
 echo "  solana program deploy $SO --program-id $PROGRAM_ID --keypair $PAYER --upgrade-authority $ADMIN --url <$LABEL>"
 if (( EXECUTE == 0 )); then echo "DRY RUN: nothing sent."; exit 0; fi
-(( EXTEND > 0 )) && solana program extend "$PROGRAM_ID" "$EXTEND" --keypair "$PAYER" --url "$URL"
+(( EXTEND > 0 )) && solana program extend "$PROGRAM_ID" "$EXTEND" --keypair "$ADMIN" --url "$URL"
 solana program deploy "$SO" --program-id "$PROGRAM_ID" --keypair "$PAYER" --upgrade-authority "$ADMIN" --url "$URL"
