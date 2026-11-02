@@ -391,7 +391,7 @@ Airdrops: `solana airdrop 2 <PUBKEY> --url devnet`. The public faucet gives ≤ 
 ### Commands (in order; every script is dry-run first, then `--execute`)
 ```bash
 cd chain
-export SOLANA_RPC_HELIUS_KEY=…            # optional; scripts never print it
+export SOLANA_RPC_HELIUS_KEY=…            # optional (or DEVNET_RPC_URL); SOLANA_RPC is ignored; scripts never print it
 anchor build && ./scripts/deploy-devnet.sh                     # 0. dry run: checks keys, declare_id, rent, balances
 # 1. fund (repeat until the balances in the table above are reached)
 for k in deployer admin keeper buyer; do solana airdrop 2 $(solana address -k keys/$k.json) --url devnet; done
@@ -480,13 +480,14 @@ cd scripts && pnpm install --ignore-workspace
 node init.ts                           # dry run: plan + tx sizes + simulation
 node init.ts --execute                 # creates the test mint (1B, 6 dec, authority revoked), funds treasury, initialize
 ```
-RPC env (both scripts):
-- `SOLANA_RPC` (full URL incl. key) takes precedence.
+RPC (all chain scripts, via `scripts/devnet-rpc.ts`; the shell deploy script mirrors it):
+- `DEVNET_RPC_URL` takes precedence.
 - Otherwise `SOLANA_RPC_HELIUS_KEY` (gives `https://devnet.helius-rpc.com/?api-key=…`).
-- Otherwise the public devnet endpoint.
-- `SOLANA_CLUSTER` defaults to `devnet`, and only devnet is accepted.
+- Otherwise `clusterApiUrl("devnet")`.
+- **`SOLANA_RPC` is deliberately ignored**: in the root `.env` it is the QuickNode **mainnet** endpoint.
+- **Hard guard:** every script checks `getGenesisHash()` (or `solana genesis-hash`) at startup and exits 1 unless it equals devnet's `EtWTRABZaYq6iMfeYKouRu166VU2xqa1wcaWoxPkrZBG`. Verified: a mainnet or testnet URL in `DEVNET_RPC_URL` → `REFUSING…`, exit 1. `SOLANA_RPC=<mainnet>` set → scripts still run on devnet.
 - The URL and key are never printed. Errors are redacted (`api-key=<redacted>`), and the deploy command is shown with `--url <label>`.
-- Both scripts refuse any mainnet URL. `deploy-devnet.sh` prints the M-2.1 launch requirement: before mainnet, move the upgrade authority and admin to a timelocked Squads multisig, or make the program immutable.
+- `deploy-devnet.sh` prints the M-2.1 launch requirement: before mainnet, move the upgrade authority and admin to a timelocked Squads multisig, or make the program immutable.
 
 ## Requests
 - **Root (done by the lead)**: the override below is now in `pnpm-workspace.yaml`. With it the receiver loads in Node (verified in the workspace). `@pythnetwork/pyth-solana-receiver` → `@pythnetwork/solana-utils` → `jito-ts` pulls

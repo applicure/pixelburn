@@ -1,4 +1,4 @@
-import { Connection, Keypair, PublicKey } from "@solana/web3.js";
+import { Connection, Keypair, PublicKey, type TransactionInstruction } from "@solana/web3.js";
 import { CU_LIMITS } from "@mpb/sdk";
 import type { ChainReader } from "../chain/accounts.js";
 import type { Logger } from "../lib/log.js";
@@ -20,6 +20,10 @@ export interface KeeperConfig {
   maxPriceImpactPct: number;
   jupiterApiUrl: string;
   jito: { enabled: boolean; url: string; tipLamports: number };
+  /** KEEPER_BUYBACK_ENABLED: false = crank only. */
+  buybackEnabled: boolean;
+  /** Leave an outstanding release alone for this long (someone may be mid-way through a manual run). */
+  outstandingGraceSecs: number;
   /** Dry-run: simulate built txs (needs a keypair or pubkey with the keeper role). */
   simulateInDryRun?: boolean;
   /** Delay between chunks, randomized: [min, min+jitter) */
@@ -70,8 +74,58 @@ export class Keeper {
     return sig;
   }
 
+  /**
+   * An outstanding release blocks every later release_buyback. Our own buybacks are atomic and can't
+   * leave one, so this only happens after an external/manual release or a crash. Once it is older than
+   * `outstandingGraceSecs` (so a human's 3-step run isn't interrupted), resume it the way the chain's
+   * devnet-verify does: buy with the outstanding lamports and record (no new release). If no route can
+   * buy it, refund it with record_buyback_burn(0, 0).
+   */
+  async resolveOutstanding(sent: string[]): Promise<"none" | "waiting" | "resolved"> {
+    const o = (await this.chain?.fetchBuybackOutstanding?.().catch(() => null)) ?? null;
+    if (!o || o.lamports === 0n) return "none";
+    if (o.sinceSecs < this.cfg.outstandingGraceSecs) {
+      this.log.warn(`buyback: release of ${o.lamports} lamports outstanding for ${o.sinceSecs}s (< ${this.cfg.outstandingGraceSecs}s grace) — waiting, not releasing`);
+      return "waiting";
+    }
+    const routes = typeof this.routes === "function" ? await this.routes().catch(() => []) : this.routes;
+    let plan: SwapPlan | null = null;
+    for (const r of routes) {
+      plan = await r.plan(o.lamports, this.keeperKey);
+      if (plan) break;
+    }
+    let ixs: TransactionInstruction[] | null;
+    let what: string;
+    if (plan && plan.impactPct <= this.cfg.maxPriceImpactPct) {
+      const leftover = await this.keeperTokenBalance();
+      const record = await this.actions.recordBuybackBurnIxs(this.keeperKey, plan.lamportsSpent, plan.minTokensOut + leftover);
+      ixs = record ? [...(await plan.build()).ixs, ...record] : null;
+      what = `resume via ${plan.route}: spend ${plan.lamportsSpent}, burn ${plan.minTokensOut + leftover}`;
+    } else {
+      ixs = await this.actions.recordBuybackBurnIxs(this.keeperKey, 0n, 0n);
+      what = "refund (record_buyback_burn 0, 0): no usable buy route";
+    }
+    if (!ixs) return "waiting";
+    this.log.warn(`buyback: outstanding release of ${o.lamports} lamports — ${what}`);
+    const sig = await sendIxs(this.conn, this.payer ?? Keypair.generate(), ixs, this.sendOpts, this.log, "buyback-resolve-outstanding");
+    if (sig) {
+      sent.push(sig);
+      this.log.info(`buyback: outstanding release resolved ${sig}`);
+    }
+    return "resolved";
+  }
+
   async buybackOnce(): Promise<{ chunks: bigint[]; sent: string[] }> {
     const sent: string[] = [];
+    if (!this.cfg.buybackEnabled) {
+      this.log.info("buyback: disabled (KEEPER_BUYBACK_ENABLED=0); cranking continues");
+      return { chunks: [], sent };
+    }
+    const outstanding = await this.resolveOutstanding(sent).catch((e) => {
+      this.log.error(`buyback: resolving outstanding release failed: ${(e as Error).message}`);
+      return "waiting" as const;
+    });
+    if (outstanding !== "none") return { chunks: [], sent }; // never release while one is open
     const vault = (await this.chain?.fetchBuybackVaultLamports().catch(() => null)) ?? null;
     if (vault === null) {
       this.log.warn("buyback: vault balance unavailable (PROGRAM_ID unset or vault missing) — skipped");

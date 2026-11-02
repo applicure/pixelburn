@@ -2,6 +2,8 @@
 import { Connection, Keypair, LAMPORTS_PER_SOL } from "@solana/web3.js";
 import { readFileSync } from "node:fs";
 const c = new Connection("https://api.devnet.solana.com", "confirmed");
+// genesis-hash guard (hardcoded devnet URL, belt and braces)
+if ((await c.getGenesisHash()) !== "EtWTRABZaYq6iMfeYKouRu166VU2xqa1wcaWoxPkrZBG") { console.error("REFUSING: not devnet"); process.exit(1); }
 const targets = { deployer: 6.5, admin: 1.5, keeper: 0.3, buyer: 3.5 };
 const pk = (n) => Keypair.fromSecretKey(Uint8Array.from(JSON.parse(readFileSync(new URL(`../keys/${n}.json`, import.meta.url))))).publicKey;
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));

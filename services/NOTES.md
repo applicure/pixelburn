@@ -102,8 +102,13 @@ docker build -f services/Dockerfile --target keeper  -t mpb-keeper .
   quote wrapped in WSOL and closed again); `jupiter` is the last fallback (mainnet only). Every
   chunk is ONE tx: release → buy → record. A chunk with no route, too much impact, or a min-out
   below the on-chain EMA bar is skipped before anything is built, so `release_buyback` is never
-  sent alone. Dry-run with a keypair simulates the exact tx. Devnet sizing (thin pool: 0.1 SOL ≈ 10%
-  impact): chunks 0.02–0.05 SOL, impact cap 8%, every 10 ± 2 min. Mainnet should keep the 1% cap.
+  sent alone. Dry-run with a keypair simulates the exact tx. The curve route never buys more than 90%
+  of the remaining real tokens (selling out the curve triggers migration) and logs a warning when the
+  curve is complete. An outstanding release (external/manual run or crash) blocks new releases. It is
+  left alone for `KEEPER_OUTSTANDING_GRACE_SECS` (900), then resumed as buy + record with the
+  outstanding lamports (no new release), or refunded with `record_buyback_burn(0, 0)` when no route
+  can buy. `KEEPER_BUYBACK_ENABLED=0` means crank-only. Devnet sizing (lead): chunks 0.005–0.02 SOL,
+  ≤ 0.02 SOL per run, impact cap 8%, every 10 ± 2 min. Mainnet should keep the 1% cap.
 - **Pointing at the deployed program**: api needs `PROGRAM_ID` + `TOKEN_MINT`. indexer needs
   `PROGRAM_ID`. keeper needs `PROGRAM_ID` + `KEEPER_KEYPAIR` (must equal `Config.keeper`) + `TOKEN_MINT`
   (Jupiter quotes / leftover burn), plus `KEEPER_LIVE=1` to actually send. All three also need the

@@ -5,9 +5,10 @@
  *   node graduate-devnet.ts migrate [--execute]   permissionless pump `migrate_v2` (on mainnet pump's bot does this)
  *   node graduate-devnet.ts switch  [--execute]   admin set_price_source(canonical Pool, seed = pool spot)
  * Then: node devnet-verify.ts crank 10 65   (warm-up; token payments resume when tokenPricingStatus is ok)
- * Devnet only; never prints secrets or RPC URLs. Appends every sent tx to ../devnet-log.json.
+ * Devnet only (devnet-rpc.ts: DEVNET_RPC_URL / Helius devnet / public devnet + genesis-hash guard); never prints secrets or RPC URLs. Appends every sent tx to ../devnet-log.json.
  */
-import { ComputeBudgetProgram, Connection, Keypair, PublicKey, Transaction, TransactionInstruction, clusterApiUrl } from "@solana/web3.js";
+import { ComputeBudgetProgram, Keypair, PublicKey, Transaction, TransactionInstruction } from "@solana/web3.js";
+import { devnetConnection } from "./devnet-rpc.ts";
 import {
   OnlinePumpSdk, PUMP_SDK, canonicalPumpPoolPda, getBuySolAmountFromTokenAmount, isBondingCurveMigrated,
 } from "@pump-fun/pump-sdk";
@@ -24,9 +25,7 @@ const here = dirname(fileURLToPath(import.meta.url));
 const EXECUTE = process.argv.includes("--execute");
 const cmd = process.argv[2] ?? "status";
 const keys = (n: string) => Keypair.fromSecretKey(Uint8Array.from(JSON.parse(readFileSync(resolve(here, `../keys/${n}.json`), "utf8"))));
-const url = process.env.SOLANA_RPC ?? (process.env.SOLANA_RPC_HELIUS_KEY ? `https://devnet.helius-rpc.com/?api-key=${process.env.SOLANA_RPC_HELIUS_KEY}` : clusterApiUrl("devnet"));
-if (/mainnet/i.test(url) || (process.env.SOLANA_CLUSTER ?? "devnet") !== "devnet") throw new Error("devnet only");
-const c = new Connection(url, "confirmed");
+const { connection: c } = await devnetConnection(); // genesis-hash guard: exits unless devnet
 const ata = (owner: PublicKey, mint: PublicKey, tp: PublicKey) =>
   PublicKey.findProgramAddressSync([owner.toBuffer(), tp.toBuffer(), mint.toBuffer()], ASSOCIATED_TOKEN_PROGRAM_ID)[0];
 

@@ -12,6 +12,7 @@ const cfg = (live: boolean): KeeperConfig => ({
   maxChunkLamports: 2_000_000_000n, minChunkLamports: 500_000_000n, maxPerRunLamports: 3_000_000_000n, reserveLamports: 0n,
   slippageBps: 100, maxPriceImpactPct: 1, jupiterApiUrl: "https://jup.invalid", jito: { enabled: false, url: "", tipLamports: 0 },
   chunkDelayMs: { min: 0, jitter: 1 },
+  buybackEnabled: true, outstandingGraceSecs: 900,
 });
 
 const dummyIx = () => new TransactionInstruction({ programId: PublicKey.default, keys: [], data: Buffer.alloc(0) });
@@ -75,6 +76,43 @@ describe("keeper", () => {
     const r = await k.buybackOnce();
     expect(r.chunks.reduce((a, b) => a + b, 0n)).toBe(1_000_000_000n);
     expect(planned.reduce((a, b) => a + b, 0n)).toBe(1_000_000_000n);
+  });
+
+  it("an outstanding release blocks new releases: waits within grace, then resumes (buy+record, no release)", async () => {
+    const calls: string[] = [];
+    const actions: KeeperActions = {
+      crankTokenPriceIxs: async () => null,
+      releaseBuybackIxs: async () => (calls.push("release"), [dummyIx()]),
+      recordBuybackBurnIxs: async (_k, l, t) => (calls.push(`record ${l} ${t}`), [dummyIx()]),
+    };
+    const route: SwapRoute = { name: "pumpswap-pool", plan: async (l) => ({ route: "pumpswap-pool", minTokensOut: 7n, lamportsSpent: l - 1n, impactPct: 1, build: async () => ({ ixs: [dummyIx()], lookupTables: [] }) }) };
+    const chain = new FakeChain();
+    chain.fetchBuybackVaultLamports = async () => 5_000_000_000n;
+    let since = 60;
+    (chain as any).fetchBuybackOutstanding = async () => ({ lamports: 20_000_000n, sinceSecs: since });
+    const k = new Keeper(explodingConn, null, actions, chain, cfg(false), silentLogger, async () => {}, [route]);
+    expect(await k.buybackOnce()).toEqual({ chunks: [], sent: [] });
+    expect(calls).toEqual([]); // within grace: nothing
+    since = 1_000;
+    await k.buybackOnce();
+    expect(calls).toEqual(["record 19999999 7"]); // resumed with the outstanding lamports, never a new release
+  });
+
+  it("refunds an old outstanding release when no route can buy, and honours KEEPER_BUYBACK_ENABLED=0", async () => {
+    const calls: string[] = [];
+    const actions: KeeperActions = {
+      crankTokenPriceIxs: async () => null,
+      releaseBuybackIxs: async () => (calls.push("release"), [dummyIx()]),
+      recordBuybackBurnIxs: async (_k, l, t) => (calls.push(`record ${l} ${t}`), [dummyIx()]),
+    };
+    const chain = new FakeChain();
+    chain.fetchBuybackVaultLamports = async () => 5_000_000_000n;
+    (chain as any).fetchBuybackOutstanding = async () => ({ lamports: 20_000_000n, sinceSecs: 5_000 });
+    await new Keeper(explodingConn, null, actions, chain, cfg(false), silentLogger, async () => {}, []).buybackOnce();
+    expect(calls).toEqual(["record 0 0"]);
+    calls.length = 0;
+    await new Keeper(explodingConn, null, actions, chain, { ...cfg(false), buybackEnabled: false }, silentLogger, async () => {}, []).buybackOnce();
+    expect(calls).toEqual([]);
   });
 
   it("refuses to start live without a keypair", () => {

@@ -77,6 +77,8 @@ export interface ChainReader {
   fetchAuctionLotBlocks?(): Promise<number[] | null>;
   /** Lamports release_buyback would currently allow (token bucket); null if unknown. */
   fetchBuybackReleasable?(): Promise<bigint | null>;
+  /** An unreconciled release (Config.buyback_outstanding_lamports) and roughly when it happened. */
+  fetchBuybackOutstanding?(): Promise<{ lamports: bigint; sinceSecs: number } | null>;
 }
 
 export class RpcChainReader implements ChainReader {
@@ -144,6 +146,13 @@ export class RpcChainReader implements ChainReader {
     let allowance = c.buybackAllowance + (cap * elapsed) / 3600n;
     if (allowance > cap) allowance = cap;
     return c.buybackOutstandingLamports > 0n ? 0n : allowance;
+  }
+
+  async fetchBuybackOutstanding(): Promise<{ lamports: bigint; sinceSecs: number } | null> {
+    const c = await this.fetchConfig();
+    if (!c) return null;
+    // release_buyback refills/updates the allowance timestamp, so it bounds the release time.
+    return { lamports: c.buybackOutstandingLamports, sinceSecs: Math.floor(Date.now() / 1000) - Number(c.buybackAllowanceUpdatedAt) };
   }
 
   async fetchAuctionLotBlocks(): Promise<number[] | null> {

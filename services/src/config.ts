@@ -71,6 +71,8 @@ const EnvSchema = z.object({
   // Keeper
   KEEPER_KEYPAIR: optStr,
   KEEPER_LIVE: bool,
+  KEEPER_BUYBACK_ENABLED: z.string().optional().transform((v) => v === undefined || v === "" ? true : v === "1" || v === "true"),
+  KEEPER_OUTSTANDING_GRACE_SECS: z.coerce.number().int().default(900),
   KEEPER_CRANK_INTERVAL_MS: z.coerce.number().int().default(45_000), // chain: crank every 30-60 s (EMA moves <= 2%/crank)
   KEEPER_BUYBACK_INTERVAL_MS: z.coerce.number().int().default(15 * 60_000),
   KEEPER_BUYBACK_JITTER_MS: z.coerce.number().int().default(5 * 60_000),

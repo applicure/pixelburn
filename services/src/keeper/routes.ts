@@ -54,7 +54,10 @@ export class PumpCurveRoute implements SwapRoute {
         this.online.fetchBuyState(this.mint, user, this.tokenProgram),
       ]);
       const curve = st.bondingCurve;
-      if (curve.complete) return null; // migrated: Jupiter's job
+      if (curve.complete) {
+        this.log.warn("pump-curve: bonding curve is complete (migrated) — not buying on the curve");
+        return null;
+      }
       // mintSupply must be the LIVE supply (burns shrink it); the curve's initial supply over-quotes
       // and the buy then fails with NotEnoughTokensToBuy (6021), seen on devnet by the chain team.
       const mintSupply = new BN((await this.conn.getTokenSupply(this.mint, "confirmed")).value.amount);
@@ -64,6 +67,13 @@ export class PumpCurveRoute implements SwapRoute {
       };
       const tokens = getBuyTokenAmountFromSolAmount({ ...common, amount: new BN(lamports.toString()) });
       if (tokens.isZero()) return null;
+      // Never buy the curve out: that triggers pump.fun's migration (and breaks the curve price source).
+      // Keep at least 10% of the remaining real tokens on the curve.
+      const real = BigInt(curve.realTokenReserves.toString());
+      if (BigInt(tokens.toString()) * 10n > real * 9n) {
+        this.log.warn(`pump-curve: buy of ${tokens} tokens would nearly exhaust the curve (${real} real tokens left) — skipping, nothing released`);
+        return null;
+      }
       // What these exact tokens cost incl. pump fees, at the state we just read (<= lamports).
       const cost = getBuySolAmountFromTokenAmount({ ...common, amount: tokens });
       // Impact (incl. fees) vs. buying at the current marginal price.

@@ -5,11 +5,12 @@
  *   node pump-devnet.ts             # DRY RUN: builds create+buy and SIMULATES it (sigVerify off), sends nothing
  *   node pump-devnet.ts --execute   # sends (spends devnet SOL); saves the mint keypair to ../keys/pump-mint.json
  *
- * Env: SOLANA_RPC / SOLANA_RPC_HELIUS_KEY (devnet) as in init.ts, CREATOR_KEYPAIR (default ../keys/admin.json),
+ * Env: DEVNET_RPC_URL / SOLANA_RPC_HELIUS_KEY (devnet; SOLANA_RPC is ignored), genesis-hash guarded, CREATOR_KEYPAIR (default ../keys/admin.json),
  *      BUY_SOL (default 0.5), NAME, SYMBOL, URI. Never prints RPC URLs or keys.
  * Uses @pump-fun/pump-sdk 4.3.1 (official) for the instruction lists.
  */
-import { ComputeBudgetProgram, Connection, Keypair, LAMPORTS_PER_SOL, PublicKey, TransactionMessage, VersionedTransaction, clusterApiUrl } from "@solana/web3.js";
+import { ComputeBudgetProgram, Keypair, LAMPORTS_PER_SOL, PublicKey, TransactionMessage, VersionedTransaction } from "@solana/web3.js";
+import { devnetConnection, redact } from "./devnet-rpc.ts";
 import { OnlinePumpSdk, PUMP_SDK, bondingCurvePda, getBuyTokenAmountFromSolAmount } from "@pump-fun/pump-sdk";
 import BN from "bn.js";
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
@@ -20,21 +21,12 @@ const here = dirname(fileURLToPath(import.meta.url));
 const EXECUTE = process.argv.includes("--execute");
 const keysDir = resolve(here, "../keys");
 
-function rpc(): { url: string; label: string } {
-  if ((process.env.SOLANA_CLUSTER ?? "devnet") !== "devnet") throw new Error("devnet only");
-  if (process.env.SOLANA_RPC) return { url: process.env.SOLANA_RPC, label: "SOLANA_RPC (redacted)" };
-  if (process.env.SOLANA_RPC_HELIUS_KEY)
-    return { url: `https://devnet.helius-rpc.com/?api-key=${process.env.SOLANA_RPC_HELIUS_KEY}`, label: "Helius devnet (redacted)" };
-  return { url: clusterApiUrl("devnet"), label: "public devnet" };
-}
 // Short inline data: URI as the description (nothing to host; a JSON URI makes the create+buy tx exceed 1232 bytes).
 const DEFAULT_URI = "data:,Devnet test token, no value";
 const load = (p: string) => Keypair.fromSecretKey(Uint8Array.from(JSON.parse(readFileSync(p, "utf8"))));
 
 async function main() {
-  const { url, label } = rpc();
-  if (/mainnet/i.test(url)) throw new Error("refusing mainnet");
-  const connection = new Connection(url, "confirmed");
+  const { connection, label } = await devnetConnection(); // exits unless devnet
   const creatorPath = process.env.CREATOR_KEYPAIR ?? resolve(keysDir, "admin.json");
   const creator = existsSync(creatorPath) ? load(creatorPath) : Keypair.generate();
   const mintPath = resolve(keysDir, "pump-mint.json");
@@ -79,6 +71,6 @@ async function main() {
 
 main().catch((e: unknown) => {
   const m = e instanceof Error ? e.message : String(e);
-  console.error(m.replace(/api-key=[^&\s"']+/gi, "api-key=<redacted>"));
+  console.error(redact(m));
   process.exit(1);
 });

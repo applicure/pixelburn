@@ -9,8 +9,9 @@
  *   2. fund the treasury to rent-exemption if it is a fresh account
  *   3. initialize Config/Canvas/buyback vault (admin must be the program's upgrade authority)
  *
- * Env: SOLANA_RPC (full RPC URL incl. key) or SOLANA_RPC_HELIUS_KEY (devnet -> https://devnet.helius-rpc.com/?api-key=…),
- *      SOLANA_CLUSTER (default devnet; public endpoint fallback). The RPC URL and keys are never printed.
+ * Env: DEVNET_RPC_URL, else SOLANA_RPC_HELIUS_KEY (Helius devnet), else public devnet. SOLANA_RPC is IGNORED (it is the
+ *      mainnet endpoint in the root .env). Genesis-hash guard (devnet-rpc.ts) exits unless the cluster is devnet.
+ *      The RPC URL and keys are never printed.
  *      ADMIN_KEYPAIR (default ../keys/admin.json, else ~/.config/solana/id.json),
  *      MINT=<pubkey> (use an EXISTING mint, e.g. a pump.fun coin from pump-devnet.ts; its token program is detected and
  *      no test mint is created), TREASURY, KEEPER (default admin),
@@ -27,7 +28,6 @@ import {
   SystemProgram,
   Transaction,
   TransactionInstruction,
-  clusterApiUrl,
 } from "@solana/web3.js";
 import {
   ASSOCIATED_TOKEN_PROGRAM_ID,
@@ -46,6 +46,7 @@ import {
   type PriceSource,
 } from "@mpb/sdk";
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { devnetConnection, redact } from "./devnet-rpc.ts";
 import { homedir } from "node:os";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -118,24 +119,8 @@ const revokeMintAuthority = (mint: PublicKey, authority: PublicKey) =>
     data: Buffer.from([6, 0, 0]), // SetAuthority(MintTokens, None)
   });
 
-/** Resolves the RPC endpoint. Returns a label that is safe to print (never the URL or key). */
-function resolveRpc(): { url: string; label: string } {
-  const cluster = process.env.SOLANA_CLUSTER ?? "devnet";
-  if (cluster !== "devnet") throw new Error(`SOLANA_CLUSTER=${cluster} not supported by this script (devnet only)`);
-  if (process.env.SOLANA_RPC) return { url: process.env.SOLANA_RPC, label: `SOLANA_RPC (${cluster}, redacted)` };
-  if (process.env.SOLANA_RPC_HELIUS_KEY) {
-    return {
-      url: `https://devnet.helius-rpc.com/?api-key=${process.env.SOLANA_RPC_HELIUS_KEY}`,
-      label: "Helius devnet (key redacted)",
-    };
-  }
-  return { url: clusterApiUrl("devnet"), label: "public devnet endpoint" };
-}
-
 async function main() {
-  const { url: rpc, label: rpcLabel } = resolveRpc();
-  if (/mainnet/i.test(rpc)) throw new Error("refusing to run against mainnet");
-  const connection = new Connection(rpc, "confirmed");
+  const { connection, label: rpcLabel } = await devnetConnection(); // genesis-hash guard: exits unless devnet
   const defaultAdmin = existsSync(resolve(here, "../keys/admin.json"))
     ? resolve(here, "../keys/admin.json")
     : resolve(homedir(), ".config/solana/id.json");
@@ -267,15 +252,6 @@ async function main() {
     console.log("\nDry run only. Note: steps that depend on earlier ones (e.g. initialize needs the mint) fail simulation until those land.");
   }
   console.log("\nNext: keeper cranks crank_token_price every 30-60 s; token payments go live after 10 cranks spanning >= 10 min.");
-}
-
-/** Strip RPC URL and keys from anything we print on failure. */
-function redact(text: string): string {
-  let out = text;
-  for (const secret of [process.env.SOLANA_RPC, process.env.SOLANA_RPC_HELIUS_KEY]) {
-    if (secret) out = out.split(secret).join("<redacted>");
-  }
-  return out.replace(/api-key=[^&\s"']+/gi, "api-key=<redacted>");
 }
 
 main().catch((e: unknown) => {

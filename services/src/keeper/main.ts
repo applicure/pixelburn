@@ -18,7 +18,7 @@ const conn = new Connection(cfg.rpcUrl, "confirmed");
 const payer = loadKeypair(cfg.KEEPER_KEYPAIR);
 const chain = cfg.PROGRAM_ID ? new RpcChainReader(conn, cfg.PROGRAM_ID, cfg.TOKEN_MINT) : null;
 
-log.info(`cluster=${cfg.SOLANA_CLUSTER} mode=${cfg.KEEPER_LIVE ? "LIVE" : "dry-run"} keeper=${payer?.publicKey.toBase58() ?? "(none)"} program=${cfg.PROGRAM_ID ?? "(unset)"} jito=${cfg.JITO_ENABLED ? "on" : "off"}`);
+log.info(`cluster=${cfg.SOLANA_CLUSTER} mode=${cfg.KEEPER_LIVE ? "LIVE" : "dry-run"} buyback=${cfg.KEEPER_BUYBACK_ENABLED ? "on" : "off"} keeper=${payer?.publicKey.toBase58() ?? "(none)"} program=${cfg.PROGRAM_ID ?? "(unset)"} jito=${cfg.JITO_ENABLED ? "on" : "off"}`);
 
 // Buy routes are resolved from the CURRENT Config on every buyback run, so a price-source switch
 // (curve -> PumpSwap pool after graduation) is picked up without a restart.
@@ -51,6 +51,8 @@ const keeper = new Keeper(conn, payer, cfg.PROGRAM_ID ? new SdkKeeperActions(con
   jito: { enabled: cfg.JITO_ENABLED, url: cfg.JITO_BLOCK_ENGINE_URL, tipLamports: cfg.JITO_TIP_LAMPORTS },
   chunkDelayMs: { min: 5_000, jitter: 25_000 },
   simulateInDryRun: !!payer,
+  buybackEnabled: cfg.KEEPER_BUYBACK_ENABLED,
+  outstandingGraceSecs: cfg.KEEPER_OUTSTANDING_GRACE_SECS,
 }, log, undefined, resolveRoutes);
 
 if (chain) {

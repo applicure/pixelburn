@@ -2,7 +2,8 @@
 # Devnet deploy for the `pixel` program. DRY RUN by default; pass --execute to deploy.
 #   ./scripts/deploy-devnet.sh            # checks toolchain, keys, balance, prints the deploy command + cost
 #   ./scripts/deploy-devnet.sh --execute  # builds and deploys to devnet (spends devnet SOL)
-# RPC: SOLANA_RPC (full URL incl. key) > SOLANA_RPC_HELIUS_KEY (Helius devnet) > public devnet.
+# RPC: DEVNET_RPC_URL > SOLANA_RPC_HELIUS_KEY (Helius devnet) > public devnet. SOLANA_RPC is deliberately IGNORED (it is
+# the mainnet endpoint in the root .env). Genesis-hash guard: refuses unless the cluster is devnet.
 # SOLANA_CLUSTER defaults to devnet (only devnet is accepted). The RPC URL / keys are never printed.
 set -euo pipefail
 cd "$(dirname "$0")/.."
@@ -11,8 +12,8 @@ EXECUTE=0
 [[ "${1:-}" == "--execute" ]] && EXECUTE=1
 CLUSTER="${SOLANA_CLUSTER:-devnet}"
 if [[ "$CLUSTER" != "devnet" ]]; then echo "SOLANA_CLUSTER=$CLUSTER not supported (devnet only)" >&2; exit 1; fi
-if [[ -n "${SOLANA_RPC:-}" ]]; then
-  URL="$SOLANA_RPC"; URL_LABEL="SOLANA_RPC ($CLUSTER, redacted)"
+if [[ -n "${DEVNET_RPC_URL:-}" ]]; then
+  URL="$DEVNET_RPC_URL"; URL_LABEL="DEVNET_RPC_URL (redacted)"
 elif [[ -n "${SOLANA_RPC_HELIUS_KEY:-}" ]]; then
   URL="https://devnet.helius-rpc.com/?api-key=${SOLANA_RPC_HELIUS_KEY}"; URL_LABEL="Helius devnet (key redacted)"
 else
@@ -26,6 +27,11 @@ WALLET="${DEPLOYER_KEYPAIR:-keys/deployer.json}"
 PROGRAM_KP="${PROGRAM_KEYPAIR:-target/deploy/pixel-keypair.json}"
 
 if [[ "$URL" == *mainnet* ]]; then echo "refusing: mainnet RPC" >&2; exit 1; fi
+DEVNET_GENESIS="EtWTRABZaYq6iMfeYKouRu166VU2xqa1wcaWoxPkrZBG"
+GENESIS="$(solana genesis-hash --url "$URL" 2>/dev/null || true)"
+if [[ "$GENESIS" != "$DEVNET_GENESIS" ]]; then
+  echo "REFUSING: $URL_LABEL is not devnet (genesis '${GENESIS:-unreachable}', expected $DEVNET_GENESIS)" >&2; exit 1
+fi
 command -v anchor >/dev/null || { echo "anchor not installed" >&2; exit 1; }
 command -v solana >/dev/null || { echo "solana cli not installed" >&2; exit 1; }
 echo "anchor:  $(anchor --version)"

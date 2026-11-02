@@ -6,9 +6,11 @@
  *   node devnet-verify.ts token-buy x y             admin buys a 1x1 with the pump coin
  *   node devnet-verify.ts buyback lamports          keeper: release -> pump buy -> record_buyback_burn
  *   node devnet-verify.ts pause | unpause           admin
- * Env: SOLANA_RPC / SOLANA_RPC_HELIUS_KEY optional (never printed).
+ * Env: DEVNET_RPC_URL or SOLANA_RPC_HELIUS_KEY optional (never printed). SOLANA_RPC is ignored (mainnet in root .env).
+ * Genesis-hash guard: exits unless the RPC is devnet.
  */
-import { Connection, Keypair, PublicKey, Transaction, TransactionInstruction, clusterApiUrl, ComputeBudgetProgram } from "@solana/web3.js";
+import { Keypair, PublicKey, Transaction, TransactionInstruction, ComputeBudgetProgram } from "@solana/web3.js";
+import { devnetConnection } from "./devnet-rpc.ts";
 import {
   PROGRAM_ID, associatedTokenAddress, buildBuyTx, configPda, crankTokenPriceIx, fetchConfig, fetchCanvas, readSpotPriceQ,
   tokenPricingStatus, releaseBuybackIx, recordBuybackBurnIx, setPausedIx, parseEvents, buybackVaultPda, auctionPda, canvasPda,
@@ -23,9 +25,7 @@ import { fileURLToPath } from "node:url";
 const here = dirname(fileURLToPath(import.meta.url));
 const keys = (n: string) => Keypair.fromSecretKey(Uint8Array.from(JSON.parse(readFileSync(resolve(here, `../keys/${n}.json`), "utf8"))));
 const logPath = resolve(here, "../devnet-log.json");
-const url = process.env.SOLANA_RPC ?? (process.env.SOLANA_RPC_HELIUS_KEY ? `https://devnet.helius-rpc.com/?api-key=${process.env.SOLANA_RPC_HELIUS_KEY}` : clusterApiUrl("devnet"));
-if (/mainnet/i.test(url)) throw new Error("refusing mainnet");
-const c = new Connection(url, "confirmed");
+const { connection: c } = await devnetConnection(); // genesis-hash guard: exits unless devnet
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 function log(step: string, sig: string, extra: Record<string, unknown> = {}) {
