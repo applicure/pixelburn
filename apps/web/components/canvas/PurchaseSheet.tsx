@@ -24,6 +24,16 @@ const STEP_LABEL: Record<BuyStep | "upload", string> = {
   done: "Done",
 };
 
+/** Wallet-adapter errors often have an empty message; the real cause sits in `.error`. Never show a blank error. */
+function describeError(e: unknown, fallback: string) {
+  const err = e as { message?: string; name?: string; error?: { message?: string } } | null;
+  const msg = err?.message || err?.error?.message;
+  if (msg && msg !== "null") return msg;
+  if (err?.name === "WalletSignTransactionError" || err?.name === "WalletSendTransactionError")
+    return "Your wallet didn't sign or send the transaction. Nothing was charged. Check that your wallet is on the right network and try again.";
+  return fallback;
+}
+
 function validLink(s: string) {
   if (!s) return "Add the https link people land on when they click your ad.";
   if (s.length > 200) return "Links can be at most 200 characters.";
@@ -213,7 +223,7 @@ function SheetBody({ rect, onClose, onPurchased }: { rect: Rect; onClose(): void
       onPurchased(rect);
     } catch (e) {
       if (e instanceof TokenPaymentUnavailable) setMode("sol");
-      setError(e instanceof Error ? e.message : "The purchase did not go through. Nothing was charged.");
+      setError(describeError(e, "The purchase did not go through. Nothing was charged."));
       setPhase("form");
     }
   };

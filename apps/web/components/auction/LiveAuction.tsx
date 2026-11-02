@@ -77,7 +77,7 @@ function Live({ a }: { a: AuctionState }) {
                   setMsg(null);
                   setBid("");
                 } catch (err) {
-                  setMsg(err instanceof Error ? err.message : "The bid didn't go through. Nothing was charged.");
+                  setMsg((err instanceof Error && err.message) || (err as { error?: { message?: string } })?.error?.message || "The bid didn't go through. Nothing was charged.");
                 } finally {
                   setBusy(false);
                 }

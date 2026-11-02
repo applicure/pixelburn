@@ -48,7 +48,14 @@ await sse.evaluate((api) => {
 
 // ---- the buyer page with an injected test wallet ----
 const page = await ctx.newPage();
-page.on("console", (m) => (m.type() === "error" || /Content Security Policy/.test(m.text())) && errors.push(m.text().slice(0, 240)));
+page.on("console", async (m) => {
+  if (m.type() !== "error" && !/Content Security Policy/.test(m.text())) return;
+  // unwrap wallet-adapter errors: WalletSendTransactionError keeps the real cause in `.error`
+  const parts = [];
+  for (const a of m.args())
+    parts.push(await a.evaluate((e) => (e && typeof e === "object" ? [e.name, e.message, e.error?.name, e.error?.message, JSON.stringify(e.error?.logs ?? e.logs ?? null)].filter(Boolean).join(" | ") : String(e))).catch(() => "?"));
+  errors.push(parts.join(" || ").slice(0, 1200));
+});
 page.on("pageerror", (e) => errors.push("pageerror " + e.message));
 await page.exposeFunction("__pbSign", async (b64s) =>
   b64s.map((b64) => {

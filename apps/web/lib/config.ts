@@ -28,7 +28,10 @@ export const USE_MOCK = !API_URL;
 /** The only client env besides NEXT_PUBLIC_API_URL. RPC itself is proxied same-origin via /api/rpc (server env SOLANA_RPC). */
 export const CLUSTER = (process.env.NEXT_PUBLIC_SOLANA_CLUSTER || "devnet") as "devnet" | "mainnet-beta";
 /** Same-origin JSON-RPC proxy. web3.js needs an absolute URL. */
-export const rpcEndpoint = () => (typeof window === "undefined" ? "http://localhost:3000/api/rpc" : `${window.location.origin}/api/rpc`);
+// The `cluster` hint matters: wallet adapters derive the wallet-standard chain from the endpoint URL
+// (/\bdevnet\b/ → solana:devnet, anything else → mainnet). Without it devnet wallets are refused. The route ignores it.
+const RPC_PATH = `/api/rpc${CLUSTER === "mainnet-beta" ? "" : `?cluster=${CLUSTER}`}`;
+export const rpcEndpoint = () => (typeof window === "undefined" ? `http://localhost:3000${RPC_PATH}` : `${window.location.origin}${RPC_PATH}`);
 
 export const HISTORY_2005 = {
   founder: "Alex Tew",
