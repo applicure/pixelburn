@@ -5,7 +5,16 @@
  */
 import { BRAND } from "./config";
 
-export type TokenStatus = "ok" | "not_seeded" | "warming_up" | "stale" | "deviation" | "hourly_cap" | "unknown" | (string & {});
+export type TokenStatus =
+  | "ok"
+  | "not_seeded"
+  | "warming_up"
+  | "stale"
+  | "deviation"
+  | "hourly_cap"
+  | "source_unavailable"
+  | "unknown"
+  | (string & {});
 
 const CAMEL: Record<string, TokenStatus> = {
   notSeeded: "not_seeded",
@@ -13,6 +22,7 @@ const CAMEL: Record<string, TokenStatus> = {
   stale: "stale",
   deviation: "deviation",
   capExhausted: "hourly_cap",
+  sourceUnavailable: "source_unavailable",
 };
 export const normTokenStatus = (s: string | null | undefined): TokenStatus => (!s ? "ok" : CAMEL[s] ?? s);
 
@@ -31,6 +41,11 @@ export function tokenStatusCopy(status: TokenStatus, blocks: number, blocksAvail
       return {
         title: `${T} just spiked`,
         body: `The price jumped more than 15% above its recent average. Token payments pause until it settles, so nobody overpays in a spike. SOL works right now.`,
+      };
+    case "source_unavailable":
+      return {
+        title: `${T} is moving to its DEX pool`,
+        body: `It's migrating from the launch curve to PumpSwap. Token payments reopen about 15 minutes after the move; SOL works right now.`,
       };
     case "hourly_cap": {
       const left = blocksAvailable ?? 0;

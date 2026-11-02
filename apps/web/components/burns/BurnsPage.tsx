@@ -138,20 +138,22 @@ export function BurnsPage() {
               <p className="text-[clamp(2.2rem,4.2vw,3.9rem)] font-medium leading-none text-cone">
                 <Odometer value={fmtInt(Math.round(burned))} />
               </p>
-              <p className="mt-3 text-[0.9rem] text-ash">{BRAND.ticker} burned in total</p>
+              <p className="mt-3 text-[0.9rem] text-ash">{BRAND.ticker} burned by the billboard</p>
             </div>
             <div className="bg-soot py-5 pr-6 sm:pl-6">
               <p className="text-[clamp(2.2rem,4.2vw,3.9rem)] font-medium leading-none">
                 <Odometer value={(stats?.burnedPct ?? 0).toFixed(3)} />
                 <span className="num text-[0.45em] text-ash">%</span>
               </p>
-              <p className="mt-3 text-[0.9rem] text-ash">of the 1B starting supply</p>
+              <p className="mt-3 text-[0.9rem] text-ash">of the 1B starting supply, by the billboard</p>
             </div>
             <div className="bg-soot py-5 pr-6 sm:pl-6">
               <p className="text-[clamp(2.2rem,4.2vw,3.9rem)] font-medium leading-none">
-                <Odometer value={stats ? fmtCompact(tokensToWhole(stats.tokenSupply)) : "0"} />
+                <Odometer value={stats ? fmtCompact(tokensToWhole(stats.tokensBurnedBuyback)) : "0"} />
               </p>
-              <p className="mt-3 text-[0.9rem] text-ash">{BRAND.ticker} still in circulation</p>
+              <p className="mt-3 text-[0.9rem] text-ash">
+                of it via buybacks, {stats ? fmtCompact(tokensToWhole(stats.tokensBurnedDirect)) : "0"} paid in {BRAND.ticker}
+              </p>
             </div>
           </div>
           )}
@@ -160,10 +162,38 @@ export function BurnsPage() {
               parts={[
                 { v: stats ? tokensToWhole(stats.tokensBurnedBuyback) : 0, c: "#ff5b14", label: "burned via buyback" },
                 { v: stats ? tokensToWhole(stats.tokensBurnedDirect) : 0, c: "#ffc23d", label: "burned directly" },
-                { v: supply0 - burned, c: "#1c1714", label: "circulating" },
+                { v: supply0 - burned, c: "#1c1714", label: "not burned by the billboard" },
               ]}
             />
-            <p className="mt-2 text-[0.8rem] text-ash">Full bar is the starting supply of {fmtInt(supply0)} {BRAND.ticker} ({TOKEN_DECIMALS} decimals).</p>
+            <p className="mt-2 text-[0.8rem] text-ash">
+              Full bar is the starting supply of {fmtInt(supply0)} {BRAND.ticker} ({TOKEN_DECIMALS} decimals). Coloured: burned by this
+              billboard only.
+            </p>
+            {stats && (BigInt(stats.tokensBurnedExternal ?? "0") > 0n || BigInt(stats.supplyReduction ?? "0") > 0n) && (
+              <dl className="mt-5 grid max-w-3xl gap-x-8 gap-y-2 border-t border-char pt-4 text-[0.85rem] sm:grid-cols-[1fr_auto]">
+                {stats.tokensBurnedExternal && BigInt(stats.tokensBurnedExternal) > 0n && (
+                  <>
+                    <dt className="text-ash">+ burned by others (pump.fun&apos;s own buy-and-burn, not this billboard)</dt>
+                    <dd className="num text-heat/80">{fmtCompact(tokensToWhole(stats.tokensBurnedExternal))}</dd>
+                  </>
+                )}
+                {stats.supplyReduction && BigInt(stats.supplyReduction) > 0n && (
+                  <>
+                    <dt className="text-ash">Total supply reduction (incl. pump.fun&apos;s own buy-and-burn)</dt>
+                    <dd className="num text-heat/80">
+                      {fmtCompact(tokensToWhole(stats.supplyReduction))}
+                      {stats.supplyReductionPct !== undefined && ` (${stats.supplyReductionPct.toFixed(2)}%)`}
+                    </dd>
+                  </>
+                )}
+                <dt className="text-ash">On-chain supply now</dt>
+                <dd className="num text-heat/80">{fmtCompact(tokensToWhole(stats.tokenSupply))}</dd>
+                <dd className="text-[0.78rem] text-ash sm:col-span-2">
+                  Shown for transparency. The figures above count only burns made by this billboard; burns by pump.fun&apos;s own
+                  mechanisms are not ours and are never added to them.
+                </dd>
+              </dl>
+            )}
             {stats && burned === 0 && (
               <p className="mt-6 flex max-w-[62ch] gap-2.5 text-[0.95rem] text-heat/85">
                 <span className="mt-2 block h-2 w-2 shrink-0 animate-[flicker_2s_infinite] bg-flame" aria-hidden />

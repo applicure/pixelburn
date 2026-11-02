@@ -48,8 +48,15 @@ export interface Stats {
   tokensBurned: string;
   tokensBurnedDirect: string;
   tokensBurnedBuyback: string;
+  /** current on-chain mint supply (reflects every burn, including ones that aren't ours) */
   tokenSupply: string;
+  /** our program's burns / initial supply, in percent */
   burnedPct: number;
+  /** total reduction of the mint supply incl. pump.fun's own buy-and-burn. Never add it to tokensBurned. */
+  supplyReduction?: string;
+  supplyReductionPct?: number;
+  /** burns NOT made by this program (mostly pump.fun's post-migration boost). Show separately, labelled. */
+  tokensBurnedExternal?: string;
   solPriceUsd: number;
   tokenPriceUsd: number;
   marketCapUsd: number;

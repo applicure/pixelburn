@@ -206,7 +206,10 @@ class MockWorld {
       burnedBuyback += b.tokensBurned;
     }
     const burned = burnedDirect + burnedBuyback;
-    const circ = TOKEN_SUPPLY - burned;
+    // like devnet after graduation: pump.fun's own buy-and-burn reduced supply too. Not ours, never added to `burned`.
+    const pumpBurn = this.empty ? 0n : 35_470_000n * 10n ** BigInt(TOKEN_DECIMALS);
+    const reduction = burned + pumpBurn;
+    const circ = TOKEN_SUPPLY - reduction;
     return {
       soldBlocks: sold,
       totalBlocks: TOTAL_BLOCKS,
@@ -221,6 +224,9 @@ class MockWorld {
       tokensBurnedBuyback: burnedBuyback.toString(),
       tokenSupply: circ.toString(),
       burnedPct: Number((burned * 1_000_000n) / TOKEN_SUPPLY) / 10_000,
+      supplyReduction: reduction.toString(),
+      tokensBurnedExternal: pumpBurn.toString(),
+      supplyReductionPct: Number((reduction * 1_000_000n) / TOKEN_SUPPLY) / 10_000,
       solPriceUsd: this.solUsd,
       tokenPriceUsd: this.tokenUsd,
       marketCapUsd: (Number(circ) / 10 ** TOKEN_DECIMALS) * this.tokenUsd,

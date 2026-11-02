@@ -3,7 +3,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { BRAND } from "@/lib/config";
-import { fmtCompact, fmtInt, fmtSol, tokensToWhole } from "@/lib/format";
+import { fmtInt, fmtSol, tokensToWhole } from "@/lib/format";
 import { useLive } from "@/lib/store";
 import { Odometer } from "@/components/ui/Odometer";
 import { FeedRow } from "@/components/ui/FeedRow";
@@ -67,7 +67,7 @@ export function Controller() {
               </div>
               <p className="mt-3 flex justify-between text-[0.85rem] text-ash">
                 <span>
-                  {stats ? fmtInt(stats.soldBlocks) : 0} of 10,000 blocks, {stats ? fmtCompact(tokensToWhole(stats.tokenSupply)) : "…"} {BRAND.ticker} left in supply
+                  {stats ? fmtInt(stats.soldBlocks) : 0} of 10,000 blocks sold
                 </span>
                 <span>auction at 99%</span>
               </p>

@@ -110,7 +110,7 @@ Not exercised against a live cluster from this workstream (no deployed program /
 - **Token payment gating** (`lib/tokenStatus.ts`): the SOL quote always runs and carries `tokenPaymentStatus`,
   `tokenBlocksAvailable` and `tokenPricedBy` for the exact w×h. When it isn't `ok`, the $PIXEL option is disabled
   with one honest line per reason (not_seeded, warming_up, stale, deviation, hourly_cap with a "pay in SOL or split
-  into ads of up to N blocks" suggestion, unknown/future = unavailable). `slow_ema` pricing shows a hint that
+  into ads of up to N blocks" suggestion, source_unavailable while the token migrates from the curve to PumpSwap, unknown/future = unavailable). `slow_ema` pricing shows a hint that
   buyers burn more than spot implies. The landing widget and the /canvas selection bar show the same state.
   Never signing a failing tx: the SDK throws `TokenPricingUnavailableError` before signing (mapped to the same copy,
   and the sheet falls back to SOL), and every tx is simulated via `/api/rpc` before the wallet is asked to sign.
@@ -130,6 +130,16 @@ Not exercised against a live cluster from this workstream (no deployed program /
 - **chain/sdk**: export a `minNextBid` already used internally (for the bid form), and a helper that returns
   the expected token burn for a SOL purchase at current prices (the success card currently estimates half of
   the USD at the quoted token price).
+
+## Burn accounting (honesty rule)
+
+Headline burn figures everywhere (hero, live counters, /burns tiles and bar, share card) count only this program's
+burns: `stats.tokensBurned` / `burnedPct` (ours ÷ initial supply). pump.fun's own post-graduation buy-and-burn is
+not ours. It appears only as secondary, labelled lines on /burns: "+ burned by others" from
+`stats.tokensBurnedExternal` (services), and "Total supply reduction (incl. pump.fun's own
+buy-and-burn)" from `stats.supplyReduction` / `supplyReductionPct`, plus "On-chain supply now" (`tokenSupply`).
+The two are never summed. The live-counter footer no longer shows `tokenSupply`. `supplyReduction` is
+expected as a base-unit decimal string, like every other u64 amount.
 
 ## Launch-day / early states
 

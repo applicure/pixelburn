@@ -26,16 +26,19 @@ for (const [label, vw, vh, dsf] of [["desktop", 1440, 900, 1], ["mobile", 390, 8
   await sheet("tokenStatus=deviation", "sheet-deviation");
   await sheet("tokenStatus=warming_up", "sheet-warming-up");
   await sheet("pricedBy=slow_ema", "sheet-slow-ema", true);
-  await p.goto(`${base}/?tokenStatus=deviation`, { waitUntil: "networkidle" });
+  await sheet("tokenStatus=source_unavailable", "sheet-source-unavailable");
+  for (const st of ["source_unavailable", "deviation"]) {
+  await p.goto(`${base}/?tokenStatus=${st}`, { waitUntil: "networkidle" });
   await p.waitForTimeout(1500);
   await p.evaluate(() => document.querySelector('[aria-labelledby="token-title"]')?.scrollIntoView());
   await p.waitForTimeout(1800);
   const box = await p.evaluate(() => { const r = document.querySelector('[aria-labelledby="token-title"] .bg-soot')?.getBoundingClientRect(); return r ? r.top : 0; });
   await p.evaluate((t) => window.scrollBy(0, t - 80), box);
   await p.waitForTimeout(1200);
-  const f = `screens/token-landing-deviation-${label}.png`;
+  const f = `screens/token-landing-${st.replace("_", "-")}-${label}.png`;
   await p.screenshot({ path: f });
   out.push(f);
+  }
   await ctx.close();
 }
 console.log(out.map((f) => process.cwd() + "/" + f).join("\n"));
