@@ -507,3 +507,41 @@ fn round3_scenario_a_prime_seed_band_edge_held_through_warmup() {
     assert!(pct >= bound - 0.05);
     assert!(pct > 98.9);
 }
+
+// ------------------------------------------------------------------ graduation: curve -> canonical PumpSwap pool
+
+#[test]
+fn graduation_curve_to_pool_rejects_cleanly_then_reprices() {
+    let mut env = Env::ready(SPL_TOKEN, Source::Curve);
+    let admin = env.admin.insecure_clone();
+    let (b, ta) = buyer(&mut env);
+    ok(env.send(&[env.ix_buy_token(&b.pubkey(), &ta, 0, 0, 1, 1, u64::MAX)], &[&b]));
+
+    // 1. curve completes (pump sets complete = true; real reserves move to the pool on migrate)
+    let curve = env.curve;
+    env.set_raw(curve, pack_curve(CURVE_VSOL, CURVE_VTOK, true, anchor_lang::prelude::Pubkey::default()), PUMP_PROGRAM_ID);
+    // gap: token buys and cranks are rejected cleanly (never priced off a dead curve); SOL buys keep working
+    assert_err(env.send(&[env.ix_buy_token(&b.pubkey(), &ta, 1, 0, 1, 1, u64::MAX)], &[&b]), PixelError::CurveComplete);
+    assert_err(crank_after(&mut env, 31), PixelError::CurveComplete);
+    let (s, _) = env.new_user(100_000_000_000, 0);
+    ok(env.send(&[env.ix_buy_sol(&s.pubkey(), 50, 50, 1, 1, u64::MAX)], &[&s]));
+
+    // 2. pool appears at a different price (migration rounding / fees): +8% vs the last EMA
+    let pool_quote = CURVE_VSOL * 108 / 100;
+    env.set_pool(pool_quote, CURVE_VTOK, 0);
+    // a non-canonical pool is refused
+    let rogue = pixel::PriceSource::Pool { pool: anchor_lang::prelude::Pubkey::new_unique(), base_vault: env.pool_base_vault, quote_vault: env.pool_quote_vault };
+    assert_err(env.send(&[env.ix_set_price_source(&admin.pubkey(), rogue, 1)], &[&admin]), PixelError::InvalidParam);
+    // 3. admin switches to the canonical pool, seeding the EMA with the pool's spot
+    let seed = ref_price_q(pool_quote, CURVE_VTOK);
+    let ps = pixel::PriceSource::Pool { pool: env.pool, base_vault: env.pool_base_vault, quote_vault: env.pool_quote_vault };
+    ok(env.send(&[env.ix_set_price_source(&admin.pubkey(), ps, seed)], &[&admin]));
+    env.source = Source::Pool;
+    // 4. warm-up: token buys rejected (EmaWarmingUp) until 10 cranks over >= 600 s on the pool
+    env.warp(1);
+    env.refresh_price();
+    assert_err(env.send(&[env.ix_buy_token(&b.pubkey(), &ta, 1, 0, 1, 1, u64::MAX)], &[&b]), PixelError::EmaWarmingUp);
+    env.warm_up();
+    ok(env.send(&[env.ix_buy_token(&b.pubkey(), &ta, 1, 0, 1, 1, u64::MAX)], &[&b]));
+    assert_eq!(env.ad_at(1, 0).paid_tokens, ref_tokens(1, SOL_PRICE, seed), "priced off the pool");
+}

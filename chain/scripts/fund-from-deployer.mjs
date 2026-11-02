@@ -15,7 +15,7 @@ for (;;) {
   const b = await bal(deployer.publicKey).catch(() => last);
   if (b !== last) { console.log(`${new Date().toISOString()} deployer balance ${b}`); last = b; stableSince = Date.now(); }
   if (b >= 12) break;
-  if (b >= MIN && Date.now() - stableSince > 10 * 60_000) break;
+  if (b >= MIN && Date.now() - stableSince > Number(process.env.STABLE_MS ?? 10 * 60_000)) break;
   if (Date.now() - start > 2 * 3600_000) {
     if (b >= MIN) break;
     console.log(`TIMEOUT: deployer has ${b} SOL, need >= ${MIN}`);
@@ -24,8 +24,9 @@ for (;;) {
   await sleep(60_000);
 }
 const b = await bal(deployer.publicKey);
-const buyer = Math.min(3.5, Math.max(0, b - DEPLOY_RESERVE - ADMIN - KEEPER - FEES));
-const buys = Math.floor((buyer - 0.02) / BUY_EACH);
+const buyer = process.env.BUYER_SOL !== undefined ? Number(process.env.BUYER_SOL) : Math.min(3.5, Math.max(0, b - DEPLOY_RESERVE - ADMIN - KEEPER - FEES));
+// buyer may already hold SOL (funded separately); SOL_BUYS overrides the derived count
+const buys = process.env.SOL_BUYS ? Number(process.env.SOL_BUYS) : Math.floor((buyer - 0.02) / BUY_EACH);
 const plan = { admin: ADMIN, keeper: KEEPER, buyer: Number(buyer.toFixed(3)) };
 const tx = new Transaction();
 for (const [n, sol] of Object.entries(plan))

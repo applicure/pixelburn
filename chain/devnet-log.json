@@ -1,0 +1,273 @@
+[
+  {
+    "step": "fund: deployer -> admin/keeper/buyer",
+    "sig": "56h7ELG2CGs2ELi43x8tZU6wY3UtoX23karrw988CCyGJqoaMDsfkFCHKWKtNaDkqpGmZGSWkmW8LzBfSggdbVuf",
+    "explorer": "https://explorer.solana.com/tx/56h7ELG2CGs2ELi43x8tZU6wY3UtoX23karrw988CCyGJqoaMDsfkFCHKWKtNaDkqpGmZGSWkmW8LzBfSggdbVuf?cluster=devnet",
+    "at": "2026-11-02T13:05:07.763Z",
+    "plan": {
+      "admin": 1.5,
+      "keeper": 0.3,
+      "buyer": 0
+    }
+  },
+  {
+    "step": "deploy program (upgrade authority = admin)",
+    "sig": "5VV91LT66mUKrXtxVrtwxkzfoe38ESi42cBfpKA774G7pixcKsRLYipzDf1cPpoyCG2icvZTrgTzUv5zYVSzBNNK",
+    "explorer": "https://explorer.solana.com/tx/5VV91LT66mUKrXtxVrtwxkzfoe38ESi42cBfpKA774G7pixcKsRLYipzDf1cPpoyCG2icvZTrgTzUv5zYVSzBNNK?cluster=devnet",
+    "at": "2026-11-02T13:05:35.407Z"
+  },
+  {
+    "step": "pump create_v2 + buy 0.8 SOL (PXTEST)",
+    "sig": "2ZQmCwsSGRPRWNwQfXMNzBkqyWf7fuUoDF9cJDDH3RVRA2AEgph9tBUTHiitHG4SD4EB2EoXL5pCgPZPJVuMyQfq",
+    "explorer": "https://explorer.solana.com/tx/2ZQmCwsSGRPRWNwQfXMNzBkqyWf7fuUoDF9cJDDH3RVRA2AEgph9tBUTHiitHG4SD4EB2EoXL5pCgPZPJVuMyQfq?cluster=devnet",
+    "at": "2026-11-02T13:05:37.445Z"
+  },
+  {
+    "step": "init.ts (treasury rent / initialize)",
+    "sig": "3pEe2oXVUnTw98FDiLzedhwVyskamG7xekBgNhy4dkdNJeSTHNJrkB7igPbQVxVNqc395kX1Nz5py6ARTb8mWvwt",
+    "explorer": "https://explorer.solana.com/tx/3pEe2oXVUnTw98FDiLzedhwVyskamG7xekBgNhy4dkdNJeSTHNJrkB7igPbQVxVNqc395kX1Nz5py6ARTb8mWvwt?cluster=devnet",
+    "at": "2026-11-02T13:05:40.304Z"
+  },
+  {
+    "step": "init.ts (treasury rent / initialize)",
+    "sig": "4DoMEo6KWnS7GbFwu6QRakroiF4hNLagLnSrdvTQ5qCz8gc6eVh6gh3e36fH46h1pkYfh2PUHzCHzu8VEBTpvxfr",
+    "explorer": "https://explorer.solana.com/tx/4DoMEo6KWnS7GbFwu6QRakroiF4hNLagLnSrdvTQ5qCz8gc6eVh6gh3e36fH46h1pkYfh2PUHzCHzu8VEBTpvxfr?cluster=devnet",
+    "at": "2026-11-02T13:05:40.338Z"
+  },
+  {
+    "step": "crank 1/10",
+    "sig": "3CusAdsg5Fvf4bhYLCS7L4xhSCcQj8a9zYkwdb8sF3uCTMgYnuGWGdAyJajr5CG5bGq6SntcEMSbizLi1J8DZNMk",
+    "explorer": "https://explorer.solana.com/tx/3CusAdsg5Fvf4bhYLCS7L4xhSCcQj8a9zYkwdb8sF3uCTMgYnuGWGdAyJajr5CG5bGq6SntcEMSbizLi1J8DZNMk?cluster=devnet",
+    "at": "2026-11-02T13:06:18.048Z"
+  },
+  {
+    "step": "crank 2/10",
+    "sig": "st3iNgJU4DEiycPVasiMj8kQLzv6uPQC78AUtJ2HPXMvwNbGjP1ZMe52cQUG16MP5ixaqYqXViHjyJgHNEFTpEc",
+    "explorer": "https://explorer.solana.com/tx/st3iNgJU4DEiycPVasiMj8kQLzv6uPQC78AUtJ2HPXMvwNbGjP1ZMe52cQUG16MP5ixaqYqXViHjyJgHNEFTpEc?cluster=devnet",
+    "at": "2026-11-02T13:07:25.318Z"
+  },
+  {
+    "step": "crank 3/10",
+    "sig": "NfE8xStu6R3nNmjWPKGDHP9sLDjYVUp8GiExDXXTqDDsoNduTKVd1hHtJ58NWnyR2qkRuysGpCxnQoVzgFHXuER",
+    "explorer": "https://explorer.solana.com/tx/NfE8xStu6R3nNmjWPKGDHP9sLDjYVUp8GiExDXXTqDDsoNduTKVd1hHtJ58NWnyR2qkRuysGpCxnQoVzgFHXuER?cluster=devnet",
+    "at": "2026-11-02T13:08:32.735Z"
+  },
+  {
+    "step": "crank 4/10",
+    "sig": "4GAYwoEyj8KasSQ5fm9TKEFAtZt5zNy6HRJ7Hmjgo4L5yGs9bR2qMJnF6B5wP8gzGodG4EkxWNMfcRXpW2Z1bqQ1",
+    "explorer": "https://explorer.solana.com/tx/4GAYwoEyj8KasSQ5fm9TKEFAtZt5zNy6HRJ7Hmjgo4L5yGs9bR2qMJnF6B5wP8gzGodG4EkxWNMfcRXpW2Z1bqQ1?cluster=devnet",
+    "at": "2026-11-02T13:09:40.008Z"
+  },
+  {
+    "step": "crank 5/10",
+    "sig": "uB6vkAiZGjM3scjWenqq97bbt6hvXGf2ADGw3RQ2jCC7Den6rEiXmAuZuap5T4W6cToX7aRZPWpHqmoftkwJs72",
+    "explorer": "https://explorer.solana.com/tx/uB6vkAiZGjM3scjWenqq97bbt6hvXGf2ADGw3RQ2jCC7Den6rEiXmAuZuap5T4W6cToX7aRZPWpHqmoftkwJs72?cluster=devnet",
+    "at": "2026-11-02T13:10:47.274Z"
+  },
+  {
+    "step": "crank 6/10",
+    "sig": "59ct4osms4Pnc45XFuVB9LWmAaXgwzusX9WAPPJeAiptBXUfssR1AAw5wfgouJTdrJ5gDkxKmXiViH1VVaKanzVM",
+    "explorer": "https://explorer.solana.com/tx/59ct4osms4Pnc45XFuVB9LWmAaXgwzusX9WAPPJeAiptBXUfssR1AAw5wfgouJTdrJ5gDkxKmXiViH1VVaKanzVM?cluster=devnet",
+    "at": "2026-11-02T13:11:54.611Z"
+  },
+  {
+    "step": "crank 7/10",
+    "sig": "2D4GtuBmxt2WmbF2xtceDxpFY9mwwTfzSUBRJk4Pz24XtQJTV3iRWv9mQhRHq5tAEKgs5Eu1VgaefbPyiNVa2cRz",
+    "explorer": "https://explorer.solana.com/tx/2D4GtuBmxt2WmbF2xtceDxpFY9mwwTfzSUBRJk4Pz24XtQJTV3iRWv9mQhRHq5tAEKgs5Eu1VgaefbPyiNVa2cRz?cluster=devnet",
+    "at": "2026-11-02T13:13:01.888Z"
+  },
+  {
+    "step": "crank 8/10",
+    "sig": "ujREoJm2kKwJNxR2kE7SeYEihuZU6n2xe2RYaqf1EY4Qtu5PtjGTR8P9tiBDARiHXNRoLRZXainjZB1dswmxF39",
+    "explorer": "https://explorer.solana.com/tx/ujREoJm2kKwJNxR2kE7SeYEihuZU6n2xe2RYaqf1EY4Qtu5PtjGTR8P9tiBDARiHXNRoLRZXainjZB1dswmxF39?cluster=devnet",
+    "at": "2026-11-02T13:14:09.439Z"
+  },
+  {
+    "step": "crank 9/10",
+    "sig": "4JP77yWZZP8Ubmp2C1KNeztwoqVhkmPaqUPQFj3UEKceFUH6BDxhVYW7ukHBfwMSPGKT8mSYBsxPw9yDKDehXGtM",
+    "explorer": "https://explorer.solana.com/tx/4JP77yWZZP8Ubmp2C1KNeztwoqVhkmPaqUPQFj3UEKceFUH6BDxhVYW7ukHBfwMSPGKT8mSYBsxPw9yDKDehXGtM?cluster=devnet",
+    "at": "2026-11-02T13:15:16.699Z"
+  },
+  {
+    "step": "crank 10/10",
+    "sig": "3SQhghwXSxtJZV9XnZzbGvis2FebPz8eRJYjpumEHTNj4rwBpaE1FXFKsDjFT9LF8AkP7tKzWgmXkNGPd62yuUpN",
+    "explorer": "https://explorer.solana.com/tx/3SQhghwXSxtJZV9XnZzbGvis2FebPz8eRJYjpumEHTNj4rwBpaE1FXFKsDjFT9LF8AkP7tKzWgmXkNGPd62yuUpN?cluster=devnet",
+    "at": "2026-11-02T13:16:24.067Z"
+  },
+  {
+    "step": "sol-buy",
+    "sig": "2xx4xeQTE2rPSoWoNuKEJgwoizamC2WFtM5XiGZrz6bSBnyDu9wXcc5C4ybsBfNqQCA9GTaL8N2hEXsfZiQrwNc9",
+    "explorer": "https://explorer.solana.com/tx/2xx4xeQTE2rPSoWoNuKEJgwoizamC2WFtM5XiGZrz6bSBnyDu9wXcc5C4ybsBfNqQCA9GTaL8N2hEXsfZiQrwNc9?cluster=devnet",
+    "at": "2026-11-02T13:16:27.447Z",
+    "quote": {
+      "ad": "DFdjWtTWzGXRLExoR6ie75cXUCgCNeEBTjc9PW423FGn",
+      "usdMicro": "100000000",
+      "lamports": "1066703075",
+      "maxLamports": "1077370106",
+      "solUsd": {
+        "price": "9374680017",
+        "expo": -8,
+        "conf": "6626983",
+        "publishTime": 1793625380,
+        "feedId": "ef0d8b6fda2ceba41da15d4095d1da392a0d2f8ed0c6c7bc0f4cfac8c280b56d",
+        "verified": true
+      },
+      "computeUnits": 51200
+    },
+    "cuLimit": 51200,
+    "microLamports": 1000,
+    "events": [
+      "AdPurchased"
+    ],
+    "supplyBefore": "1000000000000000",
+    "supplyAfter": "1000000000000000"
+  },
+  {
+    "step": "sol-buy",
+    "sig": "4pgRVDbwGRgmHdtzX8tAXP6LFT2g4WeeLdMEKwrLkD7HVgZgcsY1apVySVP4UtKXvrFDCWJmPpyCu7G7owPzD4Ne",
+    "explorer": "https://explorer.solana.com/tx/4pgRVDbwGRgmHdtzX8tAXP6LFT2g4WeeLdMEKwrLkD7HVgZgcsY1apVySVP4UtKXvrFDCWJmPpyCu7G7owPzD4Ne?cluster=devnet",
+    "at": "2026-11-02T13:16:30.196Z",
+    "quote": {
+      "ad": "5VcECEcuuSmDGB1SkMcRNWDtB7S5ZBXcF3wXsbjNdtFt",
+      "usdMicro": "100000000",
+      "lamports": "1066721034",
+      "maxLamports": "1077388245",
+      "solUsd": {
+        "price": "9374522188",
+        "expo": -8,
+        "conf": "6784812",
+        "publishTime": 1793625384,
+        "feedId": "ef0d8b6fda2ceba41da15d4095d1da392a0d2f8ed0c6c7bc0f4cfac8c280b56d",
+        "verified": true
+      },
+      "computeUnits": 51200
+    },
+    "cuLimit": 51200,
+    "microLamports": 1015,
+    "events": [
+      "AdPurchased"
+    ],
+    "supplyBefore": "1000000000000000",
+    "supplyAfter": "1000000000000000"
+  },
+  {
+    "step": "token-buy",
+    "sig": "WsVcsk7pxCEJU61r9qHw23LTMJR9AXRqgtAG81b8DK8Cc5cUupHaSL4KqqQk25dH1GZeByhM1ByjaMuhhtoFzzp",
+    "explorer": "https://explorer.solana.com/tx/WsVcsk7pxCEJU61r9qHw23LTMJR9AXRqgtAG81b8DK8Cc5cUupHaSL4KqqQk25dH1GZeByhM1ByjaMuhhtoFzzp?cluster=devnet",
+    "at": "2026-11-02T13:16:38.294Z",
+    "quote": {
+      "ad": "1zhWLvn66CgEipXBQ4eYj6HZkE8MfFJqjghaXztDW6W",
+      "usdMicro": "90000000",
+      "tokens": "260073707419080",
+      "maxTokens": "267875918641653",
+      "spotQ": "3691733914697",
+      "emaQ": "3691733914697",
+      "slowEmaQ": "3691733914697",
+      "solUsd": {
+        "price": "9373799707",
+        "expo": -8,
+        "conf": "6507793",
+        "publishTime": 1793625390,
+        "feedId": "ef0d8b6fda2ceba41da15d4095d1da392a0d2f8ed0c6c7bc0f4cfac8c280b56d",
+        "verified": true
+      },
+      "crankPrepended": false,
+      "computeUnits": 66200
+    },
+    "cuLimit": 66200,
+    "microLamports": 1015,
+    "events": [
+      "AdPurchased"
+    ],
+    "supplyBefore": "1000000000000000",
+    "supplyAfter": "739926292580920"
+  },
+  {
+    "step": "crank 1/1",
+    "sig": "2JCRNF1rRFTPNaH6gdUNn6iqURrCP7shiYYFRAUjSJiJGYniSNT3xcqqDp3eSYKGd6xGZFY7YWGcycoP6uvZofq1",
+    "explorer": "https://explorer.solana.com/tx/2JCRNF1rRFTPNaH6gdUNn6iqURrCP7shiYYFRAUjSJiJGYniSNT3xcqqDp3eSYKGd6xGZFY7YWGcycoP6uvZofq1?cluster=devnet",
+    "at": "2026-11-02T13:17:16.083Z"
+  },
+  {
+    "step": "release_buyback",
+    "sig": "2zF6zhvybn83r6RyuUNiACm4En3QTHveCG2SzN46PwUEK2U662YTvMEPiqMVGUdm1EGQTH5jnbgRc9eFY5cmkqG4",
+    "explorer": "https://explorer.solana.com/tx/2zF6zhvybn83r6RyuUNiACm4En3QTHveCG2SzN46PwUEK2U662YTvMEPiqMVGUdm1EGQTH5jnbgRc9eFY5cmkqG4?cluster=devnet",
+    "at": "2026-11-02T13:17:18.696Z",
+    "lamports": "20000000"
+  },
+  {
+    "step": "pause",
+    "sig": "52MSo1zezof9jvfdaXxjssZa2MMyk7xP6J6Psu34Sw7fkTWZRCSgDQrFAczSstSYchYS7Fa3HUfVDLpMVXvNuhrw",
+    "explorer": "https://explorer.solana.com/tx/52MSo1zezof9jvfdaXxjssZa2MMyk7xP6J6Psu34Sw7fkTWZRCSgDQrFAczSstSYchYS7Fa3HUfVDLpMVXvNuhrw?cluster=devnet",
+    "at": "2026-11-02T13:17:21.428Z",
+    "paused": true
+  },
+  {
+    "step": "unpause",
+    "sig": "qJ4yiewsaGyTaTa3mjMtcMaRFp75Bn2Ruz6frnUtizvkWLBCfdP3HbG6XqV75gwnrRwuk5BHnQhu8jwoxkFjRCL",
+    "explorer": "https://explorer.solana.com/tx/qJ4yiewsaGyTaTa3mjMtcMaRFp75Bn2Ruz6frnUtizvkWLBCfdP3HbG6XqV75gwnrRwuk5BHnQhu8jwoxkFjRCL?cluster=devnet",
+    "at": "2026-11-02T13:17:24.047Z",
+    "paused": false
+  },
+  {
+    "step": "pump buy (keeper)",
+    "sig": "WXmm8r7ReyP13dnQZ3AEwBEEpRnVXh7ZN69q6EBKNPbLzT3K4adJ3TRLwQgkirpNReBeGnkeU77wCrytJG5DUP7",
+    "explorer": "https://explorer.solana.com/tx/WXmm8r7ReyP13dnQZ3AEwBEEpRnVXh7ZN69q6EBKNPbLzT3K4adJ3TRLwQgkirpNReBeGnkeU77wCrytJG5DUP7?cluster=devnet",
+    "at": "2026-11-02T13:28:54.470Z",
+    "spentMax": "19000000",
+    "tokensBought": "4997074285447"
+  },
+  {
+    "step": "record_buyback_burn",
+    "sig": "4cJvMn5CHgHhXHj7BUHbd7reJQDRB6NTzjQG3kxzaoSq1EeVd87DUt2M7DjeXXmV4v2DLyRqk2qTpVtwsqcHPWow",
+    "explorer": "https://explorer.solana.com/tx/4cJvMn5CHgHhXHj7BUHbd7reJQDRB6NTzjQG3kxzaoSq1EeVd87DUt2M7DjeXXmV4v2DLyRqk2qTpVtwsqcHPWow?cluster=devnet",
+    "at": "2026-11-02T13:28:56.792Z",
+    "lamportsSpent": "19000000",
+    "tokensBurned": "4997074285447",
+    "supplyBefore": "739926292580920",
+    "supplyAfter": "734929218295473",
+    "events": [
+      "BuybackBurned"
+    ]
+  },
+  {
+    "step": "graduation: deployer buys out the curve",
+    "sig": "4sGhtX7sDmx2t7999hHLP4WzAmy131466cTfwxyP81fizQSnGWCnecnRm55KcXMye2aBcdhjsos5ZfTDa1H7dsBw",
+    "explorer": "https://explorer.solana.com/tx/4sGhtX7sDmx2t7999hHLP4WzAmy131466cTfwxyP81fizQSnGWCnecnRm55KcXMye2aBcdhjsos5ZfTDa1H7dsBw?cluster=devnet",
+    "at": "2026-11-02T13:33:00.293Z",
+    "tokens": "10390581918593",
+    "maxSol": "42512850"
+  },
+  {
+    "step": "graduation: pump migrate_v2 (permissionless)",
+    "sig": "52dFFUHGkzByHeGhfEyeijYCE72PFa5LBiHNUYcT2KYay5D7DwH1kJJ67rCyEmRv5icg8PvH7ki4SFPafdTXjBuj",
+    "explorer": "https://explorer.solana.com/tx/52dFFUHGkzByHeGhfEyeijYCE72PFa5LBiHNUYcT2KYay5D7DwH1kJJ67rCyEmRv5icg8PvH7ki4SFPafdTXjBuj?cluster=devnet",
+    "at": "2026-11-02T13:33:21.749Z",
+    "pool": "A9xsvGys7sF2FY5RoLvyYk1co9Tdwhg1tePgoGzsgvc9"
+  },
+  {
+    "step": "graduation: admin set_price_source(Pool, seed = pool spot)",
+    "sig": "36janoTUNkdWwfLMFuJNHH4JeJJL25x4J4dcCUHJTuAKJ4xBPWDc8A25b3sdWm6MBCPxXZLxALPxkCtzWLREsBtt",
+    "explorer": "https://explorer.solana.com/tx/36janoTUNkdWwfLMFuJNHH4JeJJL25x4J4dcCUHJTuAKJ4xBPWDc8A25b3sdWm6MBCPxXZLxALPxkCtzWLREsBtt?cluster=devnet",
+    "at": "2026-11-02T13:33:31.675Z",
+    "seed": "4148785700011"
+  },
+  {
+    "step": "crank 1/11",
+    "sig": "UDvTM6Z5xgfReSXZHEMt1g2zwHydnbrqiJGjYZ8QWKbsapPh4xfYWpT9yVirWZhWa5F4vrVk9ozk43GmJm9P2Aq",
+    "explorer": "https://explorer.solana.com/tx/UDvTM6Z5xgfReSXZHEMt1g2zwHydnbrqiJGjYZ8QWKbsapPh4xfYWpT9yVirWZhWa5F4vrVk9ozk43GmJm9P2Aq?cluster=devnet",
+    "at": "2026-11-02T13:34:41.932Z"
+  },
+  {
+    "step": "crank 2/11",
+    "sig": "3ehAr5WLhV29zhVQZbB8NogSoJ4eEUBsoGkxLE69cdBPkY4ZtbwqgispwENhnLkfSQ97nouXDj5yj8dx7Yfq5oim",
+    "explorer": "https://explorer.solana.com/tx/3ehAr5WLhV29zhVQZbB8NogSoJ4eEUBsoGkxLE69cdBPkY4ZtbwqgispwENhnLkfSQ97nouXDj5yj8dx7Yfq5oim?cluster=devnet",
+    "at": "2026-11-02T13:36:09.491Z"
+  },
+  {
+    "step": "crank 3/11",
+    "sig": "2kDECMa4jYZjVYNPvaMxLznB4wDBpEXY4g5RDpfDS9BKiixz3pzgzJ8e98jNTG5nqwWrzLouvgw8JBbCDXBNyKb4",
+    "explorer": "https://explorer.solana.com/tx/2kDECMa4jYZjVYNPvaMxLznB4wDBpEXY4g5RDpfDS9BKiixz3pzgzJ8e98jNTG5nqwWrzLouvgw8JBbCDXBNyKb4?cluster=devnet",
+    "at": "2026-11-02T13:37:37.084Z"
+  }
+]

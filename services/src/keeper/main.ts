@@ -7,6 +7,7 @@ import { createLogger } from "../lib/log.js";
 import { heartbeat } from "../lib/heartbeat.js";
 import { loadKeypair, NoProgramActions, SdkKeeperActions } from "./actions.js";
 import { Keeper } from "./keeper.js";
+import { JupiterRoute, PumpCurveRoute, PumpSwapPoolRoute, type SwapRoute } from "./routes.js";
 
 const cfg = loadConfig();
 const log = createLogger("keeper", cfg.LOG_LEVEL);
@@ -19,6 +20,21 @@ const chain = cfg.PROGRAM_ID ? new RpcChainReader(conn, cfg.PROGRAM_ID, cfg.TOKE
 
 log.info(`cluster=${cfg.SOLANA_CLUSTER} mode=${cfg.KEEPER_LIVE ? "LIVE" : "dry-run"} keeper=${payer?.publicKey.toBase58() ?? "(none)"} program=${cfg.PROGRAM_ID ?? "(unset)"} jito=${cfg.JITO_ENABLED ? "on" : "off"}`);
 
+// Buy routes are resolved from the CURRENT Config on every buyback run, so a price-source switch
+// (curve -> PumpSwap pool after graduation) is picked up without a restart.
+let lastRoutes = "";
+const resolveRoutes = async (): Promise<SwapRoute[]> => {
+  const c = await chain?.fetchConfig();
+  if (!c) return [];
+  const slip = cfg.KEEPER_BUYBACK_SLIPPAGE_BPS;
+  const routes: SwapRoute[] = [];
+  if (c.priceSource.kind === "bondingCurve") routes.push(new PumpCurveRoute(conn, c.tokenMint, c.tokenProgram, slip, log));
+  else routes.push(new PumpSwapPoolRoute(conn, c.priceSource.pool, slip, log));
+  routes.push(new JupiterRoute(conn, cfg.JUPITER_API_URL, c.tokenMint.toBase58(), slip, log));
+  const names = routes.map((r) => r.name).join(" -> ");
+  if (names !== lastRoutes) log.info(`buyback routes: ${(lastRoutes = names)}`);
+  return routes;
+};
 const keeper = new Keeper(conn, payer, cfg.PROGRAM_ID ? new SdkKeeperActions(conn, new PublicKey(cfg.PROGRAM_ID)) : new NoProgramActions(), chain, {
   live: cfg.KEEPER_LIVE,
   tokenMint: cfg.TOKEN_MINT,
@@ -34,12 +50,16 @@ const keeper = new Keeper(conn, payer, cfg.PROGRAM_ID ? new SdkKeeperActions(con
   jupiterApiUrl: cfg.JUPITER_API_URL,
   jito: { enabled: cfg.JITO_ENABLED, url: cfg.JITO_BLOCK_ENGINE_URL, tipLamports: cfg.JITO_TIP_LAMPORTS },
   chunkDelayMs: { min: 5_000, jitter: 25_000 },
-}, log);
+  simulateInDryRun: !!payer,
+}, log, undefined, resolveRoutes);
 
 if (chain) {
   // Pre-check buyback chunks against the same min-out rule the program enforces.
   chain.fetchConfig().then((c) => {
-    if (c) keeper.onchainSlippageBps = c.buybackMaxSlippageBps;
+    if (!c) return log.warn("pixel Config not found; buybacks disabled");
+    keeper.onchainSlippageBps = c.buybackMaxSlippageBps;
+    if (cfg.TOKEN_MINT && cfg.TOKEN_MINT !== c.tokenMint.toBase58()) log.warn(`TOKEN_MINT env differs from Config.token_mint; using the on-chain mint`);
+    void resolveRoutes();
   }).catch((e) => log.warn(`config read failed: ${(e as Error).message}`));
 }
 keeper.start();

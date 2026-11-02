@@ -1,6 +1,6 @@
 import * as _pythnetwork_pyth_solana_receiver from '@pythnetwork/pyth-solana-receiver';
 import { PublicKey, Connection, TransactionInstruction, VersionedTransaction, Signer } from '@solana/web3.js';
-import { P as PythPrice } from './client-CS4HQzix.js';
+import { P as PythPrice } from './client-DheabJpC.js';
 import 'bn.js';
 import './quote-Dr1cW5Ot.js';
 

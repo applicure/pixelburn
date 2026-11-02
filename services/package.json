@@ -27,7 +27,10 @@
     "@irys/upload": "^0.0.15",
     "@irys/upload-solana": "^0.1.8",
     "@mpb/sdk": "workspace:*",
+    "@pump-fun/pump-sdk": "4.3.1",
+    "@pump-fun/pump-swap-sdk": "2.2.0",
     "@solana/web3.js": "^1.99.0",
+    "bn.js": "^5.2.5",
     "bs58": "^6.0.0",
     "drizzle-orm": "^0.45.4",
     "file-type": "^22.3.0",
@@ -38,6 +41,7 @@
   },
   "devDependencies": {
     "@anchor-lang/core": "1.1.2",
+    "@types/bn.js": "^5.2.0",
     "@types/node": "^26.6.6",
     "drizzle-kit": "^0.31.11",
     "tsx": "^4.23.15",

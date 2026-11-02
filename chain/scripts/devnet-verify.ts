@@ -14,6 +14,7 @@ import {
   tokenPricingStatus, releaseBuybackIx, recordBuybackBurnIx, setPausedIx, parseEvents, buybackVaultPda, auctionPda, canvasPda,
 } from "@mpb/sdk";
 import { OnlinePumpSdk, PUMP_SDK, getBuyTokenAmountFromSolAmount } from "@pump-fun/pump-sdk";
+import { OnlinePumpAmmSdk, PUMP_AMM_SDK } from "@pump-fun/pump-swap-sdk";
 import BN from "bn.js";
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
@@ -74,7 +75,17 @@ switch (cmd) {
     const n = Number(a1 ?? 10), gap = Number(a2 ?? 65);
     const keeper = keys("keeper");
     for (let i = 0; i < n; i++) {
-      const sig = await send(new Transaction().add(ComputeBudgetProgram.setComputeUnitLimit({ units: 20_000 }), crankTokenPriceIx({ priceSource: cfg.priceSource })), [keeper]);
+      // devnet's on-chain clock can lag wall time by tens of seconds: retry CrankTooSoon (6015) instead of failing
+      let sig = "";
+      for (let attempt = 0; ; attempt++) {
+        try {
+          sig = await send(new Transaction().add(ComputeBudgetProgram.setComputeUnitLimit({ units: 20_000 }), crankTokenPriceIx({ priceSource: cfg.priceSource })), [keeper]);
+          break;
+        } catch (e) {
+          if (attempt < 12 && String((e as Error).message).includes("0x177f")) { await sleep(10_000); continue; }
+          throw e;
+        }
+      }
       log(`crank ${i + 1}/${n}`, sig);
       if (i < n - 1) await sleep(gap * 1000);
     }
@@ -100,15 +111,45 @@ switch (cmd) {
   }
   case "buyback": {
     const keeper = keys("keeper");
-    const lamports = BigInt(a1 ?? "20000000");
-    const s1 = await send(new Transaction().add(releaseBuybackIx({ keeper: keeper.publicKey, lamports })), [keeper]);
-    log("release_buyback", s1, { lamports });
+    // release -> pump curve buy -> record_buyback_burn. If a release is already outstanding (the program blocks a new
+    // release until it is recorded), reuse it instead of releasing again.
+    let lamports = BigInt(a1 ?? "20000000");
+    if (cfg.buybackOutstandingLamports > 0n) {
+      lamports = cfg.buybackOutstandingLamports;
+      console.log(`release already outstanding (${lamports} lamports): completing it`);
+    } else {
+      const s1 = await send(new Transaction().add(releaseBuybackIx({ keeper: keeper.publicKey, lamports })), [keeper]);
+      log("release_buyback", s1, { lamports });
+    }
+    const ata = associatedTokenAddress(keeper.publicKey, mint, cfg.tokenProgram);
+    if (cfg.priceSource.kind === "pool") {
+      // Graduated: buy on the canonical PumpSwap pool. buyQuoteInput wraps `quote` lamports into WSOL, swaps, and
+      // closes the WSOL account again; lamports_spent = the keeper's measured SOL decrease minus the tx fee.
+      const spendQ = new BN(((lamports * 95n) / 100n).toString());
+      const state = await new OnlinePumpAmmSdk(c).swapSolanaState(cfg.priceSource.pool, keeper.publicKey);
+      const ixs = await PUMP_AMM_SDK.buyQuoteInput(state, spendQ, 1);
+      const sol0 = BigInt(await c.getBalance(keeper.publicKey));
+      const tok0 = BigInt((await c.getTokenAccountBalance(ata).catch(() => ({ value: { amount: "0" } }))).value.amount);
+      const sb = await send(new Transaction().add(ComputeBudgetProgram.setComputeUnitLimit({ units: 300_000 }), ...ixs), [keeper]);
+      const fee = BigInt((await c.getTransaction(sb, { maxSupportedTransactionVersion: 0, commitment: "confirmed" }))?.meta?.fee ?? 0);
+      const spent = sol0 - BigInt(await c.getBalance(keeper.publicKey)) - fee;
+      const bought = BigInt((await c.getTokenAccountBalance(ata)).value.amount) - tok0;
+      log("pumpswap buy (keeper, canonical pool)", sb, { quoteIn: spendQ.toString(), lamportsSpent: spent, tokensBought: bought });
+      const supply0 = (await c.getTokenSupply(mint)).value.amount;
+      const s3 = await send(new Transaction().add(recordBuybackBurnIx({ keeper: keeper.publicKey, tokenMint: mint, tokenProgram: cfg.tokenProgram,
+        keeperTokenAccount: ata, lamportsSpent: spent, tokensBurned: bought })), [keeper]);
+      const supply1 = (await c.getTokenSupply(mint)).value.amount;
+      log("record_buyback_burn", s3, { lamportsSpent: spent, tokensBurned: bought, supplyBefore: supply0, supplyAfter: supply1, events: (await events(s3)).map((e) => e.name) });
+      break;
+    }
     // buy on the pump curve with (most of) the released SOL; keep a margin for fees/ATA rent
     const online = new OnlinePumpSdk(c);
     const [global, feeConfig, state] = await Promise.all([online.fetchGlobal(), online.fetchFeeConfig().catch(() => null), online.fetchBuyState(mint, keeper.publicKey, cfg.tokenProgram)]);
     const spend = new BN(((lamports * 95n) / 100n).toString());
-    const amount = getBuyTokenAmountFromSolAmount({ global, feeConfig, mintSupply: null, bondingCurve: state.bondingCurve, amount: spend, quoteMint: state.quoteMint });
-    const ata = associatedTokenAddress(keeper.publicKey, mint, cfg.tokenProgram);
+    // mintSupply must be the live supply: with null the SDK assumes the initial 1B and over-quotes (NotEnoughTokensToBuy
+    // 6021 on devnet after our burns). Seen in the first launch run.
+    const mintSupply = new BN((await c.getTokenSupply(mint)).value.amount);
+    const amount = getBuyTokenAmountFromSolAmount({ global, feeConfig, mintSupply, bondingCurve: state.bondingCurve, amount: spend, quoteMint: state.quoteMint });
     const before = BigInt((await c.getTokenAccountBalance(ata).catch(() => ({ value: { amount: "0" } }))).value.amount);
     const buyIxs: TransactionInstruction[] = await PUMP_SDK.buyInstructions({ global, bondingCurveAccountInfo: state.bondingCurveAccountInfo, bondingCurve: state.bondingCurve,
       associatedUserAccountInfo: state.associatedUserAccountInfo, mint, user: keeper.publicKey, amount, solAmount: spend, slippage: 1, tokenProgram: cfg.tokenProgram });

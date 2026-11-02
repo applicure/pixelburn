@@ -758,7 +758,12 @@ async function buildBuyWithTokenIxs(connection, p) {
   const pid = p.programId ?? PROGRAM_ID;
   const priceUpdate = p.priceUpdate ?? pythPriceFeedAccount();
   const [config, solUsd] = await Promise.all([fetchConfig(connection, pid), fetchSolUsd(connection, priceUpdate)]);
-  const spotQ = await readSpotPriceQ(connection, config.priceSource);
+  let spotQ;
+  try {
+    spotQ = await readSpotPriceQ(connection, config.priceSource);
+  } catch (e) {
+    throw new TokenPricingUnavailableError("sourceUnavailable", `token price source unavailable (${e.message}); likely migrating to PumpSwap`);
+  }
   const now = Math.floor(Date.now() / 1e3);
   const status = tokenPricingStatus(config, spotQ, now, p.rect.w * p.rect.h);
   if (!status.ok && status.reason !== "stale") throw new TokenPricingUnavailableError(status.reason, status.detail);

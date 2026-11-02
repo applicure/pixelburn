@@ -10,6 +10,7 @@
   "dependencies": {
     "@mpb/sdk": "link:../../packages/sdk",
     "@pump-fun/pump-sdk": "4.3.1",
+    "@pump-fun/pump-swap-sdk": "2.2.0",
     "@solana/web3.js": "^1.98.4",
     "bn.js": "^5.2.5"
   }

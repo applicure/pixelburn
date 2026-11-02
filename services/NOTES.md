@@ -91,6 +91,19 @@ docker build -f services/Dockerfile --target keeper  -t mpb-keeper .
   return 503. `SOL_USD_FALLBACK` is ignored when `NODE_ENV=production` (the image sets it). The token
   price comes from chain when `PROGRAM_ID` is set. Without it, production reports
   `tokenPaymentStatus: "unknown"` and never quotes a static token price.
+- **Coolify apps (devnet, 2026-11-02)**: `pixelburn-api` (xvlz2veeyem2wmwl2wp7yiwt),
+  `pixelburn-indexer` (ymqskn1mdvofamqrvsagqdjk, target `indexer`, no domain) and `pixelburn-keeper`
+  (tmjd8oi0tegozxrplcveegzj, target `keeper`, no domain, `KEEPER_LIVE=1`). All secrets are runtime-only.
+  The keeper has no `DATABASE_URL` (least privilege). RPC = Helius devnet via `SOLANA_RPC_HELIUS_KEY`;
+  never QuickNode mainnet.
+- **Keeper buyback routes**: these are resolved from the current Config on every run. While the
+  token is on the pump.fun curve the keeper uses `pump-curve` (legacy `buy`, exact tokens out, live
+  mint supply); after graduation it uses `pumpswap-pool` (canonical pool `buy`, exact base out, max
+  quote wrapped in WSOL and closed again); `jupiter` is the last fallback (mainnet only). Every
+  chunk is ONE tx: release → buy → record. A chunk with no route, too much impact, or a min-out
+  below the on-chain EMA bar is skipped before anything is built, so `release_buyback` is never
+  sent alone. Dry-run with a keypair simulates the exact tx. Devnet sizing (thin pool: 0.1 SOL ≈ 10%
+  impact): chunks 0.02–0.05 SOL, impact cap 8%, every 10 ± 2 min. Mainnet should keep the 1% cap.
 - **Pointing at the deployed program**: api needs `PROGRAM_ID` + `TOKEN_MINT`. indexer needs
   `PROGRAM_ID`. keeper needs `PROGRAM_ID` + `KEEPER_KEYPAIR` (must equal `Config.keeper`) + `TOKEN_MINT`
   (Jupiter quotes / leftover burn), plus `KEEPER_LIVE=1` to actually send. All three also need the

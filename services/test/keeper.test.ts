@@ -3,6 +3,7 @@ import { Connection, Keypair, PublicKey, TransactionInstruction } from "@solana/
 import { Keeper, type KeeperConfig } from "../src/keeper/keeper.js";
 import type { KeeperActions } from "../src/keeper/actions.js";
 import { minBuybackTokens } from "../src/keeper/plan.js";
+import { JupiterRoute, type SwapRoute } from "../src/keeper/routes.js";
 import { silentLogger } from "../src/lib/log.js";
 import { FakeChain, randKey } from "./helpers.js";
 
@@ -37,12 +38,43 @@ describe("keeper", () => {
     });
     const chain = new FakeChain();
     chain.fetchBuybackVaultLamports = async () => 5_000_000_000n;
-    const k = new Keeper(explodingConn, null, actions, chain, cfg(false), silentLogger, async () => {});
+    const routes = [new JupiterRoute(explodingConn, "https://jup.invalid", randKey(), 100, silentLogger)];
+    const k = new Keeper(explodingConn, null, actions, chain, cfg(false), silentLogger, async () => {}, routes);
     expect(await k.crankOnce()).toBeNull();
     const r = await k.buybackOnce();
     expect(r.sent).toEqual([]);
     expect(r.chunks.reduce((a, b) => a + b, 0n)).toBe(3_000_000_000n); // capped per run
     expect(calls.filter((c) => c.startsWith("record")).length).toBe(r.chunks.length);
+  });
+
+  it("never releases without a swap: no route -> no release/record, run skipped", async () => {
+    const calls: string[] = [];
+    const actions: KeeperActions = {
+      crankTokenPriceIxs: async () => [dummyIx()],
+      releaseBuybackIxs: async () => (calls.push("release"), [dummyIx()]),
+      recordBuybackBurnIxs: async () => (calls.push("record"), [dummyIx()]),
+    };
+    const noRoute: SwapRoute = { name: "none", plan: async () => null }; // e.g. Jupiter can't route PXTEST on devnet
+    const chain = new FakeChain();
+    chain.fetchBuybackVaultLamports = async () => 5_000_000_000n;
+    const k = new Keeper(explodingConn, null, actions, chain, cfg(false), silentLogger, async () => {}, [noRoute]);
+    const r = await k.buybackOnce();
+    expect(r.sent).toEqual([]);
+    expect(calls).toEqual([]);
+  });
+
+  it("caps a run at the on-chain releasable allowance and uses the first route that can serve", async () => {
+    const planned: bigint[] = [];
+    const curve: SwapRoute = { name: "pump-curve", plan: async (l) => (planned.push(l), { route: "pump-curve", minTokensOut: 10n ** 12n, lamportsSpent: l, impactPct: 0.5, build: async () => ({ ixs: [dummyIx()], lookupTables: [] }) }) };
+    const jup: SwapRoute = { name: "jupiter", plan: async () => { throw new Error("must not be reached"); } };
+    const chain = new FakeChain();
+    chain.fetchBuybackVaultLamports = async () => 50_000_000_000n;
+    (chain as any).fetchBuybackReleasable = async () => 1_000_000_000n;
+    const actions: KeeperActions = { crankTokenPriceIxs: async () => null, releaseBuybackIxs: async () => [dummyIx()], recordBuybackBurnIxs: async () => [dummyIx()] };
+    const k = new Keeper(explodingConn, null, actions, chain, cfg(false), silentLogger, async () => {}, [curve, jup]);
+    const r = await k.buybackOnce();
+    expect(r.chunks.reduce((a, b) => a + b, 0n)).toBe(1_000_000_000n);
+    expect(planned.reduce((a, b) => a + b, 0n)).toBe(1_000_000_000n);
   });
 
   it("refuses to start live without a keypair", () => {

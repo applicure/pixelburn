@@ -94,6 +94,8 @@ export interface SendOptions {
   priorityMicroLamports?: number;
   /** setComputeUnitLimit; omit for txs with external ixs of unknown cost (Jupiter). */
   computeUnitLimit?: number;
+  /** Dry-run only: simulate the built tx and log the result (still never sends). */
+  simulateInDryRun?: boolean;
 }
 
 /**
@@ -110,7 +112,19 @@ export async function sendIxs(
   lookupTables: AddressLookupTableAccount[] = [],
 ): Promise<string | null> {
   if (!opts.live) {
-    log.info(`[dry-run] would send ${label} (${ixs.length} ixs)`);
+    // Dry-run: build + SIMULATE the exact tx (never sent) so a dry run proves the tx would land.
+    if (opts.simulateInDryRun) {
+      const { blockhash } = await conn.getLatestBlockhash("confirmed");
+      const msg = new TransactionMessage({ payerKey: payer.publicKey, recentBlockhash: blockhash, instructions: [
+        ...(opts.computeUnitLimit ? [ComputeBudgetProgram.setComputeUnitLimit({ units: opts.computeUnitLimit })] : []),
+        ...ixs,
+      ] }).compileToV0Message(lookupTables);
+      const sim = await conn.simulateTransaction(new VersionedTransaction(msg), { sigVerify: false, replaceRecentBlockhash: true });
+      const tail = sim.value.logs?.filter((l) => /Program log: (Instruction|AnchorError)|failed|success/.test(l)).slice(-6).join(" | ");
+      log.info(`[dry-run] ${label}: simulation ${sim.value.err ? `FAILED ${JSON.stringify(sim.value.err)}` : "OK"} (${sim.value.unitsConsumed ?? "?"} CU) ${tail ?? ""}`);
+    } else {
+      log.info(`[dry-run] would send ${label} (${ixs.length} ixs)`);
+    }
     return null;
   }
   const all: TransactionInstruction[] = [

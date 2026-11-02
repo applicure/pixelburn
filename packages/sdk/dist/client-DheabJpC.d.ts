@@ -384,8 +384,8 @@ declare function plannedEma(config: ConfigAccount, nowSecs: number): {
 };
 /** Thrown by `buildBuyWithTokenIxs` when the program would reject token pricing right now. */
 declare class TokenPricingUnavailableError extends Error {
-    readonly reason: "notSeeded" | "warmingUp" | "stale" | "deviation" | "capExhausted";
-    constructor(reason: "notSeeded" | "warmingUp" | "stale" | "deviation" | "capExhausted", detail: string);
+    readonly reason: "notSeeded" | "warmingUp" | "stale" | "deviation" | "capExhausted" | "sourceUnavailable";
+    constructor(reason: "notSeeded" | "warmingUp" | "stale" | "deviation" | "capExhausted" | "sourceUnavailable", detail: string);
 }
 declare function buildBuyWithTokenIxs(connection: Connection, p: {
     buyer: PublicKey;

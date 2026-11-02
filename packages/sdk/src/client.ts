@@ -204,7 +204,7 @@ export function plannedEma(config: ConfigAccount, nowSecs: number): { emaQ: bigi
 /** Thrown by `buildBuyWithTokenIxs` when the program would reject token pricing right now. */
 export class TokenPricingUnavailableError extends Error {
   constructor(
-    public readonly reason: "notSeeded" | "warmingUp" | "stale" | "deviation" | "capExhausted",
+    public readonly reason: "notSeeded" | "warmingUp" | "stale" | "deviation" | "capExhausted" | "sourceUnavailable",
     detail: string,
   ) {
     super(`token payments unavailable (${reason}): ${detail}`);
@@ -219,7 +219,14 @@ export async function buildBuyWithTokenIxs(
   const pid = p.programId ?? PROGRAM_ID;
   const priceUpdate = p.priceUpdate ?? pythPriceFeedAccount();
   const [config, solUsd] = await Promise.all([fetchConfig(connection, pid), fetchSolUsd(connection, priceUpdate)]);
-  const spotQ = await readSpotPriceQ(connection, config.priceSource);
+  // Curve complete (graduating to PumpSwap) or pool not readable: the program rejects token buys (CurveComplete /
+  // InvalidPriceSource) until the admin switches the source; surface that as a typed reason, never a misprice.
+  let spotQ: bigint;
+  try {
+    spotQ = await readSpotPriceQ(connection, config.priceSource);
+  } catch (e) {
+    throw new TokenPricingUnavailableError("sourceUnavailable", `token price source unavailable (${(e as Error).message}); likely migrating to PumpSwap`);
+  }
   const now = Math.floor(Date.now() / 1000);
   const status = tokenPricingStatus(config, spotQ, now, p.rect.w * p.rect.h);
   // "stale" is fixed by the crank we prepend below; everything else would fail on-chain

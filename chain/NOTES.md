@@ -424,6 +424,53 @@ ADMIN_KEYPAIR=../keys/admin.json MINT=<mint> PRICE_SOURCE=curve:<curve> \
 - **The mainnet launch requirement still applies:** upgrade authority and admin go to a timelocked Squads multisig, or the program is made immutable.
 - Nothing in this plan touches mainnet; all scripts refuse mainnet URLs.
 
+## Graduation runbook: bonding curve → PumpSwap
+
+Every successful pump.fun coin graduates: when the curve's real token reserves hit 0, `complete = true`. Then `migrate` (permissionless and idempotent; on mainnet pump's bot runs it, usually within seconds) moves the liquidity into the canonical PumpSwap pool. Our config must then be switched from `BondingCurve` to `Pool`.
+
+### What the program does during the transition (fail-closed, never mispriced)
+| phase | crank | `buy_with_token` | `buy_with_sol` | keeper |
+|---|---|---|---|---|
+| curve live | ok | ok (after warm-up) | ok | release/record ok |
+| curve `complete`, pool not yet switched | `CurveComplete` | **`CurveComplete` (rejected)** | ok | `release_buyback` still works but **must not be used**; `record_buyback_burn` with spent > 0 needs a fresh EMA. Within 15 min of the last crank it still records, after that `EmaUnavailable`. A refund (spent = 0) always works. |
+| switched to pool, warming up | ok (first crank checks the seed band ±25%) | **`EmaWarmingUp` (rejected)** for ≥ 10 cranks / ≥ 600 s | ok | record needs the warm-up as well |
+| pool warmed up | ok | ok (priced off the pool) | ok | buy via PumpSwap (`@pump-fun/pump-swap-sdk`), record as before |
+
+- SDK: `buildBuyWithTokenIxs` / `buildBuyTx({mode:'token'})` throw `TokenPricingUnavailableError` with reason `sourceUnavailable` (curve complete or pool unreadable), then `warmingUp`. The UI shows "token payments paused: token graduating to PumpSwap". SOL purchases are never affected.
+- Tested in LiteSVM (`graduation_curve_to_pool_rejects_cleanly_then_reprices`):
+  - complete curve → token buy and crank rejected `CurveComplete`; SOL buy ok;
+  - non-canonical pool rejected;
+  - switch with seed = pool spot (+8% vs the old EMA) → `EmaWarmingUp`;
+  - after warm-up the token buy is priced exactly off the pool.
+
+### Steps (devnet script `chain/scripts/graduate-devnet.ts`; every step is dry-run by default)
+1. **Detect.** Services/keeper watches the curve account (`parseBondingCurve(data).complete`; also pump's `CompleteEvent`). From that moment the keeper stops releasing buybacks and settles any outstanding release with a refund (`record_buyback_burn(0, 0)`).
+2. **Migrate** (mainnet: wait for pump's bot; devnet: `node graduate-devnet.ts migrate --execute`, which calls pump `migrate_v2` and is permissionless).
+3. **Derive the pool.**
+   - `pool = PDA(["pool", 0u16 LE, PDA(["pool-authority", mint], pump), mint, WSOL], pAMM)`. Checked to match `@pump-fun/pump-sdk` `canonicalPumpPoolPda(mint)`; for the devnet coin it is `A9xsvGys7sF2FY5RoLvyYk1co9Tdwhg1tePgoGzsgvc9`.
+   - `base_vault = ATA(pool, mint's token program, mint)`.
+   - `quote_vault = ATA(pool, SPL Token, WSOL)`.
+   - The program enforces exactly these addresses (audit M-2.2).
+4. **Switch.**
+   - Admin calls `set_price_source(Pool{pool, base_vault, quote_vault}, initial_ema = pool spot)`, with the spot read as `poolSpotPriceQ`: vault quote + `virtual_quote_reserves` over vault base.
+   - Script: `node graduate-devnet.ts switch --execute`. It refuses while the curve is not complete or the pool doesn't exist yet.
+   - On mainnet the admin is the Squads multisig, so this transaction is proposed there. Have it pre-built and signers on call: the gap lasts as long as the multisig takes.
+5. **Warm-up.** The keeper cranks every 30–60 s. Token payments resume when `tokenPricingStatus` is ok (≥ 10 cranks over ≥ 600 s). The first crank requires pool spot within ±25% of the seed; if the price moved more than that, re-seed (step 4 again).
+6. **Keeper.** Switch buyback routing from the curve (`PUMP_SDK.buyInstructions`) to PumpSwap (`@pump-fun/pump-swap-sdk`). Indexer: `TokenPriceUpdated` continues as before. Update `/api/stats` market data to read the pool.
+
+### Devnet rehearsal (proposed, not yet executed)
+- **Buy-out:** the curve has 10,390,581,918,593 base units (~10.4M PXTEST) left. Buying them all costs ~0.0417 SOL (max 0.0425 with 2% slack), paid by the deployer. Dry-run simulate: OK (92k CU).
+- **Sequence:**
+  1. `buyout --execute`
+  2. `status` (expect `complete: true`)
+  3. migrate dry-run, then `--execute`
+  4. `status` (expect `poolExists: true`, `poolSpotQ`)
+  5. switch dry-run, then `--execute`
+  6. `devnet-verify.ts crank 10 65`
+  7. token buy on the pool
+  8. a keeper buyback via PumpSwap (needs the pump-swap SDK route: services' keeper, or a small addition to `devnet-verify.ts`)
+- **Cost:** ≈ 0.05 SOL plus fees from the deployer (5.27 SOL available).
+
 ## Deploy (devnet, dry-run by default)
 ```bash
 cd chain

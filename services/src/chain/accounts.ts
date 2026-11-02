@@ -75,6 +75,8 @@ export interface ChainReader {
   fetchBuybackVaultLamports(): Promise<bigint | null>;
   /** Blocks of the final-auction lot (Auction.lot_bitmap); null if no auction. */
   fetchAuctionLotBlocks?(): Promise<number[] | null>;
+  /** Lamports release_buyback would currently allow (token bucket); null if unknown. */
+  fetchBuybackReleasable?(): Promise<bigint | null>;
 }
 
 export class RpcChainReader implements ChainReader {
@@ -131,6 +133,17 @@ export class RpcChainReader implements ChainReader {
   async fetchBuybackVaultLamports() {
     if (!this.programId) return null;
     return BigInt(await this.conn.getBalance(buybackVaultPda(this.programId), "confirmed"));
+  }
+
+  /** Mirror of the program's bucket: min(cap, allowance + cap * elapsed / 3600), minus anything outstanding. */
+  async fetchBuybackReleasable(): Promise<bigint | null> {
+    const c = await this.fetchConfig();
+    if (!c) return null;
+    const cap = c.buybackCapLamportsPerHour;
+    const elapsed = BigInt(Math.max(0, Math.floor(Date.now() / 1000) - Number(c.buybackAllowanceUpdatedAt)));
+    let allowance = c.buybackAllowance + (cap * elapsed) / 3600n;
+    if (allowance > cap) allowance = cap;
+    return c.buybackOutstandingLamports > 0n ? 0n : allowance;
   }
 
   async fetchAuctionLotBlocks(): Promise<number[] | null> {
