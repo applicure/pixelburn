@@ -9,6 +9,7 @@ import {
   Connection,
   Keypair,
   PublicKey,
+  SYSVAR_SLOT_HASHES_PUBKEY,
   type TransactionInstruction,
 } from "@solana/web3.js";
 import type { Logger } from "../lib/log.js";
@@ -98,13 +99,26 @@ export class LookupTableManager {
       this.log.error(`ACTION REQUIRED: set KEEPER_LOOKUP_TABLE=${this.table.key.toBase58()}`);
     }
     if (!this.table) {
-      const recentSlot = await this.conn.getSlot("finalized");
-      const [ix, addr] = AddressLookupTableProgram.createLookupTable({ authority: this.payer.publicKey, payer: this.payer.publicKey, recentSlot });
-      const r = await sendIxsResult(this.conn, this.payer, [ix], this.opts, this.log, "alt-create");
-      if (!r.sig) {
-        this.log.error(`lookup table create failed: ${r.error}`);
+      // create_lookup_table derives the address from a `recent_slot` that MUST be in the SlotHashes
+      // sysvar. getSlot("finalized") can return a slot the simulating node doesn't list (skipped slot /
+      // load-balanced RPC): "<slot> is not a recent slot". Take real entries from SlotHashes, a few back
+      // for margin, and try the next one if the first is rejected.
+      let created: { addr: PublicKey; sig: string } | null = null;
+      for (const recentSlot of await this.recentSlots()) {
+        const [ix, addr] = AddressLookupTableProgram.createLookupTable({ authority: this.payer.publicKey, payer: this.payer.publicKey, recentSlot });
+        const r = await sendIxsResult(this.conn, this.payer, [ix], this.opts, this.log, "alt-create");
+        if (r.sig) {
+          created = { addr, sig: r.sig };
+          break;
+        }
+        this.log.warn(`lookup table create with recent slot ${recentSlot} failed: ${(r.error ?? "").slice(0, 200)}`);
+      }
+      if (!created) {
+        this.log.error("lookup table create failed for every recent slot tried");
         return null;
       }
+      const { addr } = created;
+      const r = { sig: created.sig };
       const pin = `set KEEPER_LOOKUP_TABLE=${addr.toBase58()}`;
       if (this.allowScan) this.log.info(`created keeper lookup table ${addr.toBase58()} (${r.sig}); ${pin} to pin it`);
       else this.log.error(`ACTION REQUIRED: created keeper lookup table ${addr.toBase58()} (${r.sig}). ${pin} — otherwise the next restart creates another one (no ALT scan on mainnet)`);
@@ -130,6 +144,22 @@ export class LookupTableManager {
     this.table = await this.waitFor(this.table.key, have.size + missing.length);
     if (this.table) this.log.info(`lookup table ${this.table.key.toBase58()} now has ${this.table.state.addresses.length} addresses`);
     return this.table;
+  }
+
+  /** A few real, recent slots from the SlotHashes sysvar (newest first, skipping the very newest). */
+  private async recentSlots(): Promise<number[]> {
+    let info: { data: Buffer } | null = null;
+    try {
+      info = await this.conn.getAccountInfo(SYSVAR_SLOT_HASHES_PUBKEY, "confirmed");
+    } catch {
+      info = null;
+    }
+    if (!info) return [await this.conn.getSlot("finalized")]; // fallback; may be rejected, logged by caller
+    const d = info.data;
+    const n = Number(d.readBigUInt64LE(0));
+    const slots: number[] = [];
+    for (let i = 0; i < Math.min(n, 40); i++) slots.push(Number(d.readBigUInt64LE(8 + i * 40)));
+    return [slots[4], slots[8], slots[16]].filter((x): x is number => x !== undefined);
   }
 
   private async waitFor(addr: PublicKey, minAddresses: number): Promise<AddressLookupTableAccount | null> {

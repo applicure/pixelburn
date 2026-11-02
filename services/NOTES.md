@@ -106,6 +106,8 @@ docker build -f services/Dockerfile --target keeper  -t mpb-keeper .
     If it's unset, the first buyback creates one table, logs `ACTION REQUIRED: set
     KEEPER_LOOKUP_TABLE=<addr>` on every run, and writes it to `<heartbeat>.status.json`.
   - Devnet: if unset, the keeper finds its table on chain by authority, else creates one.
+  - Creation takes `recent_slot` from the SlotHashes sysvar (getSlot("finalized") was rejected on
+    devnet with "<slot> is not a recent slot") and retries with an older entry.
   - A table is only used if it is active and its authority is the current keeper key. After
     `set_keeper` rotation, a table owned by the old key is rejected and a new one is created.
 - **Keeper buyback routes**: these are resolved from the current Config on every run. While the
@@ -156,6 +158,38 @@ docker build -f services/Dockerfile --target keeper  -t mpb-keeper .
   `PUBLIC_API_URL`, so run it inside the api container (`/data` volume).
 - Traefik terminates TLS and proxies to port 8080. SSE (`/api/events`) needs no buffering config,
   since it streams with a 15s ping.
+
+## Mainnet launch checklist (services)
+
+Doc only. Every step needs explicit sign-off; chain's program and launch steps are in chain/NOTES.md
+"Mainnet launch checklist".
+
+1. **Env (all three apps)**: `SOLANA_CLUSTER=mainnet-beta`, mainnet `SOLANA_RPC` (QuickNode) and/or
+   `SOLANA_RPC_HELIUS_KEY`, `PROGRAM_ID`, `TOKEN_MINT`, and `TOKEN_INITIAL_SUPPLY` (pump.fun: 1e15).
+   Check the startup logs: indexer "history fallbacks: helius-mainnet, …/public-mainnet", never a
+   devnet label.
+2. **Keeper key**: `KEEPER_KEYPAIR` must equal `Config.keeper` on mainnet (runtime-only secret). Fund
+   it for fees, ALT rent (~0.003 SOL) and PumpSwap's one-time account rent.
+3. **Keeper lookup table (launch-day step)**: with `KEEPER_BUYBACK_ENABLED=0`, `KEEPER_LIVE=1`, enable
+   buybacks once. The first buyback creates the ALT and logs `ACTION REQUIRED: … set
+   KEEPER_LOOKUP_TABLE=<addr>` (also written to `/tmp/keeper.status.json`).
+   - Set `KEEPER_LOOKUP_TABLE=<addr>` (runtime-only) in Coolify and redeploy.
+   - Confirm the next run logs no ACTION REQUIRED line.
+   - Mainnet never scans for the table. An unpinned table means a new one (and its rent) on every
+     restart.
+   - Alternatively, pre-create the table with the keeper key before launch and pin it from the start.
+4. **Buyback sizing**: impact cap `KEEPER_BUYBACK_MAX_PRICE_IMPACT_PCT=1`, per-buy reserve cap
+   `KEEPER_BUYBACK_MAX_QUOTE_FRACTION_BPS=50`, band `KEEPER_BUYBACK_MAX_SPOT_OVER_EMA_PCT` ≤ 12 (on-chain
+   backstop 1.12×), and `KEEPER_BUYBACK_MAX_PER_RUN_LAMPORTS` ≤ the on-chain hourly cap. Revisit the
+   min/max chunk for the real curve/pool depth.
+5. **EMA warm-up**: the keeper must run LIVE and crank from the moment the EMA is seeded. Token payments
+   stay `warming_up` for about 10 minutes after the first crank.
+6. **Prices**: SOL/USD comes from the on-chain Pyth sponsored account, with no `SOL_USD_FALLBACK`
+   (ignored in production). The token price comes from chain (`TOKEN_PRICE_SOURCE=auto`).
+7. **Coolify**: keep `watch_paths` on the backend apps (`services/**`, `packages/sdk/**`,
+   `pnpm-lock.yaml`), so unrelated commits don't restart the keeper.
+8. **Verify after go-live**: `/healthz` indexer not stale; the first keeper crank signature appears;
+   `/api/stats` totals match the on-chain Canvas; the first buyback→burn shows outstanding = 0.
 
 ## Architecture
 

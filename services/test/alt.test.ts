@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { AddressLookupTableAccount, Connection, Keypair, PublicKey, SystemProgram, TransactionInstruction } from "@solana/web3.js";
+import { AddressLookupTableAccount, AddressLookupTableProgram, Connection, Keypair, PublicKey, SystemProgram, TransactionInstruction } from "@solana/web3.js";
 import { altCandidates, LookupTableManager } from "../src/keeper/alt.js";
 import { silentLogger } from "../src/lib/log.js";
 
@@ -45,6 +45,38 @@ describe("keeper lookup table", () => {
     expect(scanned).toBe(false);
     expect(created).toEqual([tableKey.toBase58()]);
     expect(errors.some((e) => e.includes(`set KEEPER_LOOKUP_TABLE=${tableKey!.toBase58()}`))).toBe(true);
+  });
+
+  it("creates with a recent slot taken from SlotHashes, retrying the next one if rejected", async () => {
+    const payer = Keypair.generate();
+    // SlotHashes sysvar layout: u64 count, then (slot u64, hash [32]) newest first
+    const slotsNewestFirst = Array.from({ length: 20 }, (_, i) => 1_000 - i);
+    const data = Buffer.alloc(8 + 20 * 40);
+    data.writeBigUInt64LE(20n, 0);
+    slotsNewestFirst.forEach((sl, i) => data.writeBigUInt64LE(BigInt(sl), 8 + i * 40));
+    const usedSlots: number[] = [];
+    let sims = 0;
+    const conn = {
+      getAccountInfo: async () => ({ data, owner: PublicKey.default, lamports: 1, executable: false }),
+      getLatestBlockhash: async () => ({ blockhash: PublicKey.unique().toBase58(), lastValidBlockHeight: 1 }),
+      // first create is rejected like on devnet ("<slot> is not a recent slot"), the second passes
+      simulateTransaction: async () => ({ value: { err: sims++ === 0 ? { InstructionError: [0, "InvalidInstructionData"] } : null, logs: [] } }),
+      sendRawTransaction: async () => "sig",
+      confirmTransaction: async () => ({ value: { err: null } }),
+      getAddressLookupTable: async (k: PublicKey) => ({ value: new AddressLookupTableAccount({ key: k, state: { deactivationSlot: MAX, lastExtendedSlot: 0, lastExtendedSlotStartIndex: 0, authority: payer.publicKey, addresses: [] } }) }),
+      getSlot: async () => 2_000,
+    } as unknown as Connection;
+    const created: string[] = [];
+    const m = new LookupTableManager(conn, payer, { live: true }, silentLogger, undefined, false, (a) => created.push(a));
+    const orig = AddressLookupTableProgram.createLookupTable;
+    (AddressLookupTableProgram as any).createLookupTable = (p: { recentSlot: number }) => (usedSlots.push(Number(p.recentSlot)), orig.call(AddressLookupTableProgram, p as never));
+    try {
+      expect(await m.ensure([])).not.toBeNull();
+    } finally {
+      (AddressLookupTableProgram as any).createLookupTable = orig;
+    }
+    expect(usedSlots).toEqual([996, 992]); // SlotHashes entries 4 and 8 (never getSlot("finalized"))
+    expect(created).toHaveLength(1);
   });
 
   it("rejects a table owned by another key (keeper rotated via set_keeper)", async () => {
