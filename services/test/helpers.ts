@@ -61,7 +61,7 @@ export async function makeTestContext(opts: { nsfw?: NsfwChecker; autoApprove?: 
     AUTO_APPROVE: opts.autoApprove ? "1" : "0",
     BLOCKLIST_FILE: path.resolve("data/blocklist.txt"),
     DRAINER_LIST_FILE: path.resolve("data/drainers.txt"),
-    TOKEN_SUPPLY_STATIC: "1000000000000000",
+    TOKEN_INITIAL_SUPPLY: "1000000000000000",
   });
   const chain = new FakeChain();
   const db = createDb(cfg.DATABASE_URL, { max: 4 });

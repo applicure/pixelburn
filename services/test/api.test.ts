@@ -27,7 +27,7 @@ const AuctionSchema = z.strictObject({
 const StatsSchema = z.strictObject({
   soldBlocks: z.number().int(), totalBlocks: z.literal(10_000), adsCount: z.number().int(), usdRaised: z.number(),
   lamportsRaised: u64, lamportsToTreasury: u64, lamportsToBuyback: u64, lamportsSpentBuyback: u64,
-  tokensBurned: u64, tokensBurnedDirect: u64, tokensBurnedBuyback: u64, tokenSupply: u64, burnedPct: z.number(),
+  tokensBurned: u64, tokensBurnedDirect: u64, tokensBurnedBuyback: u64, tokenSupply: u64, burnedPct: z.number(), tokensBurnedExternal: u64, supplyReduction: u64, supplyReductionPct: z.number(),
   solPriceUsd: z.number().nullable(), tokenPriceUsd: z.number().nullable(), marketCapUsd: z.number().nullable(),
   auction: AuctionSchema.nullable(), updatedAt: unixSecs,
 });
@@ -145,6 +145,13 @@ describe("API contract (SPEC shapes)", () => {
     expect(s).toMatchObject({ soldBlocks: 8, adsCount: 3, usdRaised: 790, lamportsSpentBuyback: "1000000000", tokensBurnedBuyback: "500000000000" });
     expect(BigInt(s.lamportsToTreasury) + BigInt(s.lamportsToBuyback)).toBe(BigInt(s.lamportsRaised));
     expect(BigInt(s.tokensBurned)).toBe(BigInt(s.tokensBurnedDirect) + BigInt(s.tokensBurnedBuyback));
+    // Denominator = INITIAL supply (1e15); protocol and third-party burns are never merged.
+    const initial = 1_000_000_000_000_000n, onchainSupply = 900_000_000_000_000n;
+    expect(s.tokenSupply).toBe(onchainSupply.toString());
+    expect(s.burnedPct).toBe(Number((BigInt(s.tokensBurned) * 1_000_000n) / initial) / 10_000);
+    expect(s.supplyReduction).toBe((initial - onchainSupply).toString());
+    expect(s.supplyReductionPct).toBe(10);
+    expect(BigInt(s.tokensBurnedExternal)).toBe(initial - onchainSupply - BigInt(s.tokensBurned));
     expect(s.solPriceUsd).toBe(150);
   });
 

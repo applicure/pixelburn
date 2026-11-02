@@ -113,7 +113,14 @@ docker build -f services/Dockerfile --target keeper  -t mpb-keeper .
   (conservative, since impact includes fees). It stops the run, releasing nothing, when spot is or
   would be more than `KEEPER_BUYBACK_MAX_SPOT_OVER_EMA_PCT` (10) above the fast EMA, or when the run's
   cumulative projected move exceeds `KEEPER_BUYBACK_MAX_RUN_PRICE_MOVE_PCT` (5). Unknown prices fail
-  closed. `CrankTooSoon` (someone else cranked) is logged at info, not as an error. Devnet sizing (lead): chunks 0.005–0.02 SOL,
+  closed. The projection uses the larger of the avg-price impact and quoteIn / effective quote
+  reserves (vault + virtual quote), per chain's caveat. Each buy is also capped at
+  `KEEPER_BUYBACK_MAX_QUOTE_FRACTION_BPS` (50 = 0.5% of the curve's or pool's effective quote
+  reserves, ≈1% impact). A thin pool is bought back over many cycles; if even that cap is below the
+  minimum chunk, the run is skipped. The chunk planner never exceeds the max chunk (dust stays in the
+  vault). `lamports_spent` is the swapped quote (capped by the release), never the measured balance
+  drop, which includes one-time PumpSwap account rent (chain hit 6033 BuybackAmountTooHigh that
+  way). `CrankTooSoon` (someone else cranked) is logged at info, not as an error. Devnet sizing (lead): chunks 0.005–0.02 SOL,
   ≤ 0.02 SOL per run, impact cap 8%, every 10 ± 2 min. Mainnet should keep the 1% cap.
 - **Pointing at the deployed program**: api needs `PROGRAM_ID` + `TOKEN_MINT`. indexer needs
   `PROGRAM_ID`. keeper needs `PROGRAM_ID` + `KEEPER_KEYPAIR` (must equal `Config.keeper`) + `TOKEN_MINT`
@@ -208,6 +215,10 @@ docker build -f services/Dockerfile --target keeper  -t mpb-keeper .
   hourly bucket). The status comes from SDK `tokenPricingStatus(config, spot, now, w*h)`, the same gate
   `buy_with_token` applies. Token amounts use SDK `quoteTokensExact` at min(spot, fast EMA, slow 4h EMA);
   lamports use SDK `quoteLamports`.
+- `/api/stats.tokensBurnedExternal`: initial supply (pump.fun 1e9 tokens, `TOKEN_SUPPLY_STATIC`)
+  − on-chain supply − protocol burns, i.e. burns we didn't make (pump.fun's migration boost
+  burned ≈35.47M PXTEST on devnet). `burnedPct` covers protocol burns only, as a % of the initial
+  supply.
 - `/api/quote` adds `usdMicro` (string). `usd` is the undiscounted price; for `mode=token` the 10%
   discount is already applied in `tokens`. It returns 503 `{error:'price_unavailable'}` when the
   oracle or EMA is unavailable.

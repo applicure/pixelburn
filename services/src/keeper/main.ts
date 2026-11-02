@@ -28,8 +28,8 @@ const resolveRoutes = async (): Promise<SwapRoute[]> => {
   if (!c) return [];
   const slip = cfg.KEEPER_BUYBACK_SLIPPAGE_BPS;
   const routes: SwapRoute[] = [];
-  if (c.priceSource.kind === "bondingCurve") routes.push(new PumpCurveRoute(conn, c.tokenMint, c.tokenProgram, slip, log));
-  else routes.push(new PumpSwapPoolRoute(conn, c.priceSource.pool, slip, log));
+  if (c.priceSource.kind === "bondingCurve") routes.push(new PumpCurveRoute(conn, c.tokenMint, c.tokenProgram, slip, log, cfg.KEEPER_BUYBACK_MAX_QUOTE_FRACTION_BPS));
+  else routes.push(new PumpSwapPoolRoute(conn, c.priceSource.pool, slip, log, cfg.KEEPER_BUYBACK_MAX_QUOTE_FRACTION_BPS));
   routes.push(new JupiterRoute(conn, cfg.JUPITER_API_URL, c.tokenMint.toBase58(), slip, log));
   const names = routes.map((r) => r.name).join(" -> ");
   if (names !== lastRoutes) log.info(`buyback routes: ${(lastRoutes = names)}`);

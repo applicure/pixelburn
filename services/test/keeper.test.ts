@@ -154,6 +154,35 @@ describe("keeper", () => {
     expect(calls).toEqual(["release 500000000"]);
   });
 
+  it("sizes buys from the route's reserve cap (0.5% of effective quote) and skips too-thin pools", async () => {
+    const released: bigint[] = [];
+    const actions: KeeperActions = {
+      crankTokenPriceIxs: async () => null,
+      releaseBuybackIxs: async (_k, l) => (released.push(l), [dummyIx()]),
+      recordBuybackBurnIxs: async () => [dummyIx()],
+    };
+    const mk = (cap: bigint): SwapRoute => ({
+      name: "pumpswap-pool",
+      maxQuoteIn: async () => cap,
+      plan: async (l) => ({ route: "pumpswap-pool", minTokensOut: 10n ** 12n, lamportsSpent: l, impactPct: 0.6, quoteFractionPct: 0.5, build: async () => ({ ixs: [dummyIx()], lookupTables: [] }) }),
+    });
+    const chain = new FakeChain();
+    chain.fetchTokenPrice = async () => ({ spot: Q, ema: Q, slow: Q });
+    chain.fetchBuybackVaultLamports = async () => 50_000_000_000n;
+    const base = { ...cfg(false), minChunkLamports: 5_000_000n, maxChunkLamports: 20_000_000n, maxPerRunLamports: 20_000_000n };
+    await new Keeper(explodingConn, null, actions, chain, base, silentLogger, async () => {}, [mk(5_050_000n)]).buybackOnce();
+    expect(released.every((l) => l <= 5_050_000n)).toBe(true);
+    expect(released.length).toBeGreaterThan(0);
+    released.length = 0;
+    await new Keeper(explodingConn, null, actions, chain, base, silentLogger, async () => {}, [mk(4_000_000n)]).buybackOnce();
+    expect(released).toEqual([]); // max buy < min chunk: skipped, nothing released
+  });
+
+  it("projects with the larger of avg-price impact and quoteIn/reserves", () => {
+    const r = checkDeviation({ spotQ: (Q * 105n) / 100n, emaQ: Q, impactPct: 0.2, quoteFractionPct: 2.5, runFactor: 1, maxSpotOverEmaPct: 10, maxRunPriceMovePct: 5 });
+    expect(r.ok).toBe(false); // 1.05 * 1.025^2 = 1.103 > 1.10 (impact alone would have passed)
+  });
+
   it("refuses to start live without a keypair", () => {
     expect(() => new Keeper(explodingConn, null, {} as KeeperActions, null, cfg(true), silentLogger)).toThrow(/KEEPER_KEYPAIR/);
     expect(() => new Keeper(explodingConn, Keypair.generate(), {} as KeeperActions, null, cfg(true), silentLogger)).not.toThrow();

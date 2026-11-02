@@ -24,12 +24,19 @@ export interface SwapPlan {
   /** Lamports the swap consumes (record_buyback_burn refunds `released - spent` to the vault). */
   lamportsSpent: bigint;
   impactPct: number;
+  /** quoteIn / effective quote reserves, in % (reserve-based impact estimate); undefined if unknown. */
+  quoteFractionPct?: number;
   build(): Promise<{ ixs: TransactionInstruction[]; lookupTables: AddressLookupTableAccount[] }>;
 }
 
 export interface SwapRoute {
   readonly name: string;
   plan(lamports: bigint, user: PublicKey): Promise<SwapPlan | null>;
+  /**
+   * Largest quote (lamports) one buy may spend: maxQuoteFractionBps of the effective quote reserves
+   * (≈ 2x that in price impact). null = no reserve-based cap (e.g. Jupiter).
+   */
+  maxQuoteIn?(): Promise<bigint | null>;
 }
 
 /** pump.fun bonding-curve buy (legacy SOL `buy`, exact tokens out, max SOL cost). */
@@ -42,8 +49,15 @@ export class PumpCurveRoute implements SwapRoute {
     private readonly tokenProgram: PublicKey,
     private readonly slippageBps: number,
     private readonly log: Logger,
+    private readonly maxQuoteFractionBps = 50,
   ) {
     this.online = new OnlinePumpSdk(conn);
+  }
+
+  async maxQuoteIn(): Promise<bigint | null> {
+    const curve = await this.online.fetchBondingCurve(this.mint).catch(() => null);
+    if (!curve || curve.complete) return null;
+    return (BigInt(curve.virtualQuoteReserves.toString()) * BigInt(this.maxQuoteFractionBps)) / 10_000n;
   }
 
   async plan(lamports: bigint, user: PublicKey): Promise<SwapPlan | null> {
@@ -85,6 +99,7 @@ export class PumpCurveRoute implements SwapRoute {
         minTokensOut: BigInt(tokens.toString()),
         lamportsSpent: BigInt(cost.toString()),
         impactPct,
+        quoteFractionPct: (Number(cost.toString()) / Number(curve.virtualQuoteReserves.toString())) * 100,
         build: async () => ({
           ixs: await PUMP_SDK.buyInstructions({
             global,
@@ -121,8 +136,17 @@ export class PumpSwapPoolRoute implements SwapRoute {
     private readonly pool: PublicKey,
     private readonly slippageBps: number,
     private readonly log: Logger,
+    private readonly maxQuoteFractionBps = 50,
   ) {
     this.online = new OnlinePumpAmmSdk(conn);
+  }
+
+  /** Effective quote reserves = quote vault + virtual_quote_reserves (what the price is made of). */
+  async maxQuoteIn(): Promise<bigint | null> {
+    const st = await this.online.swapSolanaState(this.pool, PublicKey.default).catch(() => null);
+    if (!st) return null;
+    const eff = BigInt(st.poolQuoteAmount.toString()) + BigInt((st.pool.virtualQuoteReserves ?? new BN(0)).toString());
+    return (eff * BigInt(this.maxQuoteFractionBps)) / 10_000n;
   }
 
   async plan(lamports: bigint, user: PublicKey): Promise<SwapPlan | null> {
@@ -146,6 +170,7 @@ export class PumpSwapPoolRoute implements SwapRoute {
         minTokensOut: BigInt(base.toString()),
         lamportsSpent: BigInt(quote.toString()),
         impactPct,
+        quoteFractionPct: effQuote > 0n ? (Number(quote.toString()) / Number(effQuote)) * 100 : 100,
         build: async () => ({ ixs: await PUMP_AMM_SDK.buyQuoteInput(st, quote, slippagePct), lookupTables: [] }),
       };
     } catch (e) {

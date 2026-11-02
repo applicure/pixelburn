@@ -130,7 +130,7 @@ export async function buildContext(cfg: Config, o: Overrides = {}) {
     moderation,
     quotes,
     bus: new EventEmitter().setMaxListeners(10_000),
-    stats: { sol, token, decimals: cfg.TOKEN_DECIMALS, tokenSupply, staticInitialSupply: BigInt(cfg.TOKEN_SUPPLY_STATIC) },
+    stats: { sol, token, decimals: cfg.TOKEN_DECIMALS, tokenSupply, staticInitialSupply: BigInt(cfg.TOKEN_INITIAL_SUPPLY ?? cfg.TOKEN_SUPPLY_STATIC ?? "1000000000000000") },
   };
 }
 

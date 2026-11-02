@@ -66,7 +66,8 @@ const EnvSchema = z.object({
   TOKEN_PRICE_SOURCE: z.enum(["auto", "onchain", "static"]).default("auto"), // auto = onchain when PROGRAM_ID is set
   /** SOL per WHOLE token, used when TOKEN_PRICE_SOURCE=static (both spot and ema). */
   TOKEN_PRICE_SOL_STATIC: z.coerce.number().default(0.0000125),
-  TOKEN_SUPPLY_STATIC: z.string().default("1000000000000000"), // base units, used when TOKEN_MINT unset
+  TOKEN_SUPPLY_STATIC: z.string().optional(), // legacy alias of TOKEN_INITIAL_SUPPLY
+  TOKEN_INITIAL_SUPPLY: z.string().regex(/^\d+$/).optional(), // base units at launch (pump.fun: 1e9 tokens x 1e6)
 
   // Keeper
   KEEPER_KEYPAIR: optStr,
@@ -75,6 +76,7 @@ const EnvSchema = z.object({
   KEEPER_OUTSTANDING_GRACE_SECS: z.coerce.number().int().default(900),
   KEEPER_BUYBACK_MAX_SPOT_OVER_EMA_PCT: z.coerce.number().default(10), // program pauses token payments at 15%
   KEEPER_BUYBACK_MAX_RUN_PRICE_MOVE_PCT: z.coerce.number().default(5),
+  KEEPER_BUYBACK_MAX_QUOTE_FRACTION_BPS: z.coerce.number().int().default(50), // one buy <= 0.5% of effective quote reserves (~1% impact)
   KEEPER_CRANK_INTERVAL_MS: z.coerce.number().int().default(45_000), // chain: crank every 30-60 s (EMA moves <= 2%/crank)
   KEEPER_BUYBACK_INTERVAL_MS: z.coerce.number().int().default(15 * 60_000),
   KEEPER_BUYBACK_JITTER_MS: z.coerce.number().int().default(5 * 60_000),

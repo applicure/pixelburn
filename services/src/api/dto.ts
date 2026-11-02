@@ -89,7 +89,13 @@ export interface StatsDto {
   tokensBurnedDirect: string;
   tokensBurnedBuyback: string;
   tokenSupply: string;
+  /** Protocol burns only (direct + buyback) as % of the INITIAL supply. */
   burnedPct: number;
+  /** Burned by others: supplyReduction − protocol burns (e.g. pump.fun's migration boost). */
+  tokensBurnedExternal: string;
+  /** initial supply − current supply (everyone's burns; never merged into burnedPct). */
+  supplyReduction: string;
+  supplyReductionPct: number;
   solPriceUsd: number | null;
   tokenPriceUsd: number | null;
   marketCapUsd: number | null;

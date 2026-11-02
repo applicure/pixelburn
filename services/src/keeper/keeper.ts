@@ -135,6 +135,16 @@ export class Keeper {
       this.log.warn("buyback: vault balance unavailable (PROGRAM_ID unset or vault missing) — skipped");
       return { chunks: [], sent };
     }
+    const runRoutes = typeof this.routes === "function" ? await this.routes().catch(() => []) : this.routes;
+    // Cap each buy at a small fraction of the route's effective quote reserves (≈ 1% price impact),
+    // so a thin pool is bought back over many cycles instead of being pushed in one.
+    let maxChunk = this.cfg.maxChunkLamports;
+    const routeCap = runRoutes[0]?.maxQuoteIn ? await runRoutes[0].maxQuoteIn().catch(() => null) : null;
+    if (routeCap !== null && routeCap < maxChunk) maxChunk = routeCap;
+    if (maxChunk < this.cfg.minChunkLamports) {
+      this.log.warn(`buyback: ${runRoutes[0]?.name} reserves too thin (max buy ${maxChunk} < min chunk ${this.cfg.minChunkLamports} lamports) — skipped, nothing released`);
+      return { chunks: [], sent };
+    }
     // Never plan more than the on-chain token bucket currently allows (release would fail anyway).
     const releasable = (await this.chain?.fetchBuybackReleasable?.().catch(() => null)) ?? null;
     const perRun = releasable !== null && releasable < this.cfg.maxPerRunLamports ? releasable : this.cfg.maxPerRunLamports;
@@ -143,7 +153,7 @@ export class Keeper {
       reserveLamports: this.cfg.reserveLamports,
       maxPerRunLamports: perRun,
       minChunkLamports: this.cfg.minChunkLamports,
-      maxChunkLamports: this.cfg.maxChunkLamports,
+      maxChunkLamports: maxChunk,
     });
     this.log.info(`buyback: vault=${vault} releasable=${releasable ?? "?"} lamports, plan=${chunks.length} chunks [${chunks.join(", ")}]${this.cfg.live ? "" : " (dry-run)"}`);
     const price = (await this.chain?.fetchTokenPrice().catch(() => null)) ?? null;
@@ -164,7 +174,7 @@ export class Keeper {
       // Fresh plan right before each chunk (min-out bounds slippage and sandwich profit).
       // Routes in priority order: pump curve while the token is on the curve, then Jupiter.
       let plan: SwapPlan | null = null;
-      const routes = typeof this.routes === "function" ? await this.routes().catch(() => []) : this.routes;
+      const routes = runRoutes;
       for (const r of routes) {
         plan = await r.plan(lamports, this.keeperKey);
         if (plan) break;
@@ -179,7 +189,7 @@ export class Keeper {
         break;
       }
       const guard = checkDeviation({
-        spotQ: now?.spot ?? null, emaQ: now?.ema ?? null, impactPct: plan.impactPct, runFactor,
+        spotQ: now?.spot ?? null, emaQ: now?.ema ?? null, impactPct: plan.impactPct, quoteFractionPct: plan.quoteFractionPct, runFactor,
         maxSpotOverEmaPct: this.cfg.maxSpotOverEmaPct, maxRunPriceMovePct: this.cfg.maxRunPriceMovePct,
       });
       if (!guard.ok) {

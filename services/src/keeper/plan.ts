@@ -18,11 +18,13 @@ export function planBuybackChunks(o: BuybackPlanOptions): bigint[] {
   const chunks: bigint[] = [];
   const span = o.maxChunkLamports - o.minChunkLamports;
   while (budget >= o.minChunkLamports) {
+    if (o.maxChunkLamports < o.minChunkLamports) break;
     // Random size in [min, max], never more than what's left.
     let size = o.minChunkLamports + (span > 0n ? BigInt(Math.floor(rng() * Number(span))) : 0n);
     if (size > budget) size = budget;
-    // Avoid leaving an unusable dust remainder below the minimum chunk.
-    if (budget - size > 0n && budget - size < o.minChunkLamports) size = budget;
+    // Absorb a dust remainder below the minimum chunk, but never beyond the max chunk (the max is a
+    // price-impact limit); otherwise the dust simply stays in the vault for a later run.
+    if (budget - size > 0n && budget - size < o.minChunkLamports && budget <= o.maxChunkLamports) size = budget;
     chunks.push(size);
     budget -= size;
   }
@@ -61,6 +63,8 @@ export function checkDeviation(o: {
   spotQ: bigint | null;
   emaQ: bigint | null;
   impactPct: number;
+  /** Reserve-based estimate (quoteIn / effective quote reserves, %); the larger estimate is used. */
+  quoteFractionPct?: number;
   runFactor: number;
   maxSpotOverEmaPct: number;
   maxRunPriceMovePct: number;
@@ -69,7 +73,8 @@ export function checkDeviation(o: {
   const ratio = Number((o.spotQ * 1_000_000n) / o.emaQ) / 1_000_000; // spot / fast EMA
   const limit = 1 + o.maxSpotOverEmaPct / 100;
   if (ratio > limit) return { ok: false, reason: `spot already ${((ratio - 1) * 100).toFixed(2)}% above fast EMA (limit ${o.maxSpotOverEmaPct}%)` };
-  const step = (1 + Math.max(0, o.impactPct) / 100) ** 2;
+  const move = Math.max(0, o.impactPct, o.quoteFractionPct ?? 0);
+  const step = (1 + move / 100) ** 2; // constant product: price x (1 + quoteIn/effectiveQuote)^2
   if (ratio * step > limit) {
     return { ok: false, reason: `projected spot ${((ratio * step - 1) * 100).toFixed(2)}% above fast EMA after this chunk (limit ${o.maxSpotOverEmaPct}%)` };
   }

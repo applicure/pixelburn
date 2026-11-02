@@ -3,7 +3,8 @@ import type { Db } from "../db/client.js";
 import { ads, auction, auctionBids, buybacks } from "../db/schema.js";
 import { adBlocks, countBits, emptyBitmap, setBlock } from "../lib/blocks.js";
 import { TOTAL_BLOCKS, TREASURY_BPS, BPS_DENOM } from "../constants.js";
-import { effectiveTokenPrice, microToUsd, tokenUsdPerToken } from "../lib/quote-math.js";
+import { microToUsd, tokenUsdPerToken } from "../lib/quote-math.js";
+import { buyPriceQ as sdkBuyPriceQ } from "@mpb/sdk";
 import type { SolPriceSource, TokenPriceSource } from "../pricing/prices.js";
 import { unix, type AuctionDto, type BuybackDto, type FeedItem, type StatsDto } from "./dto.js";
 
@@ -141,22 +142,21 @@ export async function computeStats(d: StatsDeps): Promise<StatsDto> {
   const tokensBuyback = BigInt(bb!.burned);
   const burned = tokensDirect + tokensBuyback;
 
-  let supply: bigint;
-  let initial: bigint;
+  // Denominator is the token's INITIAL supply (TOKEN_INITIAL_SUPPLY, pump.fun: 1e9 tokens = 1e15 base
+  // units). Protocol burns and third-party burns are never merged: burnedPct is protocol-only;
+  // supplyReduction(Pct) is the total drop from the initial supply, whoever burned.
+  const initial = d.staticInitialSupply;
   const onchain = await d.tokenSupply().catch(() => null);
-  if (onchain !== null) {
-    supply = onchain;
-    initial = onchain + burned;
-  } else {
-    initial = d.staticInitialSupply;
-    supply = initial > burned ? initial - burned : 0n;
-  }
+  const supply = onchain !== null ? onchain : initial > burned ? initial - burned : 0n;
+  const supplyReduction = initial > supply ? initial - supply : 0n;
+  const pctOf = (x: bigint) => (initial > 0n ? Number((x * 1_000_000n) / initial) / 10_000 : 0);
 
   const sol = await d.sol.get().catch(() => null);
   let tokenPriceUsd: number | null = null;
   if (sol) {
     const t = await d.token.get().catch(() => null);
-    if (t) tokenPriceUsd = tokenUsdPerToken(effectiveTokenPrice(t.spot, t.ema), sol.price, d.decimals);
+    // Same price token buyers are charged: min(spot, fast EMA, slow EMA).
+    if (t && t.ema > 0n) tokenPriceUsd = tokenUsdPerToken(sdkBuyPriceQ(t.spot, t.ema, t.slow ?? t.ema), sol.price, d.decimals);
   }
   const marketCapUsd = tokenPriceUsd !== null ? (tokenPriceUsd * Number(supply)) / 10 ** d.decimals : null;
 
@@ -173,7 +173,10 @@ export async function computeStats(d: StatsDeps): Promise<StatsDto> {
     tokensBurnedDirect: tokensDirect.toString(),
     tokensBurnedBuyback: tokensBuyback.toString(),
     tokenSupply: supply.toString(),
-    burnedPct: initial > 0n ? Number((burned * 1_000_000n) / initial) / 10_000 : 0,
+    burnedPct: pctOf(burned),
+    tokensBurnedExternal: (supplyReduction > burned ? supplyReduction - burned : 0n).toString(),
+    supplyReduction: supplyReduction.toString(),
+    supplyReductionPct: pctOf(supplyReduction),
     solPriceUsd: sol?.price ?? null,
     tokenPriceUsd,
     marketCapUsd,

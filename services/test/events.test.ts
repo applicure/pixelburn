@@ -93,10 +93,11 @@ describe("keeper buyback planning", () => {
     let i = 0;
     const rng = () => [0.1, 0.9, 0.5, 0.3][i++ % 4]!;
     const chunks = planBuybackChunks({ ...base, vaultLamports: 5_000n, rng });
-    expect(chunks.reduce((a, b) => a + b, 0n)).toBe(1_000n);
+    expect(chunks.reduce((a, b) => a + b, 0n)).toBeLessThanOrEqual(1_000n);
+    expect(chunks.reduce((a, b) => a + b, 0n)).toBeGreaterThan(1_000n - 50n); // at most sub-minimum dust left
     for (const c of chunks) {
       expect(c).toBeGreaterThanOrEqual(50n);
-      expect(c).toBeLessThanOrEqual(200n + 49n); // last chunk may absorb sub-minimum dust
+      expect(c).toBeLessThanOrEqual(200n); // never above the max chunk (a price-impact limit)
     }
   });
   it("keeps the reserve and skips dust", () => {
