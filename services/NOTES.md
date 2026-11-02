@@ -173,6 +173,13 @@ docker build -f services/Dockerfile --target keeper  -t mpb-keeper .
 - **Idempotency**: `chain_events` PK is `(signature, event_index)`. Each tx is ingested in one DB
   transaction under `pg_advisory_xact_lock(hashtext(signature))`, so concurrent deliveries (logs +
   webhook + backfill) are safe. Derived tables also carry unique `(signature, event_index)`.
+- **No silent skips**: a finalized signature whose transaction the primary RPC returns as null (node
+  without full history, load-balancer lag, purged slots) is retried once on each same-cluster history
+  fallback. Devnet: `helius-devnet`, `public-devnet`. Mainnet: `helius-mainnet`, `quicknode`
+  (`SOLANA_RPC`), `public-mainnet`; the primary itself is excluded. A fallback is only used if its
+  genesis hash equals the primary's, so devnet never talks to a mainnet URL. The serving provider's
+  label (never its URL) is logged. If none has the tx, the pass halts without advancing the cursor,
+  retries next interval, and `/healthz` turns stale.
 - **Finality**: only `finalized` data advances the cursor. `confirmed` data (onLogs, Helius) is stored
   with `finalized=false` and appears in the API right away (feed items carry `finalized`). The
   finalizer promotes rows once the signature is finalized. If a signature errors, or has no status

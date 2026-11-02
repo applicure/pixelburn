@@ -4,6 +4,7 @@ import { ads, auction, buybacks, chainEvents, purchases } from "../src/db/schema
 import { ingestTx, rollbackSignature, finalizeSignature } from "../src/indexer/ingest.js";
 import { ingestHeliusPayload } from "../src/indexer/indexer.js";
 import { auctionState } from "../src/api/queries.js";
+import { silentLogger } from "../src/lib/log.js";
 import { fakeLogs, type ProgramEvent } from "../src/chain/events.js";
 import { makeTestContext, PROGRAM_ID, randKey, randSig, truncateAll } from "./helpers.js";
 
@@ -124,5 +125,90 @@ describe("event ingest", () => {
     expect(row).toMatchObject({ x: 0, y: 0, w: 100, h: 100 });
     expect(await count(purchases)).toBe(1); // the auction is not a fixed-price purchase
     expect((await t.ctx.db.select().from(auction))[0]).toMatchObject({ status: "settled", winner, adId: 1 });
+  });
+});
+
+describe("indexer backfill", () => {
+  it("never advances the cursor past a finalized tx the RPC can't return (no silent skip)", async () => {
+    const { Indexer } = await import("../src/indexer/indexer.js");
+    const { indexerCursor } = await import("../src/db/schema.js");
+    const s1 = randSig(), s2 = randSig();
+    let haveHistory = false;
+    const conn = {
+      // newest first, like the RPC
+      getSignaturesForAddress: async () => [{ signature: s2, slot: 20, err: null, blockTime: 1 }, { signature: s1, slot: 10, err: null, blockTime: 1 }],
+      getTransaction: async (sig: string) =>
+        sig === s1 && !haveHistory ? null : { slot: sig === s1 ? 10 : 20, meta: { err: null, logMessages: fakeLogs(PROGRAM_ID, [purchase(sig === s1 ? 1 : 2)]) } },
+      getSlot: async () => 30,
+    } as never;
+    const idx = new Indexer({ db: t.ctx.db, conn, programId: PROGRAM_ID, decoder: t.ctx.decoder, log: silentLogger, backfillIntervalMs: 60_000, dropAfterSecs: 180 });
+    await expect(idx.backfill()).rejects.toThrow(/returned null/);
+    expect(await t.ctx.db.select().from(indexerCursor)).toEqual([]); // nothing skipped, nothing advanced
+    expect(await count(purchases)).toBe(0);
+    haveHistory = true; // e.g. the RPC caught up / failover to a full-history node
+    expect(await idx.backfill()).toBe(2);
+    expect((await t.ctx.db.select().from(indexerCursor))[0]!.lastSignature).toBe(s2);
+    expect(await count(purchases)).toBe(2);
+  });
+});
+
+describe("indexer history fallback", () => {
+  const logs = () => {
+    const lines: string[] = [];
+    const log = { debug() {}, info: (m: string) => void lines.push(m), warn: (m: string) => void lines.push(m), error: (m: string) => void lines.push(m) };
+    return { lines, log };
+  };
+
+  it("retries a null getTransaction once on a second provider, logs which served it, and ingests", async () => {
+    const { Indexer } = await import("../src/indexer/indexer.js");
+    const { indexerCursor } = await import("../src/db/schema.js");
+    const s1 = randSig();
+    const tx = { slot: 10, meta: { err: null, logMessages: fakeLogs(PROGRAM_ID, [purchase(1)]) } };
+    const primary = {
+      getSignaturesForAddress: async () => [{ signature: s1, slot: 10, err: null, blockTime: 1 }],
+      getTransaction: async () => null, // primary lacks history
+      getSlot: async () => 30,
+    } as never;
+    const asked: string[] = [];
+    const fallbacks = [
+      { label: "helius-devnet", conn: { getTransaction: async () => (asked.push("helius-devnet"), null), getGenesisHash: async () => "G" } as never },
+      { label: "public-devnet", conn: { getTransaction: async () => (asked.push("public-devnet"), tx), getGenesisHash: async () => "G" } as never },
+    ];
+    const { lines, log } = logs();
+    const idx = new Indexer({ db: t.ctx.db, conn: primary, programId: PROGRAM_ID, decoder: t.ctx.decoder, log, backfillIntervalMs: 60_000, dropAfterSecs: 180, historyFallbacks: fallbacks });
+    expect(await idx.backfill()).toBe(1);
+    expect(asked).toEqual(["helius-devnet", "public-devnet"]);
+    expect(lines.some((l) => l.includes(`served by public-devnet`) && l.includes(s1))).toBe(true);
+    expect((await t.ctx.db.select().from(indexerCursor))[0]!.lastSignature).toBe(s1);
+    expect(await count(purchases)).toBe(1);
+  });
+
+  it("halts (no cursor advance) when no provider has the tx, naming every provider tried", async () => {
+    const { Indexer } = await import("../src/indexer/indexer.js");
+    const { indexerCursor } = await import("../src/db/schema.js");
+    const s1 = randSig();
+    const primary = { getSignaturesForAddress: async () => [{ signature: s1, slot: 10, err: null, blockTime: 1 }], getTransaction: async () => null, getSlot: async () => 30 } as never;
+    const fallbacks = [{ label: "public-devnet", conn: { getTransaction: async () => null, getGenesisHash: async () => "G" } as never }];
+    const idx = new Indexer({ db: t.ctx.db, conn: primary, programId: PROGRAM_ID, decoder: t.ctx.decoder, log: silentLogger, backfillIntervalMs: 60_000, dropAfterSecs: 180, historyFallbacks: fallbacks });
+    await expect(idx.backfill()).rejects.toThrow(/from primary, public-devnet; not advancing the cursor/);
+    expect(await t.ctx.db.select().from(indexerCursor)).toEqual([]);
+  });
+
+  it("only keeps fallbacks on the primary's cluster (genesis hash) and never offers mainnet on devnet", async () => {
+    const { makeHistoryFallbacks } = await import("../src/indexer/indexer.js");
+    const { loadConfig } = await import("../src/config.js");
+    const dev = loadConfig({ SOLANA_CLUSTER: "devnet", SOLANA_RPC_HELIUS_KEY: "hk-123456", SOLANA_RPC: "https://x.solana-mainnet.quiknode.pro/k1234567/", RPC_URL: "https://primary.example/" });
+    expect(dev.historyRpcFallbacks.map((f) => f.label)).toEqual(["helius-devnet", "public-devnet"]);
+    expect(dev.historyRpcFallbacks.some((f) => /mainnet|quiknode/.test(f.url))).toBe(false);
+    const main = loadConfig({ SOLANA_CLUSTER: "mainnet-beta", SOLANA_RPC_HELIUS_KEY: "hk-123456", SOLANA_RPC: "https://x.solana-mainnet.quiknode.pro/k1234567/" });
+    expect(main.historyRpcFallbacks.map((f) => f.label)).toEqual(["helius-mainnet", "public-mainnet"]); // quicknode is the primary
+    const hashes: Record<string, string> = { "https://a/": "DEV", "https://b/": "MAIN" };
+    const kept = await makeHistoryFallbacks(
+      { getGenesisHash: async () => "DEV" } as never,
+      [{ label: "a", url: "https://a/" }, { label: "b", url: "https://b/" }],
+      silentLogger,
+      (url) => ({ getGenesisHash: async () => hashes[url]!, getTransaction: async () => null }) as never,
+    );
+    expect(kept.map((k) => k.label)).toEqual(["a"]);
   });
 });

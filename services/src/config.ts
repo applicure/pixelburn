@@ -80,6 +80,7 @@ const EnvSchema = z.object({
   KEEPER_CRANK_INTERVAL_MS: z.coerce.number().int().default(45_000), // chain: crank every 30-60 s (EMA moves <= 2%/crank)
   KEEPER_BUYBACK_INTERVAL_MS: z.coerce.number().int().default(15 * 60_000),
   KEEPER_BUYBACK_JITTER_MS: z.coerce.number().int().default(5 * 60_000),
+  KEEPER_BUYBACK_FIRST_DELAY_MS: z.coerce.number().int().default(90_000), // first run soon after (re)start
   KEEPER_BUYBACK_MAX_CHUNK_LAMPORTS: z.coerce.bigint().default(2_000_000_000n),
   KEEPER_BUYBACK_MIN_CHUNK_LAMPORTS: z.coerce.bigint().default(50_000_000n),
   KEEPER_BUYBACK_MAX_PER_RUN_LAMPORTS: z.coerce.bigint().default(10_000_000_000n),
@@ -100,6 +101,8 @@ export type Config = z.infer<typeof EnvSchema> & {
   publicBaseUrl: string;
   rpcUrl: string;
   wsUrl: string;
+  /** Labelled same-cluster RPCs the indexer may ask when the primary lacks a tx's history. */
+  historyRpcFallbacks: { label: string; url: string }[];
   corsOrigins: string[];
 };
 
@@ -118,12 +121,27 @@ export function loadConfig(env: Record<string, string | undefined> = process.env
   const helius = parsed.SOLANA_RPC_HELIUS_KEY ? heliusUrls(parsed.SOLANA_CLUSTER, parsed.SOLANA_RPC_HELIUS_KEY) : null;
   const publicRpc = parsed.SOLANA_CLUSTER === "mainnet-beta" ? "https://api.mainnet-beta.solana.com" : "https://api.devnet.solana.com";
   const rpcUrl = parsed.RPC_URL ?? parsed.SOLANA_RPC ?? helius?.http ?? publicRpc;
+  // Second providers for transaction HISTORY (indexer retries a null getTransaction there before halting).
+  // Same cluster only: devnet never gets a mainnet URL (SOLANA_RPC/QuickNode is mainnet-only here).
+  const candidates: { label: string; url: string | undefined }[] =
+    parsed.SOLANA_CLUSTER === "mainnet-beta"
+      ? [
+          { label: "helius-mainnet", url: helius?.http },
+          { label: "quicknode", url: parsed.SOLANA_RPC },
+          { label: "public-mainnet", url: publicRpc },
+        ]
+      : [
+          { label: "helius-devnet", url: helius?.http },
+          { label: "public-devnet", url: publicRpc },
+        ];
+  const historyRpcFallbacks = candidates.filter((c): c is { label: string; url: string } => !!c.url && c.url !== rpcUrl);
   const wsUrl = parsed.WS_URL ?? helius?.ws ?? rpcUrl.replace(/^http/, "ws");
   const cfg: Config = {
     ...parsed,
     publicBaseUrl: (parsed.PUBLIC_API_URL ?? parsed.PUBLIC_BASE_URL ?? `http://localhost:${parsed.PORT}`).replace(/\/$/, ""),
     rpcUrl,
     wsUrl,
+    historyRpcFallbacks,
     corsOrigins: (parsed.CORS_ORIGINS ?? parsed.WEB_ORIGIN ?? "http://localhost:3000").split(",").map((o) => o.trim().replace(/\/$/, "")).filter(Boolean),
   };
   registerConfigSecrets(cfg);

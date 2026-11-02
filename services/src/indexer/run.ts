@@ -3,7 +3,7 @@ import { AdvisoryLease, LOCK_INDEXER, type DbHandle } from "../db/client.js";
 import type { EventParser } from "../chain/events.js";
 import type { Logger } from "../lib/log.js";
 import { heartbeat } from "../lib/heartbeat.js";
-import { Indexer } from "./indexer.js";
+import { Indexer, type HistoryProvider } from "./indexer.js";
 
 export interface RunIndexerOptions {
   handle: DbHandle;
@@ -19,6 +19,7 @@ export interface RunIndexerOptions {
    * container (which then waits for the lock again). In-API mode: stop and re-acquire.
    */
   exitOnLockLoss?: boolean;
+  historyFallbacks?: HistoryProvider[];
 }
 
 /**
@@ -62,6 +63,7 @@ export function runIndexerWithLock(o: RunIndexerOptions): { stop: () => Promise<
         db: o.handle.db, conn: o.conn, programId: o.programId, decoder: o.decoder, log: o.log,
         backfillIntervalMs: o.backfillIntervalMs, dropAfterSecs: o.dropAfterSecs,
         onBackfillOk: () => heartbeat(o.heartbeatFile),
+        historyFallbacks: o.historyFallbacks,
       });
       try {
         await indexer.start();

@@ -7,6 +7,7 @@ import { SdkEventParser } from "../chain/events.js";
 import { createLogger } from "../lib/log.js";
 import { heartbeat } from "../lib/heartbeat.js";
 import { runIndexerWithLock } from "./run.js";
+import { makeHistoryFallbacks } from "./indexer.js";
 
 const cfg = loadConfig();
 const log = createLogger("indexer", cfg.LOG_LEVEL);
@@ -21,9 +22,11 @@ if (!cfg.PROGRAM_ID) {
   await runMigrations(h);
   const conn = new Connection(cfg.rpcUrl, { commitment: "confirmed", wsEndpoint: cfg.wsUrl });
   log.info(`starting: program=${cfg.PROGRAM_ID} cluster=${cfg.SOLANA_CLUSTER}`);
+  const historyFallbacks = await makeHistoryFallbacks(conn, cfg.historyRpcFallbacks, log);
+  log.info(`history fallbacks: ${historyFallbacks.map((f) => f.label).join(", ") || "none"}`);
   const runner = runIndexerWithLock({
     handle: h, conn, programId: cfg.PROGRAM_ID, decoder: new SdkEventParser(cfg.PROGRAM_ID), log,
-    backfillIntervalMs: cfg.INDEXER_BACKFILL_INTERVAL_MS, dropAfterSecs: cfg.INDEXER_DROP_AFTER_SECS, heartbeatFile: hb, exitOnLockLoss: true,
+    backfillIntervalMs: cfg.INDEXER_BACKFILL_INTERVAL_MS, dropAfterSecs: cfg.INDEXER_DROP_AFTER_SECS, heartbeatFile: hb, exitOnLockLoss: true, historyFallbacks,
   });
   const stop = async () => {
     await runner.stop();

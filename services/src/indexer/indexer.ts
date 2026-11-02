@@ -19,6 +19,32 @@ export interface IndexerOptions {
   dropAfterSecs: number;
   /** Called after every successful backfill pass (heartbeat). */
   onBackfillOk?: () => void;
+  /** Second providers asked when the primary returns null for a finalized tx (same cluster only). */
+  historyFallbacks?: HistoryProvider[];
+}
+
+export interface HistoryProvider {
+  /** Non-secret name for logs, e.g. "public-devnet". Never the URL (it may carry a key). */
+  label: string;
+  conn: Pick<Connection, "getTransaction" | "getGenesisHash">;
+}
+
+/** Build fallbacks from config, keeping only providers on the SAME cluster as the primary (genesis hash). */
+export async function makeHistoryFallbacks(
+  primary: Pick<Connection, "getGenesisHash">,
+  candidates: { label: string; url: string }[],
+  log: Logger,
+  connect: (url: string) => HistoryProvider["conn"] = (url) => new Connection(url, "finalized"),
+): Promise<HistoryProvider[]> {
+  const want = await primary.getGenesisHash().catch(() => null);
+  const out: HistoryProvider[] = [];
+  for (const c of candidates) {
+    const conn = connect(c.url);
+    const got = await conn.getGenesisHash().catch(() => null);
+    if (want && got === want) out.push({ label: c.label, conn });
+    else log.warn(`history fallback ${c.label} skipped (${got ? "different cluster" : "unreachable"})`);
+  }
+  return out;
 }
 
 export class Indexer {
@@ -69,8 +95,8 @@ export class Indexer {
       for (const s of sigs) {
         if (this.stopped) break;
         if (!s.err) {
-          const tx = await conn.getTransaction(s.signature, { commitment: "finalized", maxSupportedTransactionVersion: 0 });
-          const logs = tx?.meta?.logMessages;
+          const tx = await this.fetchFinalizedTx(s.signature, s.slot);
+          const logs = tx.meta?.logMessages;
           if (logs && !tx.meta?.err) {
             const events = this.o.decoder.parse(logs);
             await ingestTx(db, { signature: s.signature, slot: s.slot, finalized: true, source: "backfill", blockTime: s.blockTime, events });
@@ -95,6 +121,26 @@ export class Indexer {
     } finally {
       this.backfillRunning = false;
     }
+  }
+
+  /**
+   * getTransaction from the primary; if it returns null (node without full history, load-balancer lag,
+   * purged slots), ask each same-cluster fallback once. If none has it, THROW: skipping would advance
+   * the cursor past data we never ingested. The next pass retries; /healthz turns stale meanwhile.
+   */
+  private async fetchFinalizedTx(signature: string, slot: number) {
+    const opts = { commitment: "finalized" as const, maxSupportedTransactionVersion: 0 };
+    const tx = await this.o.conn.getTransaction(signature, opts);
+    if (tx) return tx;
+    for (const f of this.o.historyFallbacks ?? []) {
+      const alt = await f.conn.getTransaction(signature, opts).catch(() => null);
+      if (alt) {
+        this.o.log.warn(`backfill: primary RPC had no history for ${signature} (slot ${slot}); served by ${f.label}`);
+        return alt;
+      }
+    }
+    const tried = ["primary", ...(this.o.historyFallbacks ?? []).map((f) => f.label)].join(", ");
+    throw new Error(`getTransaction returned null for finalized ${signature} (slot ${slot}) from ${tried}; not advancing the cursor`);
   }
 
   private subscribe() {

@@ -4,6 +4,7 @@ import { buildContext, type ServicesContext } from "./context.js";
 import { runMigrations, NOTIFY_CHANNEL } from "./db/client.js";
 import { createApp } from "./api/app.js";
 import { runIndexerWithLock } from "./indexer/run.js";
+import { makeHistoryFallbacks } from "./indexer/indexer.js";
 import { makeHealth } from "./api/health.js";
 import { createLogger } from "./lib/log.js";
 import type { BusMessage } from "./indexer/ingest.js";
@@ -89,9 +90,11 @@ async function main() {
   if (cfg.INDEXER_ENABLED) {
     if (!cfg.PROGRAM_ID) ctx.log.warn("INDEXER_ENABLED=1 but PROGRAM_ID is unset; indexer not started");
     else {
+      const ilog = createLogger("indexer", cfg.LOG_LEVEL);
       indexer = runIndexerWithLock({
-        handle: ctx.handle, conn: ctx.conn, programId: cfg.PROGRAM_ID, decoder: ctx.decoder, log: createLogger("indexer", cfg.LOG_LEVEL),
+        handle: ctx.handle, conn: ctx.conn, programId: cfg.PROGRAM_ID, decoder: ctx.decoder, log: ilog,
         backfillIntervalMs: cfg.INDEXER_BACKFILL_INTERVAL_MS, dropAfterSecs: cfg.INDEXER_DROP_AFTER_SECS,
+        historyFallbacks: await makeHistoryFallbacks(ctx.conn, cfg.historyRpcFallbacks, ilog),
       });
     }
   }

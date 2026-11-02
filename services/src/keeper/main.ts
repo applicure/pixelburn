@@ -41,6 +41,7 @@ const keeper = new Keeper(conn, payer, cfg.PROGRAM_ID ? new SdkKeeperActions(con
   crankIntervalMs: cfg.KEEPER_CRANK_INTERVAL_MS,
   buybackIntervalMs: cfg.KEEPER_BUYBACK_INTERVAL_MS,
   buybackJitterMs: cfg.KEEPER_BUYBACK_JITTER_MS,
+  firstBuybackDelayMs: cfg.KEEPER_BUYBACK_FIRST_DELAY_MS,
   maxChunkLamports: cfg.KEEPER_BUYBACK_MAX_CHUNK_LAMPORTS,
   minChunkLamports: cfg.KEEPER_BUYBACK_MIN_CHUNK_LAMPORTS,
   maxPerRunLamports: cfg.KEEPER_BUYBACK_MAX_PER_RUN_LAMPORTS,

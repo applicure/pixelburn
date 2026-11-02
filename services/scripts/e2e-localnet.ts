@@ -199,6 +199,9 @@ async function main() {
   // --- validator
   const args = [
     "--reset", "--quiet", "--ledger", path.join(work, "ledger"),
+    // Keep full history: the default ledger limit purges old slots, after which getTransaction returns
+    // null for early txs and the backfill-from-scratch phase can't rebuild them (what timed out before).
+    "--limit-ledger-size", "500000000",
     "--rpc-port", String(RPC_PORT), "--faucet-port", "19900", "--dynamic-port-range", "18000-18050",
     "--upgradeable-program", PROGRAM_ID.toBase58(), SO, adminKp.publicKey.toBase58(),
     ...accountFile(work, "mint", mint, packMint(2_000_000_000_000_000n), TOKEN_PROGRAM_ID),

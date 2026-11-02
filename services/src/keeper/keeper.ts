@@ -35,6 +35,8 @@ export interface KeeperConfig {
   maxSpotOverEmaPct: number;
   /** Cap on the projected cumulative spot increase caused by one run. */
   maxRunPriceMovePct: number;
+  /** Delay before the first buyback run after start (default 90 s), then every buybackIntervalMs. */
+  firstBuybackDelayMs?: number;
   /** KEEPER_BUYBACK_ENABLED: false = crank only. */
   buybackEnabled: boolean;
   /** Leave an outstanding release alone for this long (someone may be mid-way through a manual run). */
@@ -290,16 +292,23 @@ export class Keeper {
     };
     void crank();
     this.timers.push(setInterval(crank, this.cfg.crankIntervalMs));
+    // The FIRST run comes soon after start: every redeploy restarts the process, and with only the
+    // regular 10-15 min interval a keeper that is redeployed more often than that (e.g. Coolify
+    // auto-deploying on every push to main) would never run a buyback at all.
+    let first = true;
     const scheduleBuyback = () => {
       if (this.stopped) return;
-      const delay = jittered(this.cfg.buybackIntervalMs, this.cfg.buybackJitterMs);
+      const delay = first
+        ? jittered(this.cfg.firstBuybackDelayMs ?? 90_000, Math.min(30_000, this.cfg.buybackJitterMs))
+        : jittered(this.cfg.buybackIntervalMs, this.cfg.buybackJitterMs);
+      first = false;
       this.log.info(`next buyback in ${Math.round(delay / 1000)}s`);
       this.timers.push(
         setTimeout(async () => {
           try {
             await this.buybackOnce();
           } catch (e) {
-            this.log.error("buyback", e);
+            this.log.error(`buyback run failed: ${(e as Error).message}`);
           }
           scheduleBuyback();
         }, delay),

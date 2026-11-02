@@ -270,6 +270,28 @@ describe("keeper", () => {
     });
   });
 
+  it("runs the first buyback ~90 s after start (redeploys can't starve it), then on the interval", async () => {
+    vi.useFakeTimers();
+    try {
+      const k = new Keeper(explodingConn, null, { crankTokenPriceIxs: async () => null, releaseBuybackIxs: async () => null, recordBuybackBurnIxs: async () => null },
+        null, { ...cfg(false), buybackIntervalMs: 600_000, buybackJitterMs: 120_000, firstBuybackDelayMs: 90_000, crankIntervalMs: 3_600_000 }, silentLogger);
+      let runs = 0;
+      k.buybackOnce = async () => (runs++, { chunks: [], sent: [] });
+      k.start();
+      await vi.advanceTimersByTimeAsync(89_000);
+      expect(runs).toBe(0);
+      await vi.advanceTimersByTimeAsync(31_000); // 90 s + up to 30 s jitter
+      expect(runs).toBe(1);
+      await vi.advanceTimersByTimeAsync(599_000);
+      expect(runs).toBe(1); // next one only after the regular interval
+      await vi.advanceTimersByTimeAsync(121_000);
+      expect(runs).toBe(2);
+      k.stop();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it("refuses to start live without a keypair", () => {
     expect(() => new Keeper(explodingConn, null, {} as KeeperActions, null, cfg(true), silentLogger)).toThrow(/KEEPER_KEYPAIR/);
     expect(() => new Keeper(explodingConn, Keypair.generate(), {} as KeeperActions, null, cfg(true), silentLogger)).not.toThrow();
