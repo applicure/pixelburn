@@ -11,7 +11,7 @@ import { useLive } from "@/lib/store";
 
 const EARLY_BLOCKS = 200;
 
-/** Free block closest to the centre of the wall (where the claim tag lines up best with the tilted plane). */
+/** Free block (with a free 1-block margin) closest to the centre of the wall, where the claim tag lines up best with the tilted plane. */
 function nearestFree(occ: Uint8Array) {
   let best: { x: number; y: number } | null = null;
   let bd = Infinity;
@@ -19,8 +19,19 @@ function nearestFree(occ: Uint8Array) {
     for (let y = 49 - r; y <= 50 + r; y++)
       for (let x = 49 - r; x <= 50 + r; x++) {
         if (x < 0 || y < 0 || x > 99 || y > 99) continue;
-        const i = y * 100 + x;
-        if ((occ[i >> 3] >> (i & 7)) & 1) continue;
+        // the ring is ~2 blocks wide: keep a 1-block margin so it never covers a neighbouring ad
+        let clear = true;
+        for (let dy = -1; dy <= 1 && clear; dy++)
+          for (let dx = -1; dx <= 1; dx++) {
+            const xx = x + dx, yy = y + dy;
+            if (xx < 0 || yy < 0 || xx > 99 || yy > 99) continue;
+            const j = yy * 100 + xx;
+            if ((occ[j >> 3] >> (j & 7)) & 1) {
+              clear = false;
+              break;
+            }
+          }
+        if (!clear) continue;
         const d = Math.hypot(x - 49.5, y - 49.5);
         if (d < bd) {
           bd = d;
