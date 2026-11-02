@@ -255,7 +255,8 @@ async function main() {
       PORT: String(API_PORT), HOST: "127.0.0.1", PUBLIC_API_URL: "https://api.e2e.invalid", DATABASE_URL: DB_URL, DATA_DIR: path.join(work, "data"),
       RPC_URL: RPC, WS_URL: WS, PROGRAM_ID: PROGRAM_ID.toBase58(), TOKEN_MINT: mint.toBase58(),
       INDEXER_ENABLED: "1", INDEXER_BACKFILL_INTERVAL_MS: "4000", ADMIN_TOKEN, CORS_ORIGINS: "http://localhost:3000",
-      HERMES_URL: "http://127.0.0.1:1", SOL_USD_FALLBACK: "150", TOKEN_PRICE_SOURCE: "onchain", LOG_LEVEL: "info",
+      // SOL/USD read on-chain from the same PriceUpdateV2 account the program uses (no Hermes, no fallback).
+      PYTH_SOL_USD_ACCOUNT: priceUpdate.toBase58(), NODE_ENV: "production", LOG_LEVEL: "info",
     };
     server = spawnTsx("src/server.ts", serverEnv, "api");
     await until("api /readyz", async () => (await fetch(`${API}/readyz`)).ok, 60_000);
@@ -342,14 +343,16 @@ async function main() {
     check("keeper release_buyback + record_buyback_burn (atomic, SDK builders)", !!bbSig);
 
     // --- approve both -> canvas
-    await until("token ad checked", async () => {
+    // ids are assigned in landing order, so look them up instead of assuming them
+    const pending = await until("token ad checked", async () => {
       const q = (await getJson("/api/admin/queue", { headers: admin })).body as any[];
       return q.length === 2 && q.every((a) => a.checks && a.checks.every((c: any) => c.ok)) ? q : null;
     });
     const etag0 = (await fetch(`${API}/api/canvas.png`)).headers.get("etag");
-    for (const id of [0, 1]) await getJson(`/api/admin/ads/${id}/approve`, { method: "POST", headers: admin });
+    for (const a of pending) await getJson(`/api/admin/ads/${a.id}/approve`, { method: "POST", headers: admin });
     const adsList = (await getJson("/api/ads")).body as any[];
-    check("/api/ads lists the 2 approved ads (sol + token)", adsList.length === 2 && adsList[1].payMode === "token", JSON.stringify(adsList.map((a) => [a.id, a.payMode, a.usd])));
+    const modes = adsList.map((a) => a.payMode).sort().join(",");
+    check("/api/ads lists the 2 approved ads (sol + token)", adsList.length === 2 && modes === "sol,token", JSON.stringify(adsList.map((a) => [a.id, a.payMode, a.usd])));
     const canvasRes = await fetch(`${API}/api/canvas.png`);
     const png = Buffer.from(await canvasRes.arrayBuffer());
     const { data, info } = await sharp(png).raw().toBuffer({ resolveWithObject: true });

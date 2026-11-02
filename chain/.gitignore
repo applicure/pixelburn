@@ -9,3 +9,5 @@ test-ledger
 .keys
 scripts/node_modules
 keys/
+.devnet-plan.json
+.devnet-ids

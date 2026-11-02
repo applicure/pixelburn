@@ -84,6 +84,17 @@ docker build -f services/Dockerfile --target keeper  -t mpb-keeper .
   (`wss://{devnet|mainnet}.helius-rpc.com/?api-key=…`) > derived from HTTP. All the same env can go
   on all three apps; the keeper additionally needs `KEEPER_KEYPAIR` (and `KEEPER_LIVE=1` only once
   it's intended).
+- **Prices in production**: SOL/USD is read on-chain from the Pyth sponsored `PriceUpdateV2` account
+  (`7UVimffxr9ow1uXYxsr4LHAcV58mLzhmwaeKvJ1pjLiE`, from `@mpb/sdk` `pythPriceFeedAccount()`; the same
+  account the program reads) through the configured RPC. No Hermes key is needed. Hermes is used only
+  when `HERMES_API_KEY` is set. Prices older than `SOL_PRICE_MAX_AGE_SECS` (120) or not fully verified
+  return 503. `SOL_USD_FALLBACK` is ignored when `NODE_ENV=production` (the image sets it). The token
+  price comes from chain when `PROGRAM_ID` is set. Without it, production reports
+  `tokenPaymentStatus: "unknown"` and never quotes a static token price.
+- **Pointing at the deployed program**: api needs `PROGRAM_ID` + `TOKEN_MINT`. indexer needs
+  `PROGRAM_ID`. keeper needs `PROGRAM_ID` + `KEEPER_KEYPAIR` (must equal `Config.keeper`) + `TOKEN_MINT`
+  (Jupiter quotes / leftover burn), plus `KEEPER_LIVE=1` to actually send. All three also need the
+  shared RPC/DB env that is already set.
 - **Secrets never logged**: `loadConfig()` registers the RPC URLs (including QuickNode path keys),
   the Helius key, the DB URL and password, admin/webhook tokens, and the Irys/keeper/Hermes keys.
   All `console.*` output, including library logs, goes through a redactor, which also masks

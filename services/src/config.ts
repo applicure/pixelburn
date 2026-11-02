@@ -60,8 +60,10 @@ const EnvSchema = z.object({
   // Pricing
   HERMES_URL: z.string().default("https://hermes.pyth.network"),
   HERMES_API_KEY: optStr, // Hermes now answers 401 without `Authorization: Bearer <key>`
-  SOL_USD_FALLBACK: z.coerce.number().optional(), // used only when Hermes is unreachable
-  TOKEN_PRICE_SOURCE: z.enum(["onchain", "static"]).default("static"),
+  SOL_USD_FALLBACK: z.coerce.number().optional(), // DEV ONLY: SOL/USD when no live source answers; ignored in production
+  PYTH_SOL_USD_ACCOUNT: optStr, // override of the sponsored Pyth PriceUpdateV2 account (default from @mpb/sdk)
+  SOL_PRICE_MAX_AGE_SECS: z.coerce.number().int().default(120), // reject older on-chain prices (program default 120 s)
+  TOKEN_PRICE_SOURCE: z.enum(["auto", "onchain", "static"]).default("auto"), // auto = onchain when PROGRAM_ID is set
   /** SOL per WHOLE token, used when TOKEN_PRICE_SOURCE=static (both spot and ema). */
   TOKEN_PRICE_SOL_STATIC: z.coerce.number().default(0.0000125),
   TOKEN_SUPPLY_STATIC: z.string().default("1000000000000000"), // base units, used when TOKEN_MINT unset

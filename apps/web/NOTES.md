@@ -105,8 +105,8 @@ Not exercised against a live cluster from this workstream (no deployed program /
   to rename. Could import from the SDK instead.
 - The /burns chart and buyback table are derived from `/api/feed?limit=500` (no dedicated history endpoint).
 - /auction bids go through the wallet (`chain.bid` → SDK `buildBidIxs`). The live auction view is a lazy chunk
-  (`components/auction/LiveAuction.tsx`) that mounts the wallet layer. Min next bid = SDK `minNextBid` (measured: the
-  root import tree-shakes, +6 KB, no Anchor in the bundle).
+  (`components/auction/LiveAuction.tsx`) that mounts the wallet layer. Min next bid = `minNextBid` from the pure
+  `@mpb/sdk/quote` subpath (2.6 KB, no web3.js/Anchor; doesn't rely on the bundler honouring `sideEffects`).
 - **Token payment gating** (`lib/tokenStatus.ts`): the SOL quote always runs and carries `tokenPaymentStatus`,
   `tokenBlocksAvailable` and `tokenPricedBy` for the exact w×h. When it isn't `ok`, the $PIXEL option is disabled
   with one honest line per reason (not_seeded, warming_up, stale, deviation, hourly_cap with a "pay in SOL or split

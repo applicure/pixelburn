@@ -53,10 +53,12 @@ export class QuoteService {
     };
     // Token status/price for this exact size (the hourly cap depends on w*h). Never fails a SOL quote.
     let t: TokenPrice | null = null;
+    let tokenErr: string | null = null;
     try {
       t = await this.token.get(w * h);
-    } catch {
+    } catch (e) {
       t = null;
+      tokenErr = (e as Error).message;
     }
     const slow = t ? (t.slow ?? t.ema) : 0n;
     let tokenPriceUsd: number | null = null;
@@ -69,7 +71,7 @@ export class QuoteService {
     const tokenInfo = {
       tokenPriceUsd,
       tokenPaymentStatus: status,
-      tokenPaymentDetail: !t ? "token price unavailable" : (t.unavailable?.detail ?? null),
+      tokenPaymentDetail: !t ? (tokenErr ?? "token price unavailable") : (t.unavailable?.detail ?? null),
       tokenPricedBy: status === "ok" && t?.pricedBy ? (toSnake(t.pricedBy) as QuoteDto["tokenPricedBy"]) : null,
       tokenBlocksAvailable: t?.blocksAvailable ?? null,
     };
@@ -77,7 +79,7 @@ export class QuoteService {
       // Chain-identical (SDK) math: ceil(usd * 10^(3-expo) / price).
       return { ...base, ...tokenInfo, lamports: sdkQuoteLamports(usdMicro, solFixed).toString() };
     }
-    if (!t) throw new Error("token price unavailable");
+    if (!t) throw new Error(tokenErr ?? "token price unavailable");
     if (t.unavailable) throw new TokenPricingUnavailable(status, t.unavailable.detail);
     // discount -> lamports at SOL/USD -> tokens at min(spot, fast EMA, slow EMA), exactly as buy_with_token.
     return { ...base, ...tokenInfo, tokens: quoteTokensExact(usdMicro, solFixed, t.spot, t.ema, slow).toString() };

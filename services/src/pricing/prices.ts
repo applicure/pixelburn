@@ -105,6 +105,34 @@ export class HermesSolPrice implements SolPriceSource {
   }
 }
 
+/**
+ * SOL/USD from the on-chain Pyth sponsored PriceUpdateV2 feed account (the same account the
+ * program reads in buy_with_sol / buy_with_token). No API key needed; works on devnet and mainnet.
+ * Throws if the price is older than `maxAgeSecs` (the program would reject it too).
+ */
+export class PythOnchainSolPrice implements SolPriceSource {
+  private cache: { at: number; v: SolPrice } | null = null;
+  constructor(
+    private readonly read: () => Promise<{ price: bigint; expo: number; publishTime: number; verified: boolean }>,
+    private readonly maxAgeSecs: number,
+    private readonly ttlMs = 2_000,
+  ) {}
+  async get(): Promise<SolPrice> {
+    if (this.cache && Date.now() - this.cache.at < this.ttlMs) return this.cache.v;
+    const p = await this.read();
+    if (!p.verified) throw new Error("Pyth price update is not fully verified");
+    const age = Math.floor(Date.now() / 1000) - p.publishTime;
+    if (age > this.maxAgeSecs) throw new Error(`on-chain SOL/USD is ${age}s old (max ${this.maxAgeSecs}s)`);
+    const priceMicro = pythToMicro(p.price, p.expo);
+    const v: SolPrice = {
+      rawPrice: p.price, expo: p.expo, priceMicro, emaMicro: priceMicro, price: Number(priceMicro) / 1e6,
+      publishTime: p.publishTime, stale: false,
+    };
+    this.cache = { at: Date.now(), v };
+    return v;
+  }
+}
+
 export class StaticSolPrice implements SolPriceSource {
   constructor(private readonly usd: number) {}
   async get(): Promise<SolPrice> {
