@@ -39,7 +39,7 @@ function SelectionBar({ sel, onBuy, onClear }: { sel: Rect; onBuy(): void; onCle
           {sel.w}×{sel.h} <span className="text-[0.95rem] font-semibold text-ash">blocks</span>
         </p>
         <p className="num mt-1 text-[0.7rem] text-ash">
-          at {sel.x},{sel.y}, {fmtInt(sel.w * sel.h * 100)} px
+          Position {sel.x}, {sel.y} · {fmtInt(sel.w * sel.h * 100)} px
         </p>
       </div>
       {free ? (

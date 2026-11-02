@@ -212,11 +212,12 @@ export function WalletChip() {
     );
   return (
     <div className="flex items-center justify-between gap-3 border border-char px-3 py-2.5 text-[0.9rem]">
-      <span className="flex items-center gap-2">
-        <span className="inline-block h-2 w-2 bg-cone" aria-hidden />
-        {w.label} <span className="num text-[0.8rem] text-ash">{shortAddr(w.address)}</span>
+      <span className="flex min-w-0 items-center gap-2">
+        <span className="inline-block h-2 w-2 shrink-0 bg-cone" aria-hidden />
+        <span className="truncate">{w.label}</span>
+        <span className="num shrink-0 whitespace-nowrap text-[0.8rem] text-ash">{shortAddr(w.address)}</span>
       </span>
-      <button className="text-[0.82rem] text-ash underline-offset-2 hover:text-heat hover:underline" onClick={w.disconnect}>
+      <button className="shrink-0 text-[0.82rem] text-ash underline-offset-2 hover:text-heat hover:underline" onClick={w.disconnect}>
         Disconnect
       </button>
     </div>

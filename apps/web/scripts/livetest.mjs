@@ -11,7 +11,9 @@ import { Connection, Keypair, VersionedTransaction } from "@solana/web3.js";
 const SITE = process.env.SITE || "https://pixelburn.applicure.io";
 const API = process.env.API || "https://api.pixelburn.applicure.io";
 const MODE = process.env.MODE || "sol";
-const OUT = `screens/live-${MODE}`;
+const MOBILE = process.env.MOBILE === "1";
+const DRY = process.env.DRY === "1"; // stop at sheet-ready: nothing is signed or spent
+const OUT = `screens/live-${MODE}${MOBILE ? "-mobile" : ""}${DRY ? "-dry" : ""}`;
 mkdirSync(OUT, { recursive: true });
 const kp = Keypair.fromSecretKey(Uint8Array.from(JSON.parse(readFileSync(process.env.BUYER_KEYPAIR, "utf8"))));
 const owner = kp.publicKey.toBase58();
@@ -34,7 +36,11 @@ log("buyer", owner, "SOL", (await rpc.getBalance(kp.publicKey)) / 1e9);
 log("stats before", JSON.stringify(before));
 
 const browser = await chromium.launch({ args: ["--use-gl=angle", "--ignore-gpu-blocklist"] });
-const ctx = await browser.newContext({ viewport: { width: 1440, height: 900 } });
+const ctx = await browser.newContext(
+  MOBILE
+    ? { viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true }
+    : { viewport: { width: 1440, height: 900 } },
+);
 const errors = [];
 
 // ---- SSE recorder on the site's own origin ----
@@ -124,6 +130,16 @@ await shot("02-wallet-picker");
 await page.getByRole("button", { name: /Pixel Burn Test Wallet/ }).click();
 await page.waitForTimeout(2500);
 await shot("03-sheet-ready");
+if (DRY) {
+  // also capture the sheet scrolled to the form top, then stop before the CTA
+  await page.locator("#ad-title").scrollIntoViewIfNeeded();
+  await page.waitForTimeout(400);
+  await shot("03b-sheet-form");
+  log("DRY RUN: stopped at sheet-ready, nothing signed. CTA:", await page.locator("button.btn-fire").last().innerText());
+  log("page console errors:", errors.length ? errors.join("\n") : "none");
+  await browser.close();
+  process.exit(0);
+}
 const buy = page.locator("button.btn-fire", { hasText: MODE === "sol" ? /^Buy for/ : /^Burn / });
 log("CTA:", await buy.innerText());
 await buy.click();
