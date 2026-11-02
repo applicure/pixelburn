@@ -120,6 +120,12 @@ pub struct RecordBuybackBurn<'info> {
         token::token_program = token_program,
     )]
     pub keeper_token_account: Box<InterfaceAccount<'info, TokenAccount>>,
+    /// CHECK: price source from config (curve or pool); validated against config.price_source in oracle::read_spot_price.
+    pub price_source: UncheckedAccount<'info>,
+    /// CHECK: PumpSwap base vault (Pool source only); validated in oracle::read_spot_price.
+    pub pool_base_vault: Option<UncheckedAccount<'info>>,
+    /// CHECK: PumpSwap quote vault (Pool source only); validated in oracle::read_spot_price.
+    pub pool_quote_vault: Option<UncheckedAccount<'info>>,
     pub token_program: Interface<'info, TokenInterface>,
     pub system_program: Program<'info, System>,
 }
@@ -138,18 +144,33 @@ pub fn handle_record_buyback_burn(
     );
 
     // A pure refund (nothing spent) needs no price; anything spent is checked against a fresh pre-slot EMA.
-    let min_tokens = if lamports_spent == 0 {
-        0
-    } else {
+    if lamports_spent > 0 {
         oracle::ema_warm(&ctx.accounts.config, &clock)?;
         let ema = oracle::usable_ema(&ctx.accounts.config, &clock)?;
-        math::min_buyback_tokens(
+        let min_tokens = math::min_buyback_tokens(
             lamports_spent,
             ema,
             ctx.accounts.config.buyback_max_slippage_bps,
-        )?
-    };
-    require!(tokens_burned >= min_tokens, PixelError::BuybackRateTooLow);
+        )?;
+        require!(tokens_burned >= min_tokens, PixelError::BuybackRateTooLow);
+        // Backstop: the keeper's atomic release -> swap -> record flow cannot push spot past fast EMA * 1.12.
+        // Safety rail for the honest keeper, not an adversarial control (nothing ties the record to the swap).
+        // Spot is read from the configured source only (key-checked), so accounts can't be substituted.
+        let spot = oracle::read_spot_price(
+            &ctx.accounts.config,
+            &ctx.accounts.price_source.to_account_info(),
+            ctx.accounts.pool_base_vault.as_ref().map(|a| a.as_ref()),
+            ctx.accounts.pool_quote_vault.as_ref().map(|a| a.as_ref()),
+        )?;
+        let ceiling = ema
+            .checked_add(
+                ema.checked_mul(BUYBACK_MAX_POST_SPOT_BPS as u128)
+                    .ok_or(PixelError::MathOverflow)?
+                    / BPS_DENOMINATOR as u128,
+            )
+            .ok_or(PixelError::MathOverflow)?;
+        require!(spot <= ceiling, PixelError::BuybackPushesPriceOutOfBand);
+    }
 
     // Return unspent SOL to the vault.
     let unspent = outstanding - lamports_spent;

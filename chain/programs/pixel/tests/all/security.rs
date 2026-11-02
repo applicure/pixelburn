@@ -185,6 +185,9 @@ fn h1_keeper_dragging_ema_is_bounded() {
     let ema = env.config().token_ema_price_sol;
     assert!(ema * 1_000 <= honest_q() * 1_219 + 1_000, "EMA <= +21.9% after 10 cranks");
     let fair = (1_000_000_000u128 * PRICE_SCALE / honest_q()) as u64;
+    // the keeper's post-trade spot must sit inside the backstop band (<= fast EMA * 1.12): unwind to the EMA level
+    let e = env.config().token_ema_price_sol;
+    env.set_curve((e * CURVE_VTOK as u128 / PRICE_SCALE) as u64, CURVE_VTOK);
     // worst-case bar = fair / 1.219 * 0.85 ~= 69.7% of fair (was unbounded: PoC took the EMA to 4x => 21%)
     let bar = (1_000_000_000u128 * PRICE_SCALE / ema * 8_500 / 10_000) as u64;
     assert!(bar as u128 * 1_000 >= fair as u128 * 697);

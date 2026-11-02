@@ -163,6 +163,15 @@ I did not build or test that, and an untested CPI that moves treasury SOL is wor
    - The EMA is the pre-slot value, must be warmed up and under 900 s old. Spot is deliberately not used, because the keeper could pump spot in the same transaction to lower the bar (tested).
    - **Why the keeper bar uses only the fast EMA** (not the slow one, and not min/max): the bar must track a genuine rally within minutes. Against the 4 h slow EMA, a keeper buying after a +30% rally would fail the check for hours and buybacks would stall. The fast EMA's manipulation bound is analysed below, and the release cap bounds the stake.
    - Re-derived floor under the H-1 rules: within one transaction the keeper cannot move the EMA. Dragging it up takes holding a pump for ≥ 30 s per +2%, so after 10 cranks (≥ 5 min of a held 4x pump) the EMA is ≤ +21.9% and the bar is ≥ 0.85 / 1.219 ≈ 69.7% of fair. Tested in `h1_keeper_dragging_ema_is_bounded`. Before the fix, the PoC took the EMA to 4x, a bar of ~21%.
+   - **Post-trade price backstop (round 4, lead-approved, auditor: SHIP; not yet deployed to devnet):** when `lamports_spent > 0`, the instruction reads spot from the *configured* price source and requires `spot ≤ fast EMA × 1.12`, three points inside the 15% token-buy band. The source is the curve, or the pool plus both vaults, key-checked against `config.price_source`, so the accounts cannot be substituted.
+     - **Claim (precise wording):** the keeper's atomic release → swap → record flow cannot push spot past fast EMA × 1.12. If it would, the whole transaction reverts: vault, allowance and supply are unchanged, and no release is left outstanding.
+     - **This is a safety rail for the honest keeper, not an adversarial control.** Nothing on-chain ties the record to the swap (the same is true of the rate bar). A malicious keeper could swap in a separate transaction, then record later once spot is back inside the band. The trust model for a malicious keeper is unchanged: the cap per release and the hourly bucket.
+     - Why: on devnet a 0.019 SOL PumpSwap buy moved a thin pool +3.8% and paused token payments for users.
+     - Consequence: while spot is already above the band for external reasons (for example a pump boost wave), buybacks with spend wait. They fail closed.
+     - Tests: `backstop_buyback_cannot_push_spot_out_of_band_{curve,pool}` (+13% reverts atomically, +12% and +5% pass, a refund always passes) and `backstop_rejects_substituted_price_accounts`.
+     - CU delta: `record_buyback_burn` went 24.6k → 26.7k (SPL/curve) and 21.3k → 24.7k (T22/pool), under the 40k SDK limit.
+     - SDK `recordBuybackBurnIx` now requires `priceSource`.
+   - **What to claim as `lamports_spent`:** the quote actually swapped, capped at the outstanding release. Not the keeper's balance drop: the first PumpSwap buy also pays one-time account rent (user volume accumulator, ~2.9M lamports), and claiming that failed with `BuybackAmountTooHigh` on devnet.
    - A pure refund (`lamports_spent = 0`) needs no price.
    - It updates `lamports_spent_buyback` and `tokens_burned_buyback`, and emits `BuybackBurned`.
 4. `set_keeper` always works. An unreconciled release is moved to `buyback_written_off_lamports` and `BuybackWrittenOff`
@@ -338,7 +347,7 @@ Measured by `cargo test --test all cu_report -- --nocapture` (`tests/all/cu.rs`)
 | buy_with_token 5×4 | 34.6k / 32.6k | 69.8k |
 | update_ad / transfer_ad | 6.3k / 4.7k | 15k |
 | release_buyback | 10.7–10.9k | 20k |
-| record_buyback_burn (SPL / T22) | 24.6k / 21.3k | 40k |
+| record_buyback_burn (SPL / T22) | 26.7k / 24.7k (with the post-trade spot backstop) | 40k |
 | start_final_auction | 53.9k | 80k |
 | bid_final_auction (first / with refund) | 9.7k / 10.1k | 20k |
 | settle_final_auction | 40.6k | 70k |
@@ -443,9 +452,18 @@ Every successful pump.fun coin graduates: when the curve's real token reserves h
   - switch with seed = pool spot (+8% vs the old EMA) → `EmaWarmingUp`;
   - after warm-up the token buy is priced exactly off the pool.
 
+### Mainnet notes (learned from the devnet rehearsal, 2026-11-02)
+- **Migration is pump's job: treat our `migrate` as "wait for pump".** pump.fun's own bot migrated our devnet coin 18 s after `complete` (at 13:33:02, `7qhZTHxJ…`), and our permissionless call was an idempotent no-op. On mainnet this is pump's standard flow. The runbook therefore *waits* for the canonical pool to exist (poll `getAccountInfo(canonicalPool)`). `graduate-devnet.ts migrate` exists only as a devnet fallback.
+- **Expect a boost wave right after graduation.** `migrate_v2` created a PumpSwap *boost* (`InitBoost`, positive `virtual_quote_reserves`). pump's boost crank then ran `BoostBuyAndBurn` 30× over about 6 minutes, buying about 35.5M tokens (~3.5% of supply) out of the pool and burning them. Effects:
+  - Spot rose about +43% in minutes. Token payments correctly paused (`deviation`) for about 4 minutes after warm-up, and buybacks are blocked by the backstop while spot is above the band.
+  - Total supply drops with no pixel event. Stats must separate "burned by The Million Pixel Burn" (`Canvas.tokens_burned_*`, verifiable from our events) from "total supply reduction (incl. pump boost)".
+  - The slow EMA prices token buyers conservatively during the wave (devnet: `pricedBy: slowEma`, buyer burned about 40% more tokens than spot implied).
+- **Admin switch latency.** The mainnet admin is a Squads multisig. The token-payment gap is (wait for pump's migration) + (multisig approval) + (≥ 10-minute warm-up) + (any boost-induced deviation). Pre-build the `set_price_source` proposal (the pool address is deterministic: `canonicalPumpPoolPda(mint)`) and have signers on call.
+- **Keeper sizing on thin pools.** A post-graduation pool can be very thin. The keeper caps estimated impact at about 1% per buy and skips while spot is near the band. The on-chain backstop enforces ≤ fast EMA × 1.12 regardless.
+
 ### Steps (devnet script `chain/scripts/graduate-devnet.ts`; every step is dry-run by default)
 1. **Detect.** Services/keeper watches the curve account (`parseBondingCurve(data).complete`; also pump's `CompleteEvent`). From that moment the keeper stops releasing buybacks and settles any outstanding release with a refund (`record_buyback_burn(0, 0)`).
-2. **Migrate** (mainnet: wait for pump's bot; devnet: `node graduate-devnet.ts migrate --execute`, which calls pump `migrate_v2` and is permissionless).
+2. **Migrate = wait for pump.** Poll until the canonical pool exists; pump's bot does the migration on mainnet, and on devnet too in our rehearsal. Only if it hasn't happened after a few minutes on devnet, use `node graduate-devnet.ts migrate --execute` (permissionless and idempotent).
 3. **Derive the pool.**
    - `pool = PDA(["pool", 0u16 LE, PDA(["pool-authority", mint], pump), mint, WSOL], pAMM)`. Checked to match `@pump-fun/pump-sdk` `canonicalPumpPoolPda(mint)`; for the devnet coin it is `A9xsvGys7sF2FY5RoLvyYk1co9Tdwhg1tePgoGzsgvc9`.
    - `base_vault = ATA(pool, mint's token program, mint)`.

@@ -70,6 +70,8 @@ export const AUCTION_MIN_INCREMENT_LAMPORTS = 10_000_000n;
 // ---------------------------------------------------------------- buyback
 export const BUYBACK_WINDOW_SECS = 3_600;
 export const MAX_BUYBACK_CAP_LAMPORTS_PER_HOUR = 50_000_000_000n;
+/** record_buyback_burn backstop: post-trade spot must be <= fast EMA * (1 + 12%). */
+export const BUYBACK_MAX_POST_SPOT_BPS = 1_200n;
 
 // ---------------------------------------------------------------- ad content
 export const MAX_TITLE_LEN = 64;

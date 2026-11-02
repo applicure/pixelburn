@@ -120,6 +120,12 @@ pub const MAX_BUYBACK_CAP_LAMPORTS_PER_HOUR: u64 = 50_000_000_000;
 pub const DEFAULT_BUYBACK_MAX_SLIPPAGE_BPS: u16 = 1_500;
 #[constant]
 pub const MAX_BUYBACK_SLIPPAGE_BPS_LIMIT: u16 = 5_000;
+/// Backstop checked in `record_buyback_burn` (spent > 0): spot must be <= fast EMA * (1 + 12%), 3 points inside the
+/// 15% token-buy band, so the keeper's atomic release -> swap -> record flow cannot push spot past fast EMA * 1.12.
+/// This is a safety rail for the honest keeper, NOT an adversarial control: nothing on-chain ties the record to the
+/// swap (same as the rate bar), so a malicious keeper could swap in a separate transaction.
+#[constant]
+pub const BUYBACK_MAX_POST_SPOT_BPS: u64 = 1_200;
 
 // ---------------------------------------------------------------- ad content
 pub const MAX_TITLE_LEN: usize = 64;

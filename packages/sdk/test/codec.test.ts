@@ -20,6 +20,7 @@ import {
   parseEvents,
   PROGRAM_ID,
   pythPriceFeedAccount,
+  recordBuybackBurnIx,
   SOL_USD_FEED_ID,
   TOKEN_2022_PROGRAM_ID,
 } from "../src/index.js";
@@ -77,6 +78,20 @@ describe("instruction builders", () => {
     expect(ix.keys[8]!.pubkey.equals(PROGRAM_ID)).toBe(true);
     expect(ix.keys[9]!.pubkey.equals(PROGRAM_ID)).toBe(true);
     expect(ix.keys[10]!.pubkey.equals(TOKEN_2022_PROGRAM_ID)).toBe(true);
+  });
+
+  it("record_buyback_burn: carries the configured price-source accounts (backstop)", () => {
+    const k = () => Keypair.generate().publicKey;
+    const pool = k(), bv = k(), qv = k();
+    const ix = recordBuybackBurnIx({ keeper: k(), tokenMint: k(), tokenProgram: TOKEN_2022_PROGRAM_ID, priceSource: { kind: "pool", pool, baseVault: bv, quoteVault: qv }, lamportsSpent: 1n, tokensBurned: 2n });
+    const names = IDL.instructions.find((i) => i.name === "record_buyback_burn")!.accounts.map((a) => a.name);
+    expect(ix.keys[names.indexOf("price_source")]!.pubkey.equals(pool)).toBe(true);
+    expect(ix.keys[names.indexOf("pool_base_vault")]!.pubkey.equals(bv)).toBe(true);
+    expect(ix.keys[names.indexOf("pool_quote_vault")]!.pubkey.equals(qv)).toBe(true);
+    const curve = k();
+    const ix2 = recordBuybackBurnIx({ keeper: k(), tokenMint: k(), priceSource: { kind: "bondingCurve", curve }, lamportsSpent: 1n, tokensBurned: 2n });
+    expect(ix2.keys[names.indexOf("price_source")]!.pubkey.equals(curve)).toBe(true);
+    expect(ix2.keys[names.indexOf("pool_base_vault")]!.pubkey.equals(PROGRAM_ID)).toBe(true);
   });
 
   it("bid: first bid has no previous bidder", () => {

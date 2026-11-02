@@ -1,9 +1,9 @@
 import { PublicKey } from '@solana/web3.js';
 export { F as FixedPrice, R as Rect, T as TokenPricingStatus, a as applyTokenDiscount, b as assertValidRect, c as blockCoords, d as blockIndex, e as buyPriceQ, f as countSet, g as emaUpdate, h as emptyBitmap, i as estimateBurnForSolPurchase, j as fixedToNumber, k as freeBlocks, l as isBlockSet, m as isRectFree, n as isValidRect, o as lamportsToTokens, p as markRect, q as minNextBid, r as quoteLamports, s as quoteTokens, t as quoteTokensExact, u as quoteUsd, v as rectBlockCount, w as rectBlocks, x as slowEmaUpdate, y as splitSol, z as spotPriceQ, A as tokenBlocksAvailable, B as tokenPricingStatus, C as tokenUsdFromPriceQ, D as validateAdContent, E as withSlippage, G as withinBand } from './quote-Dr1cW5Ot.js';
-import { a as PayMode } from './client-DheabJpC.js';
-export { A as AdAccount, b as AdContent, c as AdKind, d as AuctionAccount, e as AuctionStatus, B as BuildOpts, f as BuyIxBase, C as CU_LIMITS, g as CanvasAccount, h as ConfigAccount, I as InitializeArgs, i as PriceSource, j as PriorityFeeOpts, P as PythPrice, S as SolQuote, T as TokenPricingUnavailableError, k as TokenQuote, l as acceptAdminIx, m as accountDiscriminator, n as adAddress, o as bidFinalAuctionIx, p as big, q as buildBidIxs, r as buildBuyTx, s as buildBuyWithSolIxs, t as buildBuyWithTokenIxs, u as buildIx, v as buildSettleIxs, w as buyCuLimit, x as buyWithSolIx, y as buyWithTokenIx, z as computeBudgetIxs, D as crankTokenPriceIx, E as decodeAd, F as decodeAuction, G as decodeCanvas, H as decodeConfig, J as decodePriceUpdateV2, K as enumKind, L as estimatePriorityFee, M as fetchAd, N as fetchAdAt, O as fetchAllAds, Q as fetchAuction, R as fetchCanvas, U as fetchConfig, V as fetchSolUsd, W as initializeIx, X as parseBondingCurve, Y as parsePumpPool, Z as plannedEma, _ as poolSpotPriceQ, $ as priceSourceAccounts, a0 as priorityFeeLamports, a1 as proposeAdminIx, a2 as readSpotPriceQ, a3 as recordBuybackBurnIx, a4 as releaseBuybackIx, a5 as restartFinalAuctionIx, a6 as setKeeperIx, a7 as setParamsIx, a8 as setPausedIx, a9 as setPriceSourceIx, aa as setTreasuryIx, ab as settleFinalAuctionIx, ac as startFinalAuctionIx, ad as transferAdIx, ae as updateAdIx } from './client-DheabJpC.js';
+import { a as PayMode } from './client-D4fh1TZ6.js';
+export { A as AdAccount, b as AdContent, c as AdKind, d as AuctionAccount, e as AuctionStatus, B as BuildOpts, f as BuyIxBase, C as CU_LIMITS, g as CanvasAccount, h as ConfigAccount, I as InitializeArgs, i as PriceSource, j as PriorityFeeOpts, P as PythPrice, S as SolQuote, T as TokenPricingUnavailableError, k as TokenQuote, l as acceptAdminIx, m as accountDiscriminator, n as adAddress, o as bidFinalAuctionIx, p as big, q as buildBidIxs, r as buildBuyTx, s as buildBuyWithSolIxs, t as buildBuyWithTokenIxs, u as buildIx, v as buildSettleIxs, w as buyCuLimit, x as buyWithSolIx, y as buyWithTokenIx, z as computeBudgetIxs, D as crankTokenPriceIx, E as decodeAd, F as decodeAuction, G as decodeCanvas, H as decodeConfig, J as decodePriceUpdateV2, K as enumKind, L as estimatePriorityFee, M as fetchAd, N as fetchAdAt, O as fetchAllAds, Q as fetchAuction, R as fetchCanvas, U as fetchConfig, V as fetchSolUsd, W as initializeIx, X as parseBondingCurve, Y as parsePumpPool, Z as plannedEma, _ as poolSpotPriceQ, $ as priceSourceAccounts, a0 as priorityFeeLamports, a1 as proposeAdminIx, a2 as readSpotPriceQ, a3 as recordBuybackBurnIx, a4 as releaseBuybackIx, a5 as restartFinalAuctionIx, a6 as setKeeperIx, a7 as setParamsIx, a8 as setPausedIx, a9 as setPriceSourceIx, aa as setTreasuryIx, ab as settleFinalAuctionIx, ac as startFinalAuctionIx, ad as transferAdIx, ae as updateAdIx } from './client-D4fh1TZ6.js';
 import { Idl, BorshCoder } from '@anchor-lang/core';
-export { AD_AUCTION_SEED, AD_SEED, AUCTION_DURATION_SECS, AUCTION_EXTENSION_SECS, AUCTION_MIN_INCREMENT_BPS, AUCTION_MIN_INCREMENT_LAMPORTS, AUCTION_MIN_OPENING_BID_LAMPORTS, AUCTION_SEED, AUCTION_THRESHOLD_BLOCKS, BITMAP_BYTES, BLOCK_PX, BPS_DENOMINATOR, BUYBACK_VAULT_SEED, BUYBACK_WINDOW_SECS, CANVAS_PX, CANVAS_SEED, CONFIG_SEED, DEFAULT_HERMES_URL, DEFAULT_MAX_PRICE_AGE_SECS, DEFAULT_TOKEN_BLOCKS_CAP_PER_HOUR, EMA_ALPHA_BPS, EMA_MAX_DEVIATION_BPS, EMA_MIN_INTERVAL_SECS, EMA_SEED_BAND_BPS, EMA_SPOT_CLAMP_BPS, EMA_WARMUP_CRANKS, EMA_WARMUP_SECS, EMA_WINDOW_SECS, GRID, LAMPORTS_PER_SOL_BI, MAX_BUYBACK_CAP_LAMPORTS_PER_HOUR, MAX_CONF_BPS, MAX_EMA_AGE_SECS, MAX_EMA_STEP_BPS, MAX_IMAGE_URI_LEN, MAX_LINK_LEN, MAX_TITLE_LEN, MAX_TOKEN_BLOCKS_CAP_PER_HOUR, PRICE_PER_BLOCK_USD_MICRO, PRICE_SCALE, PROJECT_NAME, SLOW_EMA_WINDOW_SECS, SOL_USD_FEED_ID, TOKEN_DISCOUNT_BPS, TOKEN_SYMBOL, TOTAL_BLOCKS, TREASURY_BPS, USD_MICRO, base64ToBytes, bytesToBase64, bytesToHex, ceilDiv, hexToBytes } from './quote.js';
+export { AD_AUCTION_SEED, AD_SEED, AUCTION_DURATION_SECS, AUCTION_EXTENSION_SECS, AUCTION_MIN_INCREMENT_BPS, AUCTION_MIN_INCREMENT_LAMPORTS, AUCTION_MIN_OPENING_BID_LAMPORTS, AUCTION_SEED, AUCTION_THRESHOLD_BLOCKS, BITMAP_BYTES, BLOCK_PX, BPS_DENOMINATOR, BUYBACK_MAX_POST_SPOT_BPS, BUYBACK_VAULT_SEED, BUYBACK_WINDOW_SECS, CANVAS_PX, CANVAS_SEED, CONFIG_SEED, DEFAULT_HERMES_URL, DEFAULT_MAX_PRICE_AGE_SECS, DEFAULT_TOKEN_BLOCKS_CAP_PER_HOUR, EMA_ALPHA_BPS, EMA_MAX_DEVIATION_BPS, EMA_MIN_INTERVAL_SECS, EMA_SEED_BAND_BPS, EMA_SPOT_CLAMP_BPS, EMA_WARMUP_CRANKS, EMA_WARMUP_SECS, EMA_WINDOW_SECS, GRID, LAMPORTS_PER_SOL_BI, MAX_BUYBACK_CAP_LAMPORTS_PER_HOUR, MAX_CONF_BPS, MAX_EMA_AGE_SECS, MAX_EMA_STEP_BPS, MAX_IMAGE_URI_LEN, MAX_LINK_LEN, MAX_TITLE_LEN, MAX_TOKEN_BLOCKS_CAP_PER_HOUR, PRICE_PER_BLOCK_USD_MICRO, PRICE_SCALE, PROJECT_NAME, SLOW_EMA_WINDOW_SECS, SOL_USD_FEED_ID, TOKEN_DISCOUNT_BPS, TOKEN_SYMBOL, TOTAL_BLOCKS, TREASURY_BPS, USD_MICRO, base64ToBytes, bytesToBase64, bytesToHex, ceilDiv, hexToBytes } from './quote.js';
 import 'bn.js';
 
 /** Program id baked into the IDL. Override per call (`programId`) for other deployments. */
@@ -862,6 +862,17 @@ type Pixel = {
                 {
                     "name": "keeperTokenAccount";
                     "writable": true;
+                },
+                {
+                    "name": "priceSource";
+                },
+                {
+                    "name": "poolBaseVault";
+                    "optional": true;
+                },
+                {
+                    "name": "poolQuoteVault";
+                    "optional": true;
                 },
                 {
                     "name": "tokenProgram";
@@ -1982,6 +1993,11 @@ type Pixel = {
         },
         {
             "code": 6035;
+            "name": "buybackPushesPriceOutOfBand";
+            "msg": "Buyback leaves spot above fast EMA * 1.12; it would pause token payments";
+        },
+        {
+            "code": 6036;
             "name": "insufficientVaultFunds";
             "msg": "Insufficient funds in buyback vault";
         }
@@ -3034,6 +3050,17 @@ type Pixel = {
             "name": "bpsDenominator";
             "type": "u64";
             "value": "10000";
+        },
+        {
+            "name": "buybackMaxPostSpotBps";
+            "docs": [
+                "Backstop checked in `record_buyback_burn` (spent > 0): spot must be <= fast EMA * (1 + 12%), 3 points inside the",
+                "15% token-buy band, so the keeper's atomic release -> swap -> record flow cannot push spot past fast EMA * 1.12.",
+                "This is a safety rail for the honest keeper, NOT an adversarial control: nothing on-chain ties the record to the",
+                "swap (same as the rate bar), so a malicious keeper could swap in a separate transaction."
+            ];
+            "type": "u64";
+            "value": "1200";
         },
         {
             "name": "buybackVaultSeed";

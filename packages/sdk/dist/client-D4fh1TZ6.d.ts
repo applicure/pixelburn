@@ -173,6 +173,8 @@ declare function recordBuybackBurnIx(p: {
     keeperTokenAccount?: PublicKey;
     tokenMint: PublicKey;
     tokenProgram?: PublicKey;
+    /** config.priceSource: the program reads post-trade spot from it (backstop: spot <= fast EMA * 1.12) */
+    priceSource: PriceSource;
     lamportsSpent: bigint;
     tokensBurned: bigint;
     programId?: PublicKey;

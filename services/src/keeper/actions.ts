@@ -54,7 +54,7 @@ export class SdkKeeperActions implements KeeperActions {
     const cfg = await this.config();
     return [
       recordBuybackBurnIx({
-        keeper, tokenMint: cfg.tokenMint, tokenProgram: cfg.tokenProgram, lamportsSpent, tokensBurned, programId: this.programId,
+        keeper, tokenMint: cfg.tokenMint, tokenProgram: cfg.tokenProgram, priceSource: cfg.priceSource, lamportsSpent, tokensBurned, programId: this.programId,
       }),
     ];
   }
@@ -102,6 +102,114 @@ export interface SendOptions {
  * The ONLY place the keeper submits transactions. Refuses unless opts.live is true
  * (KEEPER_LIVE=1), so dry-run can never send by accident.
  */
+export interface SendResult {
+  /** Confirmed signature (live only); null for dry-run or any failure. */
+  sig: string | null;
+  ok: boolean;
+  dryRun: boolean;
+  /** Program custom error code (e.g. 6035) when the failure came from an instruction. */
+  errorCode?: number;
+  error?: string;
+}
+
+const customCode = (err: unknown): number | undefined => {
+  const m = /"Custom":(\d+)/.exec(JSON.stringify(err ?? ""));
+  return m ? Number(m[1]) : undefined;
+};
+
+/**
+ * Build, simulate and (live only) send + confirm. NEVER throws: every failure comes back as
+ * `{ ok: false, sig: null, errorCode?, error }`, and `sig` is only set for a CONFIRMED tx.
+ * The only place the keeper submits transactions; refuses unless opts.live (KEEPER_LIVE=1).
+ */
+export async function sendIxsResult(
+  conn: Connection,
+  payer: Keypair,
+  ixs: TransactionInstruction[],
+  opts: SendOptions,
+  log: Logger,
+  label: string,
+  lookupTables: AddressLookupTableAccount[] = [],
+): Promise<SendResult> {
+  try {
+    if (!opts.live) {
+      // Dry-run: build + SIMULATE the exact tx (never sent) so a dry run proves the tx would land.
+      if (opts.simulateInDryRun) {
+        const { blockhash } = await conn.getLatestBlockhash("confirmed");
+        const msg = new TransactionMessage({ payerKey: payer.publicKey, recentBlockhash: blockhash, instructions: [
+          ...(opts.computeUnitLimit ? [ComputeBudgetProgram.setComputeUnitLimit({ units: opts.computeUnitLimit })] : []),
+          ...ixs,
+        ] }).compileToV0Message(lookupTables);
+        const sim = await conn.simulateTransaction(new VersionedTransaction(msg), { sigVerify: false, replaceRecentBlockhash: true });
+        const tail = sim.value.logs?.filter((l) => /Program log: (Instruction|AnchorError)|failed|success/.test(l)).slice(-6).join(" | ");
+        log.info(`[dry-run] ${label}: simulation ${sim.value.err ? `FAILED ${JSON.stringify(sim.value.err)}` : "OK"} (${sim.value.unitsConsumed ?? "?"} CU) ${tail ?? ""}`);
+        if (sim.value.err) return { sig: null, ok: false, dryRun: true, errorCode: customCode(sim.value.err), error: JSON.stringify(sim.value.err) };
+      } else {
+        log.info(`[dry-run] would send ${label} (${ixs.length} ixs)`);
+      }
+      return { sig: null, ok: true, dryRun: true };
+    }
+    const all: TransactionInstruction[] = [
+      ...(opts.computeUnitLimit ? [ComputeBudgetProgram.setComputeUnitLimit({ units: opts.computeUnitLimit })] : []),
+      ComputeBudgetProgram.setComputeUnitPrice({ microLamports: opts.priorityMicroLamports ?? 10_000 }),
+      ...ixs,
+    ];
+    if (opts.jito?.enabled) {
+      const tip = JITO_TIP_ACCOUNTS[Math.floor(Math.random() * JITO_TIP_ACCOUNTS.length)]!;
+      all.push(SystemProgram.transfer({ fromPubkey: payer.publicKey, toPubkey: new PublicKey(tip), lamports: opts.jito.tipLamports }));
+    }
+    const { blockhash, lastValidBlockHeight } = await conn.getLatestBlockhash("confirmed");
+    const msg = new TransactionMessage({ payerKey: payer.publicKey, recentBlockhash: blockhash, instructions: all }).compileToV0Message(lookupTables);
+    const tx = new VersionedTransaction(msg);
+    tx.sign([payer]);
+    const sim = await conn.simulateTransaction(tx, { sigVerify: false });
+    if (sim.value.err) {
+      return {
+        sig: null, ok: false, dryRun: false, errorCode: customCode(sim.value.err),
+        error: `${label} simulation failed: ${JSON.stringify(sim.value.err)} ${sim.value.logs?.slice(-5).join(" | ")}`,
+      };
+    }
+    const raw = tx.serialize();
+    const sig = bs58.encode(tx.signatures[0]!);
+    if (opts.jito?.enabled) {
+      const res = await fetch(opts.jito.url, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "sendBundle", params: [[bs58.encode(raw)]] }),
+      });
+      const body = (await res.json()) as { result?: string; error?: unknown };
+      if (!res.ok || body.error) return { sig: null, ok: false, dryRun: false, error: `jito sendBundle failed: ${JSON.stringify(body.error ?? res.status)}` };
+      log.info(`${label}: jito bundle ${body.result}`);
+    } else {
+      // Re-broadcast ourselves until confirmed or the blockhash expires (RPC-side maxRetries can
+      // silently drop a tx, observed on a fresh local validator). Same signature => idempotent.
+      await conn.sendRawTransaction(raw, { skipPreflight: true, maxRetries: 0 });
+    }
+    log.debug(`${label}: sent ${sig}`);
+    let done = false;
+    const rebroadcast = (async () => {
+      while (!done && !opts.jito?.enabled) {
+        await new Promise((r) => setTimeout(r, 2_000));
+        if (!done) await conn.sendRawTransaction(raw, { skipPreflight: true, maxRetries: 0 }).catch(() => {});
+      }
+    })();
+    try {
+      // Both paths (RPC and Jito) only count as success once the signature is confirmed.
+      const conf = await conn.confirmTransaction({ signature: sig, blockhash, lastValidBlockHeight }, "confirmed");
+      if (conf.value.err) {
+        return { sig: null, ok: false, dryRun: false, errorCode: customCode(conf.value.err), error: `${label} failed on-chain: ${JSON.stringify(conf.value.err)}` };
+      }
+    } finally {
+      done = true;
+      await rebroadcast;
+    }
+    return { sig, ok: true, dryRun: false };
+  } catch (e) {
+    return { sig: null, ok: false, dryRun: !opts.live, error: `${label}: ${(e as Error).message}` };
+  }
+}
+
+/** Convenience: confirmed signature, or null (dry-run or failure; failures are logged). Never throws. */
 export async function sendIxs(
   conn: Connection,
   payer: Keypair,
@@ -111,68 +219,9 @@ export async function sendIxs(
   label: string,
   lookupTables: AddressLookupTableAccount[] = [],
 ): Promise<string | null> {
-  if (!opts.live) {
-    // Dry-run: build + SIMULATE the exact tx (never sent) so a dry run proves the tx would land.
-    if (opts.simulateInDryRun) {
-      const { blockhash } = await conn.getLatestBlockhash("confirmed");
-      const msg = new TransactionMessage({ payerKey: payer.publicKey, recentBlockhash: blockhash, instructions: [
-        ...(opts.computeUnitLimit ? [ComputeBudgetProgram.setComputeUnitLimit({ units: opts.computeUnitLimit })] : []),
-        ...ixs,
-      ] }).compileToV0Message(lookupTables);
-      const sim = await conn.simulateTransaction(new VersionedTransaction(msg), { sigVerify: false, replaceRecentBlockhash: true });
-      const tail = sim.value.logs?.filter((l) => /Program log: (Instruction|AnchorError)|failed|success/.test(l)).slice(-6).join(" | ");
-      log.info(`[dry-run] ${label}: simulation ${sim.value.err ? `FAILED ${JSON.stringify(sim.value.err)}` : "OK"} (${sim.value.unitsConsumed ?? "?"} CU) ${tail ?? ""}`);
-    } else {
-      log.info(`[dry-run] would send ${label} (${ixs.length} ixs)`);
-    }
-    return null;
-  }
-  const all: TransactionInstruction[] = [
-    ...(opts.computeUnitLimit ? [ComputeBudgetProgram.setComputeUnitLimit({ units: opts.computeUnitLimit })] : []),
-    ComputeBudgetProgram.setComputeUnitPrice({ microLamports: opts.priorityMicroLamports ?? 10_000 }),
-    ...ixs,
-  ];
-  if (opts.jito?.enabled) {
-    const tip = JITO_TIP_ACCOUNTS[Math.floor(Math.random() * JITO_TIP_ACCOUNTS.length)]!;
-    all.push(SystemProgram.transfer({ fromPubkey: payer.publicKey, toPubkey: new PublicKey(tip), lamports: opts.jito.tipLamports }));
-  }
-  const { blockhash, lastValidBlockHeight } = await conn.getLatestBlockhash("confirmed");
-  const msg = new TransactionMessage({ payerKey: payer.publicKey, recentBlockhash: blockhash, instructions: all }).compileToV0Message(lookupTables);
-  const tx = new VersionedTransaction(msg);
-  tx.sign([payer]);
-  const sim = await conn.simulateTransaction(tx, { sigVerify: false });
-  if (sim.value.err) throw new Error(`${label} simulation failed: ${JSON.stringify(sim.value.err)} ${sim.value.logs?.slice(-5).join(" | ")}`);
-  if (opts.jito?.enabled) {
-    const res = await fetch(opts.jito.url, {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "sendBundle", params: [[bs58.encode(tx.serialize())]] }),
-    });
-    const body = (await res.json()) as { result?: string; error?: unknown };
-    if (!res.ok || body.error) throw new Error(`jito sendBundle failed: ${JSON.stringify(body.error ?? res.status)}`);
-    log.info(`${label}: jito bundle ${body.result}`);
-    return bs58.encode(tx.signatures[0]!);
-  }
-  // Re-broadcast ourselves until confirmed or the blockhash expires (RPC-side maxRetries can
-  // silently drop a tx, observed on a fresh local validator). Same signature => idempotent.
-  const raw = tx.serialize();
-  const sig = await conn.sendRawTransaction(raw, { skipPreflight: true, maxRetries: 0 });
-  log.debug(`${label}: sent ${sig}`);
-  let done = false;
-  const rebroadcast = (async () => {
-    while (!done) {
-      await new Promise((r) => setTimeout(r, 2_000));
-      if (!done) await conn.sendRawTransaction(raw, { skipPreflight: true, maxRetries: 0 }).catch(() => {});
-    }
-  })();
-  try {
-    const conf = await conn.confirmTransaction({ signature: sig, blockhash, lastValidBlockHeight }, "confirmed");
-    if (conf.value.err) throw new Error(`${label} failed on-chain: ${JSON.stringify(conf.value.err)}`);
-  } finally {
-    done = true;
-    await rebroadcast;
-  }
-  return sig;
+  const r = await sendIxsResult(conn, payer, ixs, opts, log, label, lookupTables);
+  if (!r.ok && !r.dryRun) log.warn(r.error ?? `${label} failed`);
+  return r.sig;
 }
 
 // ---- Jupiter (fallback swap path / pricing for min-out) ----

@@ -2,7 +2,18 @@ import { Connection, Keypair, PublicKey, type TransactionInstruction } from "@so
 import { CU_LIMITS } from "@mpb/sdk";
 import type { ChainReader } from "../chain/accounts.js";
 import type { Logger } from "../lib/log.js";
-import { sendIxs, type KeeperActions, type SendOptions } from "./actions.js";
+import { sendIxsResult, type KeeperActions, type SendOptions } from "./actions.js";
+
+/** Program error codes the keeper reacts to (from the pixel IDL). */
+const ERR = {
+  CrankTooSoon: 6015,
+  BuybackAmountTooHigh: 6033,
+  BuybackRateTooLow: 6034,
+  BuybackPushesPriceOutOfBand: 6035,
+} as const;
+const ERR_NAME: Record<number, string> = Object.fromEntries(Object.entries(ERR).map(([k, v]) => [v, k]));
+/** Rejections where resuming an outstanding release can't succeed now: refund with record(0, 0) instead. */
+const REFUND_ON = new Set<number>([ERR.BuybackAmountTooHigh, ERR.BuybackRateTooLow, ERR.BuybackPushesPriceOutOfBand]);
 import type { SwapPlan, SwapRoute } from "./routes.js";
 import { checkDeviation, jittered, minBuybackTokens, planBuybackChunks } from "./plan.js";
 
@@ -73,9 +84,11 @@ export class Keeper {
       this.log.warn("crank_token_price: no program configured (PROGRAM_ID unset) — skipped");
       return null;
     }
-    const sig = await sendIxs(this.conn, this.payer ?? Keypair.generate(), ixs, { ...this.sendOpts, computeUnitLimit: CU_LIMITS.crankTokenPrice }, this.log, "crank_token_price");
-    if (sig) this.log.info(`crank_token_price confirmed ${sig}`);
-    return sig;
+    const r = await sendIxsResult(this.conn, this.payer ?? Keypair.generate(), ixs, { ...this.sendOpts, computeUnitLimit: CU_LIMITS.crankTokenPrice }, this.log, "crank_token_price");
+    if (r.sig) this.log.info(`crank_token_price confirmed ${r.sig}`);
+    else if (r.errorCode === ERR.CrankTooSoon) this.log.info("crank_token_price: skipped, cranked by someone else < 30 s ago (6015 CrankTooSoon)");
+    else if (!r.ok) this.log.error(`crank_token_price failed: ${(r.error ?? "").slice(0, 400)}`);
+    return r.sig;
   }
 
   /**
@@ -92,31 +105,56 @@ export class Keeper {
       this.log.warn(`buyback: release of ${o.lamports} lamports outstanding for ${o.sinceSecs}s (< ${this.cfg.outstandingGraceSecs}s grace) — waiting, not releasing`);
       return "waiting";
     }
+    const payer = this.payer ?? Keypair.generate();
+    const refund = async (why: string): Promise<"waiting" | "resolved"> => {
+      // A pure refund (spent = 0) needs no price and is always accepted on-chain.
+      const ixs = await this.actions.recordBuybackBurnIxs(this.keeperKey, 0n, 0n);
+      if (!ixs) return "waiting";
+      this.log.warn(`buyback: outstanding release of ${o.lamports} lamports — refund (record_buyback_burn 0, 0): ${why}`);
+      const r = await sendIxsResult(this.conn, payer, ixs, this.sendOpts, this.log, "buyback-refund-outstanding");
+      if (!r.sig) {
+        if (!r.ok) this.log.error(`buyback: refund failed: ${r.error}`);
+        return "waiting"; // dry-run or failure: still outstanding
+      }
+      sent.push(r.sig);
+      this.log.info(`buyback: outstanding release refunded ${r.sig}`);
+      return "resolved";
+    };
+
     const routes = typeof this.routes === "function" ? await this.routes().catch(() => []) : this.routes;
     let plan: SwapPlan | null = null;
     for (const r of routes) {
       plan = await r.plan(o.lamports, this.keeperKey);
       if (plan) break;
     }
-    let ixs: TransactionInstruction[] | null;
-    let what: string;
-    if (plan && plan.impactPct <= this.cfg.maxPriceImpactPct) {
-      const leftover = await this.keeperTokenBalance();
-      const record = await this.actions.recordBuybackBurnIxs(this.keeperKey, plan.lamportsSpent, plan.minTokensOut + leftover);
-      ixs = record ? [...(await plan.build()).ixs, ...record] : null;
-      what = `resume via ${plan.route}: spend ${plan.lamportsSpent}, burn ${plan.minTokensOut + leftover}`;
-    } else {
-      ixs = await this.actions.recordBuybackBurnIxs(this.keeperKey, 0n, 0n);
-      what = "refund (record_buyback_burn 0, 0): no usable buy route";
+    if (!plan) return refund("no usable buy route");
+    const priceImpactPct = plan.quoteFractionPct ?? plan.impactPct;
+    if (priceImpactPct > this.cfg.maxPriceImpactPct) return refund(`${plan.route} price impact ${priceImpactPct.toFixed(2)}% > cap ${this.cfg.maxPriceImpactPct}%`);
+    // Same band check as a normal chunk (L-B1): never resume a buy that would push spot out of band.
+    const price = (await this.chain?.fetchTokenPrice().catch(() => null)) ?? null;
+    if (price?.unavailable && price.unavailable.reason !== "deviation") return refund(`token EMA not usable (${price.unavailable.reason})`);
+    const guard = checkDeviation({
+      spotQ: price?.spot ?? null, emaQ: price?.ema ?? null, impactPct: plan.impactPct, quoteFractionPct: plan.quoteFractionPct,
+      runFactor: 1, maxSpotOverEmaPct: this.cfg.maxSpotOverEmaPct, maxRunPriceMovePct: this.cfg.maxRunPriceMovePct,
+    });
+    if (!guard.ok) return refund(guard.reason);
+
+    const leftover = await this.keeperTokenBalance();
+    const record = await this.actions.recordBuybackBurnIxs(this.keeperKey, plan.lamportsSpent, plan.minTokensOut + leftover);
+    if (!record) return "waiting";
+    const swap = await plan.build();
+    this.log.warn(`buyback: outstanding release of ${o.lamports} lamports — resume via ${plan.route}: spend ${plan.lamportsSpent}, burn ${plan.minTokensOut + leftover}`);
+    const r = await sendIxsResult(this.conn, payer, [...swap.ixs, ...record], this.sendOpts, this.log, "buyback-resume-outstanding", swap.lookupTables);
+    if (r.sig) {
+      sent.push(r.sig);
+      this.log.info(`buyback: outstanding release resolved ${r.sig}`);
+      return "resolved";
     }
-    if (!ixs) return "waiting";
-    this.log.warn(`buyback: outstanding release of ${o.lamports} lamports — ${what}`);
-    const sig = await sendIxs(this.conn, this.payer ?? Keypair.generate(), ixs, this.sendOpts, this.log, "buyback-resolve-outstanding");
-    if (sig) {
-      sent.push(sig);
-      this.log.info(`buyback: outstanding release resolved ${sig}`);
-    }
-    return "resolved";
+    // The program refused the buy+record (out of band / rate too low / amount too high): refund instead
+    // of retrying a failing tx every cycle while the open release blocks all new releases.
+    if (r.errorCode !== undefined && REFUND_ON.has(r.errorCode)) return refund(`resume rejected on-chain (${r.errorCode} ${ERR_NAME[r.errorCode]})`);
+    if (!r.ok) this.log.error(`buyback: resume failed: ${r.error}`);
+    return "waiting";
   }
 
   async buybackOnce(): Promise<{ chunks: bigint[]; sent: string[] }> {
@@ -184,8 +222,12 @@ export class Keeper {
         this.log.warn(`buyback chunk ${i}: no buy route available (${routes.map((r) => r.name).join(", ") || "none"}) — skipping run`);
         break;
       }
-      if (plan.impactPct > this.cfg.maxPriceImpactPct) {
-        this.log.warn(`buyback chunk ${i}: ${plan.route} price impact ${plan.impactPct.toFixed(3)}% > cap ${this.cfg.maxPriceImpactPct}% — stopping run`);
+      // Per-chunk cap on PRICE impact, i.e. excluding pool/curve fees (pump routes: quoteIn / effective
+      // reserves; Jupiter: its priceImpactPct). Fees are a cost, not a price move; the fee-inclusive
+      // figure (plan.impactPct) still feeds the conservative spot projection below.
+      const priceImpactPct = plan.quoteFractionPct ?? plan.impactPct;
+      if (priceImpactPct > this.cfg.maxPriceImpactPct) {
+        this.log.warn(`buyback chunk ${i}: ${plan.route} price impact ${priceImpactPct.toFixed(3)}% > cap ${this.cfg.maxPriceImpactPct}% — stopping run`);
         break;
       }
       const guard = checkDeviation({
@@ -220,13 +262,18 @@ export class Keeper {
       this.log.info(
         `buyback chunk ${i}: ${plan.route} release ${lamports}, spend ${plan.lamportsSpent}, burn ${tokensToBurn} (impact ${plan.impactPct.toFixed(2)}%)`,
       );
-      const sig = await sendIxs(
+      const res = await sendIxsResult(
         this.conn, this.payer ?? Keypair.generate(), [...release, ...swap.ixs, ...record], this.sendOpts, this.log,
         `buyback#${i}`, swap.lookupTables,
       );
-      if (sig) {
-        sent.push(sig);
-        this.log.info(`buyback chunk ${i}: confirmed ${sig}`);
+      if (res.sig) {
+        sent.push(res.sig);
+        this.log.info(`buyback chunk ${i}: confirmed ${res.sig}`);
+      } else if (!res.ok) {
+        // Atomic tx: a failure released nothing. Program refusals end the run; don't hammer.
+        const name = res.errorCode !== undefined ? ` (${res.errorCode} ${ERR_NAME[res.errorCode] ?? ""})` : "";
+        this.log.warn(`buyback chunk ${i}: not executed${name} — stopping run: ${(res.error ?? "").slice(0, 300)}`);
+        break;
       }
       if (i < chunks.length - 1) await this.sleep(jittered(this.cfg.chunkDelayMs.min, this.cfg.chunkDelayMs.jitter));
     }
@@ -238,10 +285,7 @@ export class Keeper {
       try {
         await this.crankOnce();
       } catch (e) {
-        const msg = (e as Error).message;
-        // 6015 CrankTooSoon: someone else cranked within the 30 s minimum. The EMA is fresh; not an error.
-        if (/"Custom":6015|CrankTooSoon/.test(msg)) this.log.info("crank_token_price: skipped, cranked by someone else < 30 s ago (6015 CrankTooSoon)");
-        else this.log.error(`crank_token_price failed: ${msg.slice(0, 400)}`);
+        this.log.error(`crank_token_price failed: ${(e as Error).message.slice(0, 400)}`);
       }
     };
     void crank();

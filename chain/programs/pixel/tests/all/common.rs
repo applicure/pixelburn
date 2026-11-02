@@ -526,6 +526,7 @@ impl Env {
     }
 
     pub fn ix_record(&self, keeper: &Pubkey, keeper_ta: &Pubkey, lamports_spent: u64, tokens_burned: u64) -> Instruction {
+        let (ps, bv, qv) = self.price_accounts();
         Instruction::new_with_bytes(
             pid(),
             &pixel::instruction::RecordBuybackBurn { lamports_spent, tokens_burned }.data(),
@@ -536,6 +537,9 @@ impl Env {
                 buyback_vault: vault_pda(),
                 token_mint: self.mint,
                 keeper_token_account: *keeper_ta,
+                price_source: ps,
+                pool_base_vault: bv,
+                pool_quote_vault: qv,
                 token_program: self.token_program,
                 system_program: system_program::ID,
             }

@@ -45,7 +45,7 @@ import {
   transferAdIx,
   updateAdIx,
 } from "@mpb/sdk";
-import { SdkKeeperActions, sendIxs } from "../src/keeper/actions.js";
+import { SdkKeeperActions, sendIxs, sendIxsResult } from "../src/keeper/actions.js";
 import { silentLogger } from "../src/lib/log.js";
 
 const here = path.dirname(fileURLToPath(import.meta.url));

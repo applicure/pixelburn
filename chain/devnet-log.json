@@ -269,5 +269,63 @@
     "sig": "2kDECMa4jYZjVYNPvaMxLznB4wDBpEXY4g5RDpfDS9BKiixz3pzgzJ8e98jNTG5nqwWrzLouvgw8JBbCDXBNyKb4",
     "explorer": "https://explorer.solana.com/tx/2kDECMa4jYZjVYNPvaMxLznB4wDBpEXY4g5RDpfDS9BKiixz3pzgzJ8e98jNTG5nqwWrzLouvgw8JBbCDXBNyKb4?cluster=devnet",
     "at": "2026-11-02T13:37:37.084Z"
+  },
+  {
+    "step": "token-buy",
+    "sig": "sa6Bg8ZvWc8DSemJ717PCt56LJVEwd99rBnFTxi3B33gjsT9FkGXvHArvxKSAFYbyy3rMNP3E7oTqknZHuY6rkr",
+    "explorer": "https://explorer.solana.com/tx/sa6Bg8ZvWc8DSemJ717PCt56LJVEwd99rBnFTxi3B33gjsT9FkGXvHArvxKSAFYbyy3rMNP3E7oTqknZHuY6rkr?cluster=devnet",
+    "at": "2026-11-02T13:48:24.613Z",
+    "quote": {
+      "ad": "BfruWaJHrDE1aVQtWPDA6V5aRVKED3Fu9xpMk2bgJ8rJ",
+      "usdMicro": "90000000",
+      "tokens": "226563839487436",
+      "maxTokens": "233360754672060",
+      "spotQ": "5878904652182",
+      "emaQ": "5125608854317",
+      "slowEmaQ": "4206045073900",
+      "solUsd": {
+        "price": "9444478692",
+        "expo": -8,
+        "conf": "5924630",
+        "publishTime": 1793627297,
+        "feedId": "ef0d8b6fda2ceba41da15d4095d1da392a0d2f8ed0c6c7bc0f4cfac8c280b56d",
+        "verified": true
+      },
+      "crankPrepended": false,
+      "computeUnits": 66200
+    },
+    "cuLimit": 66200,
+    "microLamports": 1000,
+    "events": [
+      "AdPurchased"
+    ],
+    "supplyBefore": "699460162770104",
+    "supplyAfter": "472896323282668"
+  },
+  {
+    "step": "release_buyback",
+    "sig": "4dhexVczuqBR24s5LzHALyeZk49ww4xrdJUjuHoL5PT2H9NSx3CKsWXiEgU9M4BQnx41meZnByyPS1rSAj4oN8PA",
+    "explorer": "https://explorer.solana.com/tx/4dhexVczuqBR24s5LzHALyeZk49ww4xrdJUjuHoL5PT2H9NSx3CKsWXiEgU9M4BQnx41meZnByyPS1rSAj4oN8PA?cluster=devnet",
+    "at": "2026-11-02T13:48:27.262Z",
+    "lamports": "20000000"
+  },
+  {
+    "step": "pumpswap buy (keeper, canonical pool)",
+    "sig": "4T4fMVVdPg2Dwc74TiLKSyftUfEzrWR5LFa3me1UtBRYxdYsHttZ14byizQKtCDz9AcpZ2wiihdm82rbwKpHjxuS",
+    "explorer": "https://explorer.solana.com/tx/4T4fMVVdPg2Dwc74TiLKSyftUfEzrWR5LFa3me1UtBRYxdYsHttZ14byizQKtCDz9AcpZ2wiihdm82rbwKpHjxuS?cluster=devnet",
+    "at": "2026-11-02T13:48:29.866Z",
+    "quoteIn": "19000000",
+    "lamportsSpent": "21905759",
+    "tokensBought": "3133646523252"
+  },
+  {
+    "step": "record_buyback_burn (pool route, reconciled after EMA caught up)",
+    "sig": "BM6sRDUakFjf8FHEWYz4gb4iifnf7uAcM3UH4wpyUzFe7SNuPZj5YtxuGzze2Hs3XrSigvwZoe19n7kBKoTihvV",
+    "explorer": "https://explorer.solana.com/tx/BM6sRDUakFjf8FHEWYz4gb4iifnf7uAcM3UH4wpyUzFe7SNuPZj5YtxuGzze2Hs3XrSigvwZoe19n7kBKoTihvV?cluster=devnet",
+    "at": "2026-11-02T13:50:54.347Z",
+    "lamportsSpent": "19000000",
+    "tokensBurned": "3133646523252",
+    "supplyBefore": "472896323282668",
+    "supplyAfter": "469762676759416"
   }
 ]

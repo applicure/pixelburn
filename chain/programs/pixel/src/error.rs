@@ -72,6 +72,8 @@ pub enum PixelError {
     BuybackAmountTooHigh,
     #[msg("Too few tokens burned for the lamports spent")]
     BuybackRateTooLow,
+    #[msg("Buyback leaves spot above fast EMA * 1.12; it would pause token payments")]
+    BuybackPushesPriceOutOfBand,
     #[msg("Insufficient funds in buyback vault")]
     InsufficientVaultFunds,
 }

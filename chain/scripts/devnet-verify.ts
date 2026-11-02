@@ -132,11 +132,15 @@ switch (cmd) {
       const tok0 = BigInt((await c.getTokenAccountBalance(ata).catch(() => ({ value: { amount: "0" } }))).value.amount);
       const sb = await send(new Transaction().add(ComputeBudgetProgram.setComputeUnitLimit({ units: 300_000 }), ...ixs), [keeper]);
       const fee = BigInt((await c.getTransaction(sb, { maxSupportedTransactionVersion: 0, commitment: "confirmed" }))?.meta?.fee ?? 0);
-      const spent = sol0 - BigInt(await c.getBalance(keeper.publicKey)) - fee;
+      // The keeper's SOL drop also includes one-time account rent (e.g. PumpSwap's user volume accumulator, ~2.9M
+      // lamports on the first buy), which is not buyback spend: claim the quote actually swapped, capped at the release.
+      const measured = sol0 - BigInt(await c.getBalance(keeper.publicKey)) - fee;
+      const quoteIn = BigInt(spendQ.toString());
+      const spent = measured < quoteIn ? measured : quoteIn;
       const bought = BigInt((await c.getTokenAccountBalance(ata)).value.amount) - tok0;
-      log("pumpswap buy (keeper, canonical pool)", sb, { quoteIn: spendQ.toString(), lamportsSpent: spent, tokensBought: bought });
+      log("pumpswap buy (keeper, canonical pool)", sb, { quoteIn: spendQ.toString(), measuredSolDrop: measured, lamportsSpent: spent, tokensBought: bought });
       const supply0 = (await c.getTokenSupply(mint)).value.amount;
-      const s3 = await send(new Transaction().add(recordBuybackBurnIx({ keeper: keeper.publicKey, tokenMint: mint, tokenProgram: cfg.tokenProgram,
+      const s3 = await send(new Transaction().add(recordBuybackBurnIx({ keeper: keeper.publicKey, tokenMint: mint, tokenProgram: cfg.tokenProgram, priceSource: cfg.priceSource,
         keeperTokenAccount: ata, lamportsSpent: spent, tokensBurned: bought })), [keeper]);
       const supply1 = (await c.getTokenSupply(mint)).value.amount;
       log("record_buyback_burn", s3, { lamportsSpent: spent, tokensBurned: bought, supplyBefore: supply0, supplyAfter: supply1, events: (await events(s3)).map((e) => e.name) });
@@ -158,7 +162,7 @@ switch (cmd) {
     const bought = after - before;
     log("pump buy (keeper)", s2, { spentMax: spend.toString(), tokensBought: bought });
     const supply0 = (await c.getTokenSupply(mint)).value.amount;
-    const s3 = await send(new Transaction().add(recordBuybackBurnIx({ keeper: keeper.publicKey, tokenMint: mint, tokenProgram: cfg.tokenProgram,
+    const s3 = await send(new Transaction().add(recordBuybackBurnIx({ keeper: keeper.publicKey, tokenMint: mint, tokenProgram: cfg.tokenProgram, priceSource: cfg.priceSource,
       keeperTokenAccount: ata, lamportsSpent: BigInt(spend.toString()), tokensBurned: bought })), [keeper]);
     const supply1 = (await c.getTokenSupply(mint)).value.amount;
     log("record_buyback_burn", s3, { lamportsSpent: spend.toString(), tokensBurned: bought, supplyBefore: supply0, supplyAfter: supply1, events: (await events(s3)).map((e) => e.name) });

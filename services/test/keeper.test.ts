@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { Connection, Keypair, PublicKey, TransactionInstruction } from "@solana/web3.js";
 import { Keeper, type KeeperConfig } from "../src/keeper/keeper.js";
-import type { KeeperActions } from "../src/keeper/actions.js";
+import { sendIxsResult, type KeeperActions } from "../src/keeper/actions.js";
 import { checkDeviation, minBuybackTokens } from "../src/keeper/plan.js";
 import { JupiterRoute, type SwapRoute } from "../src/keeper/routes.js";
 import { silentLogger } from "../src/lib/log.js";
@@ -178,9 +178,96 @@ describe("keeper", () => {
     expect(released).toEqual([]); // max buy < min chunk: skipped, nothing released
   });
 
+  it("per-chunk impact cap measures price impact without fees (quoteIn/reserves)", async () => {
+    const released: bigint[] = [];
+    const actions: KeeperActions = {
+      crankTokenPriceIxs: async () => null,
+      releaseBuybackIxs: async (_k, l) => (released.push(l), [dummyIx()]),
+      recordBuybackBurnIxs: async () => [dummyIx()],
+    };
+    // 0.5% of reserves + ~1.25% pool fee: fee-inclusive 1.75% would wrongly trip a 1% cap
+    const route: SwapRoute = { name: "pumpswap-pool", plan: async (l) => ({ route: "pumpswap-pool", minTokensOut: 10n ** 12n, lamportsSpent: l, impactPct: 1.75, quoteFractionPct: 0.5, build: async () => ({ ixs: [dummyIx()], lookupTables: [] }) }) };
+    const chain = new FakeChain();
+    chain.fetchTokenPrice = async () => ({ spot: Q, ema: Q, slow: Q });
+    chain.fetchBuybackVaultLamports = async () => 50_000_000_000n;
+    const c = { ...cfg(false), maxPriceImpactPct: 1, minChunkLamports: 5_000_000n, maxChunkLamports: 5_000_000n, maxPerRunLamports: 5_000_000n };
+    await new Keeper(explodingConn, null, actions, chain, c, silentLogger, async () => {}, [route]).buybackOnce();
+    expect(released).toEqual([5_000_000n]);
+  });
+
   it("projects with the larger of avg-price impact and quoteIn/reserves", () => {
     const r = checkDeviation({ spotQ: (Q * 105n) / 100n, emaQ: Q, impactPct: 0.2, quoteFractionPct: 2.5, runFactor: 1, maxSpotOverEmaPct: 10, maxRunPriceMovePct: 5 });
     expect(r.ok).toBe(false); // 1.05 * 1.025^2 = 1.103 > 1.10 (impact alone would have passed)
+  });
+
+  describe("L-B1: resolving an outstanding release", () => {
+    /** Live-mode Connection stub: simulate returns the queued errors in order, then success. */
+    function liveConn(simErrs: unknown[]) {
+      const sent: string[] = [];
+      const conn = {
+        getLatestBlockhash: async () => ({ blockhash: PublicKey.unique().toBase58(), lastValidBlockHeight: 1_000 }),
+        simulateTransaction: async () => ({ value: { err: simErrs.length ? simErrs.shift() : null, logs: [], unitsConsumed: 1 } }),
+        sendRawTransaction: async () => (sent.push("tx"), "sig"),
+        confirmTransaction: async () => ({ value: { err: null } }),
+        getParsedTokenAccountsByOwner: async () => ({ value: [] }),
+      } as unknown as Connection;
+      return { conn, sent };
+    }
+    const outstandingChain = (spotOverEma = 1n) => {
+      const chain = new FakeChain();
+      chain.fetchTokenPrice = async () => ({ spot: Q * spotOverEma, ema: Q, slow: Q });
+      chain.fetchBuybackVaultLamports = async () => 5_000_000_000n;
+      (chain as any).fetchBuybackOutstanding = async () => ({ lamports: 20_000_000n, sinceSecs: 5_000 });
+      return chain;
+    };
+    const recorder = () => {
+      const calls: string[] = [];
+      const actions: KeeperActions = {
+        crankTokenPriceIxs: async () => null,
+        releaseBuybackIxs: async () => (calls.push("release"), [dummyIx()]),
+        recordBuybackBurnIxs: async (_k, l, t) => (calls.push(`record ${l} ${t}`), [dummyIx()]),
+      };
+      return { calls, actions };
+    };
+    const okRoute: SwapRoute = { name: "pumpswap-pool", plan: async (l) => ({ route: "pumpswap-pool", minTokensOut: 7n, lamportsSpent: l, impactPct: 0.8, quoteFractionPct: 0.4, build: async () => ({ ixs: [dummyIx()], lookupTables: [] }) }) };
+    const live = { ...cfg(true), maxPriceImpactPct: 1, maxSpotOverEmaPct: 12 };
+
+    it("checks the band first: outside it, refunds with record(0, 0) instead of buying", async () => {
+      const { calls, actions } = recorder();
+      const { conn } = liveConn([]);
+      const chain = outstandingChain(2n); // spot 2x the fast EMA (boost wave)
+      const k = new Keeper(conn, Keypair.generate(), actions, chain, live, silentLogger, async () => {}, [okRoute]);
+      expect(await k.resolveOutstanding([])).toBe("resolved");
+      expect(calls).toEqual(["record 0 0"]);
+    });
+
+    it.each([6035, 6034, 6033])("falls back to a refund when the resume tx is rejected with %i", async (code) => {
+      const { calls, actions } = recorder();
+      const { conn, sent } = liveConn([{ InstructionError: [2, { Custom: code }] }]);
+      const k = new Keeper(conn, Keypair.generate(), actions, outstandingChain(), live, silentLogger, async () => {}, [okRoute]);
+      const s: string[] = [];
+      expect(await k.resolveOutstanding(s)).toBe("resolved");
+      expect(calls).toEqual(["record 20000000 7", "record 0 0"]); // resume attempt, then refund
+      expect(sent).toEqual(["tx"]); // only the refund was actually sent (resume failed in simulation)
+      expect(s).toHaveLength(1);
+    });
+
+    it("only reports resolved after a confirmed signature (dry-run / other failures stay 'waiting')", async () => {
+      const { actions } = recorder();
+      const dry = new Keeper(explodingConn, null, actions, outstandingChain(), cfg(false), silentLogger, async () => {}, [okRoute]);
+      expect(await dry.resolveOutstanding([])).toBe("waiting");
+      const { conn } = liveConn([{ InstructionError: [2, { Custom: 6000 }] }]); // unrelated error: no refund
+      const k = new Keeper(conn, Keypair.generate(), actions, outstandingChain(), live, silentLogger, async () => {}, [okRoute]);
+      expect(await k.resolveOutstanding([])).toBe("waiting");
+    });
+
+    it("sendIxsResult never throws and has no signature on failure", async () => {
+      const { conn } = liveConn([{ InstructionError: [1, { Custom: 6035 }] }]);
+      const r = await sendIxsResult(conn, Keypair.generate(), [dummyIx()], { live: true }, silentLogger, "t");
+      expect(r).toMatchObject({ ok: false, sig: null, errorCode: 6035 });
+      const boom = await sendIxsResult(explodingConn, Keypair.generate(), [dummyIx()], { live: true }, silentLogger, "t");
+      expect(boom).toMatchObject({ ok: false, sig: null });
+    });
   });
 
   it("refuses to start live without a keypair", () => {

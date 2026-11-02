@@ -11,7 +11,7 @@ import {
   TOKEN_PROGRAM_ID,
   WSOL_MINT,
   pixel_default
-} from "./chunk-KF4LXYMG.js";
+} from "./chunk-7I5M3O36.js";
 import {
   applyTokenDiscount,
   assertU64,
@@ -51,7 +51,7 @@ import {
   validateAdContent,
   withSlippage,
   withinBand
-} from "./chunk-XXSIJ4TD.js";
+} from "./chunk-2W7HNC5H.js";
 import {
   AD_AUCTION_SEED,
   AD_SEED,
@@ -65,6 +65,7 @@ import {
   BITMAP_BYTES,
   BLOCK_PX,
   BPS_DENOMINATOR,
+  BUYBACK_MAX_POST_SPOT_BPS,
   BUYBACK_VAULT_SEED,
   BUYBACK_WINDOW_SECS,
   CANVAS_PX,
@@ -101,7 +102,7 @@ import {
   TOTAL_BLOCKS,
   TREASURY_BPS,
   USD_MICRO
-} from "./chunk-YQDUYBHC.js";
+} from "./chunk-ISWIB77O.js";
 
 // src/pda.ts
 import { PublicKey } from "@solana/web3.js";
@@ -486,6 +487,7 @@ function recordBuybackBurnIx(p) {
       buyback_vault: buybackVaultPda(pid),
       token_mint: p.tokenMint,
       keeper_token_account: p.keeperTokenAccount ?? associatedTokenAddress(p.keeper, p.tokenMint, tp),
+      ...priceSourceAccounts(p.priceSource),
       token_program: tp,
       system_program: SYSTEM_PROGRAM_ID
     },
@@ -862,6 +864,7 @@ export {
   BITMAP_BYTES,
   BLOCK_PX,
   BPS_DENOMINATOR,
+  BUYBACK_MAX_POST_SPOT_BPS,
   BUYBACK_VAULT_SEED,
   BUYBACK_WINDOW_SECS,
   CANVAS_PX,

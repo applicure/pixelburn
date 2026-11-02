@@ -714,6 +714,17 @@ var pixel_default = {
           writable: true
         },
         {
+          name: "price_source"
+        },
+        {
+          name: "pool_base_vault",
+          optional: true
+        },
+        {
+          name: "pool_quote_vault",
+          optional: true
+        },
+        {
           name: "token_program",
           relations: [
             "config"
@@ -1832,6 +1843,11 @@ var pixel_default = {
     },
     {
       code: 6035,
+      name: "BuybackPushesPriceOutOfBand",
+      msg: "Buyback leaves spot above fast EMA * 1.12; it would pause token payments"
+    },
+    {
+      code: 6036,
       name: "InsufficientVaultFunds",
       msg: "Insufficient funds in buyback vault"
     }
@@ -2886,6 +2902,17 @@ var pixel_default = {
       value: "10000"
     },
     {
+      name: "BUYBACK_MAX_POST_SPOT_BPS",
+      docs: [
+        "Backstop checked in `record_buyback_burn` (spent > 0): spot must be <= fast EMA * (1 + 12%), 3 points inside the",
+        "15% token-buy band, so the keeper's atomic release -> swap -> record flow cannot push spot past fast EMA * 1.12.",
+        "This is a safety rail for the honest keeper, NOT an adversarial control: nothing on-chain ties the record to the",
+        "swap (same as the rate bar), so a malicious keeper could swap in a separate transaction."
+      ],
+      type: "u64",
+      value: "1200"
+    },
+    {
       name: "BUYBACK_VAULT_SEED",
       type: "bytes",
       value: "[98, 117, 121, 98, 97, 99, 107, 95, 118, 97, 117, 108, 116]"
@@ -3106,4 +3133,4 @@ export {
   SYSTEM_PROGRAM_ID,
   COMPUTE_BUDGET_PROGRAM_ID
 };
-//# sourceMappingURL=chunk-KF4LXYMG.js.map
+//# sourceMappingURL=chunk-7I5M3O36.js.map

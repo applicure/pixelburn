@@ -15,7 +15,9 @@ pnpm --filter @mpb/services seed                      # wipes DB, ~300 demo ads,
 pnpm --filter @mpb/services dev                       # API (runs migrations on start), default :8787
 pnpm --filter @mpb/services indexer                   # standalone indexer (needs PROGRAM_ID); or INDEXER_ENABLED=1 in the API
 pnpm --filter @mpb/services keeper                    # keeper, DRY-RUN unless KEEPER_LIVE=1
-pnpm --filter @mpb/services test                      # vitest against real Postgres (TEST_DATABASE_URL or <DATABASE_URL>/mpb_test)
+pnpm --filter @mpb/services test                      # vitest against real Postgres: each run creates its own database
+                                                      # (mpb_test_<time>_<pid>_<rand> on TEST_DATABASE_URL/DATABASE_URL's server),
+                                                      # migrates it and drops it afterwards, so concurrent runs are isolated
 pnpm --filter @mpb/services typecheck
 ```
 
@@ -118,7 +120,13 @@ docker build -f services/Dockerfile --target keeper  -t mpb-keeper .
   `KEEPER_BUYBACK_MAX_QUOTE_FRACTION_BPS` (50 = 0.5% of the curve's or pool's effective quote
   reserves, ≈1% impact). A thin pool is bought back over many cycles; if even that cap is below the
   minimum chunk, the run is skipped. The chunk planner never exceeds the max chunk (dust stays in the
-  vault). `lamports_spent` is the swapped quote (capped by the release), never the measured balance
+  vault). Resolving an outstanding release (L-B1) applies the same impact cap and band check before
+  resuming. Outside the band, or when the program rejects the resume (6033 BuybackAmountTooHigh, 6034
+  BuybackRateTooLow, 6035 BuybackPushesPriceOutOfBand), it refunds with `record_buyback_burn(0, 0)`
+  instead of retrying a failing tx every cycle. All sends go through `sendIxsResult`, which never
+  throws and only returns a signature once the tx is CONFIRMED (Jito path included); "resolved" and
+  "confirmed" are only logged then. `record_buyback_burn` passes `priceSource` (+ pool vaults) for
+  the program's post-trade backstop (spot ≤ fast EMA × 1.12). `lamports_spent` is the swapped quote (capped by the release), never the measured balance
   drop, which includes one-time PumpSwap account rent (chain hit 6033 BuybackAmountTooHigh that
   way). `CrankTooSoon` (someone else cranked) is logged at info, not as an error. Devnet sizing (lead): chunks 0.005–0.02 SOL,
   ≤ 0.02 SOL per run, impact cap 8%, every 10 ± 2 min. Mainnet should keep the 1% cap.
@@ -215,10 +223,8 @@ docker build -f services/Dockerfile --target keeper  -t mpb-keeper .
   hourly bucket). The status comes from SDK `tokenPricingStatus(config, spot, now, w*h)`, the same gate
   `buy_with_token` applies. Token amounts use SDK `quoteTokensExact` at min(spot, fast EMA, slow 4h EMA);
   lamports use SDK `quoteLamports`.
-- `/api/stats.tokensBurnedExternal`: initial supply (pump.fun 1e9 tokens, `TOKEN_SUPPLY_STATIC`)
-  − on-chain supply − protocol burns, i.e. burns we didn't make (pump.fun's migration boost
-  burned ≈35.47M PXTEST on devnet). `burnedPct` covers protocol burns only, as a % of the initial
-  supply.
+- `/api/stats` burn fields: see Deviations 4 (`burnedPct` protocol-only over the initial supply;
+  `supplyReduction`, `supplyReductionPct` and `tokensBurnedExternal` cover third-party burns too).
 - `/api/quote` adds `usdMicro` (string). `usd` is the undiscounted price; for `mode=token` the 10%
   discount is already applied in `tokens`. It returns 503 `{error:'price_unavailable'}` when the
   oracle or EMA is unavailable.
@@ -247,12 +253,20 @@ docker build -f services/Dockerfile --target keeper  -t mpb-keeper .
    `width/height/contentType` on uploads, and `sseClients` on `/healthz`. These are additive only.
 3. **adsCount** counts every sold ad (any moderation status), consistent with `soldBlocks`. The
    leaderboard excludes rejected ads.
-4. **Stats source**: aggregated from the DB plus a cached on-chain token supply. The localnet e2e
+4. **Burn stats** (SPEC lists `burnedPct` without a denominator): `burnedPct` = (tokensBurnedDirect +
+   tokensBurnedBuyback) / **initial** supply × 100, where initial = `TOKEN_INITIAL_SUPPLY` (default 1e15
+   base units = pump.fun's 1e9 tokens × 6 dp). Earlier versions divided by (current supply + our burns),
+   which isn't a meaningful denominator. The additive fields `supplyReduction` = initial − current
+   on-chain supply and `supplyReductionPct` include third-party burns (e.g. pump.fun's migration boost),
+   and `tokensBurnedExternal` = supplyReduction − our burns. Protocol and third-party burns are never
+   merged into `burnedPct`/`tokensBurned`. `tokenPriceUsd` uses min(spot, fast EMA, slow EMA), the
+   price token buyers are charged.
+5. **Stats source**: aggregated from the DB plus a cached on-chain token supply. The localnet e2e
    asserts that every DB total equals the on-chain `Canvas` totals and bitmap.
-5. **Token quotes return 503** `{error:'token_pricing_unavailable', reason, tokenPaymentStatus, detail}`
+6. **Token quotes return 503** `{error:'token_pricing_unavailable', reason, tokenPaymentStatus, detail}`
    (snake_case reason, e.g. `warming_up`, `hourly_cap`) whenever the program would currently refuse
    `buy_with_token`. SOL quotes are unaffected and carry the same status fields.
-6. **Dev image URIs**: the program only accepts `ar://` or `https://` image URIs. Dev-storage upload
+7. **Dev image URIs**: the program only accepts `ar://` or `https://` image URIs. Dev-storage upload
    URIs use `PUBLIC_API_URL`, so set it to an https origin (tunnel, or a label like in the e2e)
    whenever ads are bought on-chain against local storage. Otherwise use Irys.
 

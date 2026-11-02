@@ -181,6 +181,8 @@ export function recordBuybackBurnIx(p: {
   keeperTokenAccount?: PublicKey;
   tokenMint: PublicKey;
   tokenProgram?: PublicKey;
+  /** config.priceSource: the program reads post-trade spot from it (backstop: spot <= fast EMA * 1.12) */
+  priceSource: PriceSource;
   lamportsSpent: bigint;
   tokensBurned: bigint;
   programId?: PublicKey;
@@ -197,6 +199,7 @@ export function recordBuybackBurnIx(p: {
       buyback_vault: buybackVaultPda(pid),
       token_mint: p.tokenMint,
       keeper_token_account: p.keeperTokenAccount ?? associatedTokenAddress(p.keeper, p.tokenMint, tp),
+      ...priceSourceAccounts(p.priceSource),
       token_program: tp,
       system_program: SYSTEM_PROGRAM_ID,
     },

@@ -716,6 +716,17 @@ export type Pixel = {
           "writable": true
         },
         {
+          "name": "priceSource"
+        },
+        {
+          "name": "poolBaseVault",
+          "optional": true
+        },
+        {
+          "name": "poolQuoteVault",
+          "optional": true
+        },
+        {
           "name": "tokenProgram",
           "relations": [
             "config"
@@ -1834,6 +1845,11 @@ export type Pixel = {
     },
     {
       "code": 6035,
+      "name": "buybackPushesPriceOutOfBand",
+      "msg": "Buyback leaves spot above fast EMA * 1.12; it would pause token payments"
+    },
+    {
+      "code": 6036,
       "name": "insufficientVaultFunds",
       "msg": "Insufficient funds in buyback vault"
     }
@@ -2886,6 +2902,17 @@ export type Pixel = {
       "name": "bpsDenominator",
       "type": "u64",
       "value": "10000"
+    },
+    {
+      "name": "buybackMaxPostSpotBps",
+      "docs": [
+        "Backstop checked in `record_buyback_burn` (spent > 0): spot must be <= fast EMA * (1 + 12%), 3 points inside the",
+        "15% token-buy band, so the keeper's atomic release -> swap -> record flow cannot push spot past fast EMA * 1.12.",
+        "This is a safety rail for the honest keeper, NOT an adversarial control: nothing on-chain ties the record to the",
+        "swap (same as the rate bar), so a malicious keeper could swap in a separate transaction."
+      ],
+      "type": "u64",
+      "value": "1200"
     },
     {
       "name": "buybackVaultSeed",
