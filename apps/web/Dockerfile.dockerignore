@@ -1,0 +1,13 @@
+# BuildKit picks this up for `-f apps/web/Dockerfile` (context = repo root)
+**/node_modules
+**/.next
+**/.turbo
+**/*.tsbuildinfo
+**/.env
+**/.env.*
+!**/.env.example
+.git
+chain
+services
+apps/web/screens
+packages/sdk/dist

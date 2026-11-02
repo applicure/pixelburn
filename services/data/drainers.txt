@@ -1,0 +1,4 @@
+# Known wallet-drainer domains (local seed list). Set DRAINER_LIST_URL to also pull a
+# remote list (newline-separated domains or a JSON array), refreshed every 30 minutes.
+drainer-example.invalid
+claim-free-airdrop.invalid

@@ -1,0 +1,17 @@
+# Repo-root Docker context excludes (services/Dockerfile builds from the root).
+# BuildKit prefers <Dockerfile>.dockerignore when present (services/Dockerfile.dockerignore);
+# this file covers non-BuildKit builders. Secrets must never enter a build context.
+**/.env
+**/.env.*
+!**/.env.example
+**/*.pem
+**/*keypair*.json
+**/id.json
+.git
+**/node_modules
+**/.next
+**/dist
+chain/target
+chain/.anchor
+chain/test-ledger
+services/var

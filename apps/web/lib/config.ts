@@ -1,0 +1,40 @@
+/**
+ * Single place for names and protocol constants (SPEC: "keep in ONE config constant per package").
+ * Mirrors @mpb/sdk constants; when the SDK lands these should be re-exported from it.
+ */
+export const BRAND = {
+  name: "The Million Pixel Burn",
+  shortName: "Pixel Burn",
+  ticker: "$PIXEL",
+  tickerBare: "PIXEL",
+} as const;
+
+export const GRID = 100; // blocks per side
+export const BLOCK_PX = 10; // pixels per block side
+export const CANVAS_PX = GRID * BLOCK_PX; // 1000
+export const TOTAL_BLOCKS = GRID * GRID; // 10_000
+export const PRICE_PER_BLOCK_USD_MICRO = 100_000_000n; // $100 per block, $1 per pixel
+export const PRICE_PER_BLOCK_USD = 100;
+export const TREASURY_BPS = 5000;
+export const TOKEN_DISCOUNT_BPS = 1000;
+export const AUCTION_THRESHOLD_BLOCKS = 9_900;
+export const AUCTION_DURATION_SECS = 72 * 3600;
+export const TOKEN_DECIMALS = 6;
+export const LAMPORTS_PER_SOL = 1_000_000_000;
+export const QUOTE_TTL_MS = 30_000;
+
+export const API_URL = process.env.NEXT_PUBLIC_API_URL?.replace(/\/$/, "") || "";
+export const USE_MOCK = !API_URL;
+/** The only client env besides NEXT_PUBLIC_API_URL. RPC itself is proxied same-origin via /api/rpc (server env SOLANA_RPC). */
+export const CLUSTER = (process.env.NEXT_PUBLIC_SOLANA_CLUSTER || "devnet") as "devnet" | "mainnet-beta";
+/** Same-origin JSON-RPC proxy. web3.js needs an absolute URL. */
+export const rpcEndpoint = () => (typeof window === "undefined" ? "http://localhost:3000/api/rpc" : `${window.location.origin}/api/rpc`);
+
+export const HISTORY_2005 = {
+  founder: "Alex Tew",
+  launched: "26 Aug 2005",
+  soldOut: "11 Jan 2006",
+  raisedUsd: 1_037_100,
+  ebayUsd: 38_100,
+  ebayPixels: 1_000,
+} as const;

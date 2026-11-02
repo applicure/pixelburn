@@ -1,0 +1,184 @@
+@import "tailwindcss";
+
+@theme {
+  --color-soot: #000000;
+  --color-kiln: #0d0907;      /* lining of the kiln: only behind the canvas viewer chrome */
+  --color-cherry: #b3200e;
+  --color-flame: #ff5b14;
+  --color-cone: #ffc23d;
+  --color-heat: #fff6e8;
+  --color-cobalt: #2b47e8;
+  --color-cobalt-hi: #7f93ff;
+  --color-ash: #9a9087;
+  --color-char: #1c1714;      /* hairlines and wells on soot */
+
+  --font-display: var(--font-anybody), "Arial Narrow", sans-serif;
+  --font-sans: var(--font-schibsted), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-martian), ui-monospace, monospace;
+
+  --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-heat: cubic-bezier(0.22, 1, 0.36, 1);
+
+  --text-micro: 0.8rem;
+  --text-mega: clamp(3.2rem, 11vw, 9.5rem);
+}
+
+@layer base {
+  html {
+    background: var(--color-soot);
+    color: var(--color-heat);
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+    scrollbar-color: var(--color-char) var(--color-soot);
+  }
+  body {
+    font-family: var(--font-sans);
+    font-size: 1.0625rem;
+    line-height: 1.65;
+    background: var(--color-soot);
+    min-height: 100dvh;
+    overflow-x: clip;
+  }
+  ::selection {
+    background: var(--color-flame);
+    color: var(--color-soot);
+  }
+  :focus-visible {
+    outline: 2px solid var(--color-cone);
+    outline-offset: 3px;
+    border-radius: 2px;
+  }
+  h1, h2, h3 {
+    font-family: var(--font-display);
+    line-height: 0.92;
+    letter-spacing: -0.035em;
+    text-wrap: balance;
+  }
+  p { text-wrap: pretty; }
+  button { cursor: pointer; }
+  button:disabled { cursor: not-allowed; }
+}
+
+@layer components {
+  /* Anybody width axis: cold = condensed, hot = expanded */
+  .w-cold { font-variation-settings: "wdth" 62; }
+  .w-warm { font-variation-settings: "wdth" 100; }
+  .w-hot  { font-variation-settings: "wdth" 150; }
+
+  .num {
+    font-family: var(--font-mono);
+    font-variant-numeric: tabular-nums;
+    letter-spacing: 0.01em;
+  }
+
+  .btn-fire {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.6rem;
+    background: var(--color-flame);
+    color: var(--color-soot);
+    font-family: var(--font-display);
+    font-variation-settings: "wdth" 120;
+    font-weight: 800;
+    letter-spacing: -0.01em;
+    padding: 0.85rem 1.35rem 0.9rem;
+    line-height: 1;
+    transition: background-color 160ms var(--ease-out-expo), transform 120ms var(--ease-out-expo), font-variation-settings 400ms var(--ease-heat);
+  }
+  @media (hover: hover) {
+    .btn-fire:hover { background: var(--color-cone); font-variation-settings: "wdth" 140; }
+  }
+  .btn-fire:active { transform: scale(0.97); background: var(--color-cherry); color: var(--color-heat); }
+  .btn-fire:disabled { background: var(--color-char); color: var(--color-ash); }
+
+  .btn-line {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.6rem;
+    border: 1px solid color-mix(in oklab, var(--color-heat) 40%, transparent);
+    color: var(--color-heat);
+    font-weight: 600;
+    padding: 0.8rem 1.2rem 0.85rem;
+    line-height: 1;
+    transition: border-color 160ms, background-color 160ms, transform 120ms;
+  }
+  @media (hover: hover) {
+    .btn-line:hover { border-color: var(--color-heat); background: color-mix(in oklab, var(--color-heat) 8%, transparent); }
+  }
+  .btn-line:active { transform: scale(0.97); }
+
+  .link-cobalt {
+    color: var(--color-cobalt-hi);
+    text-decoration: underline;
+    text-decoration-thickness: 1px;
+    text-underline-offset: 3px;
+  }
+  .link-cobalt:hover { color: var(--color-heat); }
+
+  /* drawn ember grain used on drenched fields */
+  .grain::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 .55 0'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>");
+    mix-blend-mode: multiply;
+    opacity: 0.35;
+  }
+
+  .tile-grid {
+    background-image:
+      linear-gradient(to right, color-mix(in oklab, var(--color-heat) 7%, transparent) 1px, transparent 1px),
+      linear-gradient(to bottom, color-mix(in oklab, var(--color-heat) 7%, transparent) 1px, transparent 1px);
+    background-size: 1% 1%; /* exactly one cell per 10×10 px block of the billboard */
+  }
+}
+
+/* marquee for the firing log ticker */
+@keyframes ticker {
+  from { transform: translate3d(0, 0, 0); }
+  to { transform: translate3d(-50%, 0, 0); }
+}
+.ticker-track { animation: ticker 60s linear infinite; }
+.ticker-track:hover { animation-play-state: paused; }
+
+@keyframes flicker {
+  0%, 100% { opacity: 1; }
+  45% { opacity: 0.82; }
+  60% { opacity: 0.95; }
+}
+
+html.lenis, html.lenis body { height: auto; }
+.lenis.lenis-smooth [data-lenis-prevent] { overscroll-behavior: contain; }
+.lenis.lenis-stopped { overflow: clip; }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+  }
+  .ticker-track { animation: none; }
+}
+
+@media (prefers-reduced-transparency: reduce) {
+  .material { backdrop-filter: none !important; background: var(--color-soot) !important; }
+}
+
+/* headline ignition: condensed + cone-hot → rest width + white-heat. fill-mode backwards
+   so the element returns to its own (inline) styles afterwards. */
+@keyframes ignite {
+  from { font-variation-settings: "wdth" 50; color: var(--color-cone); }
+  to { color: var(--color-heat); }
+}
+.ignite { animation: ignite 0.9s var(--ease-out-expo) var(--d, 0s) backwards; }
+@media (prefers-reduced-motion: reduce) {
+  .ignite { animation: none; }
+}
+@keyframes rise {
+  from { transform: translate3d(0, 12px, 0); }
+}
+.rise { animation: rise 0.8s var(--ease-out-expo) var(--d, 0s) backwards; }
+@media (prefers-reduced-motion: reduce) {
+  .rise { animation: none; }
+}

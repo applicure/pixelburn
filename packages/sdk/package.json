@@ -1,0 +1,57 @@
+{
+  "name": "@mpb/sdk",
+  "version": "0.1.0",
+  "description": "The Million Pixel Burn: TS client for the `pixel` Solana program (constants, PDAs, quote math, decoders, events, ix builders).",
+  "type": "module",
+  "sideEffects": false,
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./quote": {
+      "types": "./dist/quote.d.ts",
+      "import": "./dist/quote.js"
+    },
+    "./pyth": {
+      "types": "./dist/pyth.d.ts",
+      "import": "./dist/pyth.js"
+    },
+    "./idl/pixel.json": "./dist/idl/pixel.json",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "sync-idl": "node scripts/sync-idl.mjs",
+    "build": "tsup",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@anchor-lang/core": "1.1.2",
+    "@solana/web3.js": "^1.98.4",
+    "bn.js": "^5.2.1"
+  },
+  "devDependencies": {
+    "@types/bn.js": "^5.1.6",
+    "@types/node": "^22.10.0",
+    "tsup": "^8.3.5",
+    "typescript": "^5.7.2",
+    "vitest": "^3.2.4",
+    "@pythnetwork/pyth-solana-receiver": "^0.17.0",
+    "litesvm": "0.8.0"
+  },
+  "peerDependencies": {
+    "@pythnetwork/pyth-solana-receiver": ">=0.17.0"
+  },
+  "peerDependenciesMeta": {
+    "@pythnetwork/pyth-solana-receiver": {
+      "optional": true
+    }
+  }
+}

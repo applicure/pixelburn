@@ -1,0 +1,1 @@
+ALTER TABLE "price_snapshots" ADD COLUMN "token_slow_ema_sol" numeric(40, 0);

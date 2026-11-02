@@ -1,0 +1,3076 @@
+{
+  "address": "A4uaXC9sU3UrbqcPZL4ZJMd2aKzmo5Rq4yDvRm8gpTS",
+  "metadata": {
+    "name": "pixel",
+    "version": "0.1.0",
+    "spec": "0.1.0",
+    "description": "The Million Pixel Burn on-chain program"
+  },
+  "instructions": [
+    {
+      "name": "accept_admin",
+      "discriminator": [
+        112,
+        42,
+        45,
+        90,
+        116,
+        181,
+        13,
+        170
+      ],
+      "accounts": [
+        {
+          "name": "new_admin",
+          "signer": true
+        },
+        {
+          "name": "config",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103
+                ]
+              }
+            ]
+          }
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "bid_final_auction",
+      "discriminator": [
+        192,
+        203,
+        44,
+        28,
+        186,
+        64,
+        52,
+        63
+      ],
+      "accounts": [
+        {
+          "name": "bidder",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "config",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "auction",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  97,
+                  117,
+                  99,
+                  116,
+                  105,
+                  111,
+                  110
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "previous_bidder",
+          "writable": true,
+          "optional": true
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "lamports",
+          "type": "u64"
+        }
+      ]
+    },
+    {
+      "name": "buy_with_sol",
+      "discriminator": [
+        49,
+        57,
+        124,
+        194,
+        240,
+        20,
+        216,
+        102
+      ],
+      "accounts": [
+        {
+          "name": "buyer",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "config",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "canvas",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  97,
+                  110,
+                  118,
+                  97,
+                  115
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "ad",
+          "writable": true
+        },
+        {
+          "name": "treasury",
+          "writable": true,
+          "relations": [
+            "config"
+          ]
+        },
+        {
+          "name": "buyback_vault",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  98,
+                  117,
+                  121,
+                  98,
+                  97,
+                  99,
+                  107,
+                  95,
+                  118,
+                  97,
+                  117,
+                  108,
+                  116
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "price_update",
+          "docs": [
+            "Pyth receiver-owned PriceUpdateV2 (owner + discriminator checked by Account<>)."
+          ]
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "x",
+          "type": "u8"
+        },
+        {
+          "name": "y",
+          "type": "u8"
+        },
+        {
+          "name": "w",
+          "type": "u8"
+        },
+        {
+          "name": "h",
+          "type": "u8"
+        },
+        {
+          "name": "title",
+          "type": "string"
+        },
+        {
+          "name": "link",
+          "type": "string"
+        },
+        {
+          "name": "image_uri",
+          "type": "string"
+        },
+        {
+          "name": "image_sha256",
+          "type": {
+            "array": [
+              "u8",
+              32
+            ]
+          }
+        },
+        {
+          "name": "max_lamports",
+          "type": "u64"
+        }
+      ]
+    },
+    {
+      "name": "buy_with_token",
+      "discriminator": [
+        51,
+        104,
+        65,
+        186,
+        195,
+        43,
+        81,
+        144
+      ],
+      "accounts": [
+        {
+          "name": "buyer",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "config",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "canvas",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  97,
+                  110,
+                  118,
+                  97,
+                  115
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "ad",
+          "writable": true
+        },
+        {
+          "name": "token_mint",
+          "writable": true,
+          "relations": [
+            "config"
+          ]
+        },
+        {
+          "name": "buyer_token_account",
+          "writable": true
+        },
+        {
+          "name": "price_update"
+        },
+        {
+          "name": "price_source"
+        },
+        {
+          "name": "pool_base_vault",
+          "optional": true
+        },
+        {
+          "name": "pool_quote_vault",
+          "optional": true
+        },
+        {
+          "name": "token_program",
+          "relations": [
+            "config"
+          ]
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "x",
+          "type": "u8"
+        },
+        {
+          "name": "y",
+          "type": "u8"
+        },
+        {
+          "name": "w",
+          "type": "u8"
+        },
+        {
+          "name": "h",
+          "type": "u8"
+        },
+        {
+          "name": "title",
+          "type": "string"
+        },
+        {
+          "name": "link",
+          "type": "string"
+        },
+        {
+          "name": "image_uri",
+          "type": "string"
+        },
+        {
+          "name": "image_sha256",
+          "type": {
+            "array": [
+              "u8",
+              32
+            ]
+          }
+        },
+        {
+          "name": "max_tokens",
+          "type": "u64"
+        }
+      ]
+    },
+    {
+      "name": "crank_token_price",
+      "discriminator": [
+        151,
+        85,
+        177,
+        141,
+        248,
+        221,
+        203,
+        251
+      ],
+      "accounts": [
+        {
+          "name": "config",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "price_source"
+        },
+        {
+          "name": "pool_base_vault",
+          "optional": true
+        },
+        {
+          "name": "pool_quote_vault",
+          "optional": true
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "initialize",
+      "discriminator": [
+        175,
+        175,
+        109,
+        31,
+        13,
+        152,
+        155,
+        237
+      ],
+      "accounts": [
+        {
+          "name": "admin",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "config",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "canvas",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  97,
+                  110,
+                  118,
+                  97,
+                  115
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "buyback_vault",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  98,
+                  117,
+                  121,
+                  98,
+                  97,
+                  99,
+                  107,
+                  95,
+                  118,
+                  97,
+                  117,
+                  108,
+                  116
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "token_mint"
+        },
+        {
+          "name": "token_program"
+        },
+        {
+          "name": "program",
+          "docs": [
+            "Only the program's upgrade authority may initialise (prevents init front-running)."
+          ],
+          "address": "A4uaXC9sU3UrbqcPZL4ZJMd2aKzmo5Rq4yDvRm8gpTS"
+        },
+        {
+          "name": "program_data"
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "params",
+          "type": {
+            "defined": {
+              "name": "InitializeParams"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "propose_admin",
+      "discriminator": [
+        121,
+        214,
+        199,
+        212,
+        87,
+        39,
+        117,
+        234
+      ],
+      "accounts": [
+        {
+          "name": "admin",
+          "signer": true,
+          "relations": [
+            "config"
+          ]
+        },
+        {
+          "name": "config",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103
+                ]
+              }
+            ]
+          }
+        }
+      ],
+      "args": [
+        {
+          "name": "new_admin",
+          "type": "pubkey"
+        }
+      ]
+    },
+    {
+      "name": "record_buyback_burn",
+      "discriminator": [
+        191,
+        49,
+        225,
+        231,
+        159,
+        111,
+        56,
+        89
+      ],
+      "accounts": [
+        {
+          "name": "keeper",
+          "writable": true,
+          "signer": true,
+          "relations": [
+            "config"
+          ]
+        },
+        {
+          "name": "config",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "canvas",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  97,
+                  110,
+                  118,
+                  97,
+                  115
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "buyback_vault",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  98,
+                  117,
+                  121,
+                  98,
+                  97,
+                  99,
+                  107,
+                  95,
+                  118,
+                  97,
+                  117,
+                  108,
+                  116
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "token_mint",
+          "writable": true,
+          "relations": [
+            "config"
+          ]
+        },
+        {
+          "name": "keeper_token_account",
+          "writable": true
+        },
+        {
+          "name": "token_program",
+          "relations": [
+            "config"
+          ]
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "lamports_spent",
+          "type": "u64"
+        },
+        {
+          "name": "tokens_burned",
+          "type": "u64"
+        }
+      ]
+    },
+    {
+      "name": "release_buyback",
+      "discriminator": [
+        237,
+        108,
+        58,
+        146,
+        76,
+        179,
+        181,
+        40
+      ],
+      "accounts": [
+        {
+          "name": "keeper",
+          "writable": true,
+          "signer": true,
+          "relations": [
+            "config"
+          ]
+        },
+        {
+          "name": "config",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "buyback_vault",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  98,
+                  117,
+                  121,
+                  98,
+                  97,
+                  99,
+                  107,
+                  95,
+                  118,
+                  97,
+                  117,
+                  108,
+                  116
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "lamports",
+          "type": "u64"
+        }
+      ]
+    },
+    {
+      "name": "restart_final_auction",
+      "discriminator": [
+        240,
+        203,
+        8,
+        46,
+        1,
+        131,
+        41,
+        6
+      ],
+      "accounts": [
+        {
+          "name": "config",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "auction",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  97,
+                  117,
+                  99,
+                  116,
+                  105,
+                  111,
+                  110
+                ]
+              }
+            ]
+          }
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "set_keeper",
+      "discriminator": [
+        102,
+        94,
+        23,
+        78,
+        157,
+        222,
+        243,
+        214
+      ],
+      "accounts": [
+        {
+          "name": "admin",
+          "signer": true,
+          "relations": [
+            "config"
+          ]
+        },
+        {
+          "name": "config",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103
+                ]
+              }
+            ]
+          }
+        }
+      ],
+      "args": [
+        {
+          "name": "keeper",
+          "type": "pubkey"
+        }
+      ]
+    },
+    {
+      "name": "set_params",
+      "discriminator": [
+        27,
+        234,
+        178,
+        52,
+        147,
+        2,
+        187,
+        141
+      ],
+      "accounts": [
+        {
+          "name": "admin",
+          "signer": true,
+          "relations": [
+            "config"
+          ]
+        },
+        {
+          "name": "config",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103
+                ]
+              }
+            ]
+          }
+        }
+      ],
+      "args": [
+        {
+          "name": "max_price_age_secs",
+          "type": "u64"
+        },
+        {
+          "name": "buyback_cap_lamports_per_hour",
+          "type": "u64"
+        },
+        {
+          "name": "buyback_max_slippage_bps",
+          "type": "u16"
+        },
+        {
+          "name": "token_blocks_cap_per_hour",
+          "type": "u16"
+        }
+      ]
+    },
+    {
+      "name": "set_paused",
+      "discriminator": [
+        91,
+        60,
+        125,
+        192,
+        176,
+        225,
+        166,
+        218
+      ],
+      "accounts": [
+        {
+          "name": "admin",
+          "signer": true,
+          "relations": [
+            "config"
+          ]
+        },
+        {
+          "name": "config",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "auction",
+          "docs": [
+            "paused duration so a pause can never decide the auction."
+          ],
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  97,
+                  117,
+                  99,
+                  116,
+                  105,
+                  111,
+                  110
+                ]
+              }
+            ]
+          }
+        }
+      ],
+      "args": [
+        {
+          "name": "paused",
+          "type": "bool"
+        }
+      ]
+    },
+    {
+      "name": "set_price_source",
+      "discriminator": [
+        57,
+        150,
+        166,
+        254,
+        90,
+        79,
+        215,
+        64
+      ],
+      "accounts": [
+        {
+          "name": "admin",
+          "signer": true,
+          "relations": [
+            "config"
+          ]
+        },
+        {
+          "name": "config",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103
+                ]
+              }
+            ]
+          }
+        }
+      ],
+      "args": [
+        {
+          "name": "price_source",
+          "type": {
+            "defined": {
+              "name": "PriceSource"
+            }
+          }
+        },
+        {
+          "name": "initial_ema_price_sol",
+          "type": "u128"
+        }
+      ]
+    },
+    {
+      "name": "set_treasury",
+      "discriminator": [
+        57,
+        97,
+        196,
+        95,
+        195,
+        206,
+        106,
+        136
+      ],
+      "accounts": [
+        {
+          "name": "admin",
+          "signer": true,
+          "relations": [
+            "config"
+          ]
+        },
+        {
+          "name": "config",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103
+                ]
+              }
+            ]
+          }
+        }
+      ],
+      "args": [
+        {
+          "name": "treasury",
+          "type": "pubkey"
+        }
+      ]
+    },
+    {
+      "name": "settle_final_auction",
+      "discriminator": [
+        143,
+        90,
+        218,
+        54,
+        17,
+        211,
+        98,
+        143
+      ],
+      "accounts": [
+        {
+          "name": "payer",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "config",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "canvas",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  97,
+                  110,
+                  118,
+                  97,
+                  115
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "auction",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  97,
+                  117,
+                  99,
+                  116,
+                  105,
+                  111,
+                  110
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "ad",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  97,
+                  100,
+                  95,
+                  97,
+                  117,
+                  99,
+                  116,
+                  105,
+                  111,
+                  110
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "buyback_vault",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  98,
+                  117,
+                  121,
+                  98,
+                  97,
+                  99,
+                  107,
+                  95,
+                  118,
+                  97,
+                  117,
+                  108,
+                  116
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "start_final_auction",
+      "discriminator": [
+        21,
+        216,
+        187,
+        88,
+        49,
+        134,
+        28,
+        249
+      ],
+      "accounts": [
+        {
+          "name": "payer",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "config",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "canvas",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  97,
+                  110,
+                  118,
+                  97,
+                  115
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "auction",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  97,
+                  117,
+                  99,
+                  116,
+                  105,
+                  111,
+                  110
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "transfer_ad",
+      "discriminator": [
+        54,
+        207,
+        122,
+        125,
+        186,
+        169,
+        15,
+        232
+      ],
+      "accounts": [
+        {
+          "name": "owner",
+          "signer": true,
+          "relations": [
+            "ad"
+          ]
+        },
+        {
+          "name": "ad",
+          "writable": true
+        }
+      ],
+      "args": [
+        {
+          "name": "new_owner",
+          "type": "pubkey"
+        }
+      ]
+    },
+    {
+      "name": "update_ad",
+      "discriminator": [
+        28,
+        63,
+        46,
+        111,
+        92,
+        161,
+        247,
+        193
+      ],
+      "accounts": [
+        {
+          "name": "owner",
+          "signer": true,
+          "relations": [
+            "ad"
+          ]
+        },
+        {
+          "name": "ad",
+          "docs": [
+            "Any program-owned `Ad` (owner + discriminator checked by Account<>); authority via has_one."
+          ],
+          "writable": true
+        }
+      ],
+      "args": [
+        {
+          "name": "title",
+          "type": "string"
+        },
+        {
+          "name": "link",
+          "type": "string"
+        },
+        {
+          "name": "image_uri",
+          "type": "string"
+        },
+        {
+          "name": "image_sha256",
+          "type": {
+            "array": [
+              "u8",
+              32
+            ]
+          }
+        }
+      ]
+    }
+  ],
+  "accounts": [
+    {
+      "name": "Ad",
+      "discriminator": [
+        81,
+        91,
+        73,
+        106,
+        215,
+        137,
+        214,
+        47
+      ]
+    },
+    {
+      "name": "Auction",
+      "discriminator": [
+        218,
+        94,
+        247,
+        242,
+        126,
+        233,
+        131,
+        81
+      ]
+    },
+    {
+      "name": "Canvas",
+      "discriminator": [
+        239,
+        248,
+        162,
+        140,
+        114,
+        179,
+        55,
+        66
+      ]
+    },
+    {
+      "name": "Config",
+      "discriminator": [
+        155,
+        12,
+        170,
+        224,
+        30,
+        250,
+        204,
+        130
+      ]
+    }
+  ],
+  "events": [
+    {
+      "name": "AdPurchased",
+      "discriminator": [
+        16,
+        190,
+        180,
+        69,
+        85,
+        154,
+        226,
+        94
+      ]
+    },
+    {
+      "name": "AdTransferred",
+      "discriminator": [
+        53,
+        29,
+        183,
+        169,
+        55,
+        90,
+        69,
+        132
+      ]
+    },
+    {
+      "name": "AdUpdated",
+      "discriminator": [
+        135,
+        175,
+        55,
+        209,
+        148,
+        68,
+        49,
+        135
+      ]
+    },
+    {
+      "name": "AuctionBid",
+      "discriminator": [
+        113,
+        186,
+        124,
+        132,
+        210,
+        152,
+        98,
+        191
+      ]
+    },
+    {
+      "name": "AuctionRestarted",
+      "discriminator": [
+        103,
+        209,
+        190,
+        81,
+        81,
+        142,
+        43,
+        207
+      ]
+    },
+    {
+      "name": "AuctionResumed",
+      "discriminator": [
+        250,
+        92,
+        69,
+        194,
+        76,
+        157,
+        45,
+        233
+      ]
+    },
+    {
+      "name": "AuctionSettled",
+      "discriminator": [
+        61,
+        151,
+        131,
+        170,
+        95,
+        203,
+        219,
+        147
+      ]
+    },
+    {
+      "name": "AuctionStarted",
+      "discriminator": [
+        126,
+        97,
+        193,
+        56,
+        72,
+        162,
+        162,
+        64
+      ]
+    },
+    {
+      "name": "BuybackBurned",
+      "discriminator": [
+        186,
+        84,
+        241,
+        202,
+        152,
+        185,
+        0,
+        115
+      ]
+    },
+    {
+      "name": "BuybackReleased",
+      "discriminator": [
+        83,
+        240,
+        230,
+        89,
+        88,
+        185,
+        13,
+        131
+      ]
+    },
+    {
+      "name": "BuybackWrittenOff",
+      "discriminator": [
+        5,
+        215,
+        168,
+        173,
+        132,
+        193,
+        139,
+        111
+      ]
+    },
+    {
+      "name": "TokenPriceUpdated",
+      "discriminator": [
+        173,
+        108,
+        54,
+        131,
+        134,
+        152,
+        186,
+        141
+      ]
+    }
+  ],
+  "errors": [
+    {
+      "code": 6000,
+      "name": "Paused",
+      "msg": "Program is paused"
+    },
+    {
+      "code": 6001,
+      "name": "OutOfBounds",
+      "msg": "Rectangle is out of bounds or empty"
+    },
+    {
+      "code": 6002,
+      "name": "Overlap",
+      "msg": "Rectangle overlaps already sold blocks"
+    },
+    {
+      "code": 6003,
+      "name": "SalesClosed",
+      "msg": "Fixed-price sales are closed: final auction threshold reached"
+    },
+    {
+      "code": 6004,
+      "name": "InvalidTitle",
+      "msg": "Title too long or contains control characters"
+    },
+    {
+      "code": 6005,
+      "name": "InvalidLink",
+      "msg": "Link must be https:// and at most 200 bytes, no whitespace/control chars"
+    },
+    {
+      "code": 6006,
+      "name": "InvalidImageUri",
+      "msg": "Image URI must be ar:// or https:// and at most 200 bytes, no whitespace/control chars"
+    },
+    {
+      "code": 6007,
+      "name": "MathOverflow",
+      "msg": "Arithmetic overflow"
+    },
+    {
+      "code": 6008,
+      "name": "SlippageExceeded",
+      "msg": "Price exceeds max_lamports / max_tokens slippage guard"
+    },
+    {
+      "code": 6009,
+      "name": "StalePrice",
+      "msg": "Pyth price is stale, unverified, or for the wrong feed"
+    },
+    {
+      "code": 6010,
+      "name": "InvalidOraclePrice",
+      "msg": "Pyth price is non-positive or has an unsupported exponent"
+    },
+    {
+      "code": 6011,
+      "name": "OracleConfidenceTooWide",
+      "msg": "Pyth confidence interval too wide"
+    },
+    {
+      "code": 6012,
+      "name": "InvalidPriceSource",
+      "msg": "Price source account does not match config or has an unexpected layout"
+    },
+    {
+      "code": 6013,
+      "name": "CurveComplete",
+      "msg": "Bonding curve is complete (migrated); switch price source to the pool"
+    },
+    {
+      "code": 6014,
+      "name": "EmptyReserves",
+      "msg": "Reserves are zero"
+    },
+    {
+      "code": 6015,
+      "name": "CrankTooSoon",
+      "msg": "Token price crank called too soon"
+    },
+    {
+      "code": 6016,
+      "name": "EmaUnavailable",
+      "msg": "Token EMA not initialised or too old; crank the price first"
+    },
+    {
+      "code": 6017,
+      "name": "EmaWarmingUp",
+      "msg": "Token EMA is warming up (needs 10 cranks over >= 10 minutes after seeding)"
+    },
+    {
+      "code": 6018,
+      "name": "PriceDeviationTooHigh",
+      "msg": "Spot price deviates too far from the EMA; token buys paused until they converge"
+    },
+    {
+      "code": 6019,
+      "name": "EmaSeedMismatch",
+      "msg": "First crank after seeding: spot is outside the seed band; admin must re-seed the EMA"
+    },
+    {
+      "code": 6020,
+      "name": "TokenBuyCapExceeded",
+      "msg": "Hourly limit for token-paid blocks reached; try later or pay in SOL"
+    },
+    {
+      "code": 6021,
+      "name": "Unauthorized",
+      "msg": "Unauthorized"
+    },
+    {
+      "code": 6022,
+      "name": "InvalidParam",
+      "msg": "Invalid parameter"
+    },
+    {
+      "code": 6023,
+      "name": "AuctionThresholdNotReached",
+      "msg": "Final auction threshold not reached"
+    },
+    {
+      "code": 6024,
+      "name": "NothingToAuction",
+      "msg": "No free blocks left to auction"
+    },
+    {
+      "code": 6025,
+      "name": "AuctionNotActive",
+      "msg": "Auction is not active"
+    },
+    {
+      "code": 6026,
+      "name": "AuctionEnded",
+      "msg": "Auction has ended"
+    },
+    {
+      "code": 6027,
+      "name": "AuctionNotEnded",
+      "msg": "Auction has not ended yet"
+    },
+    {
+      "code": 6028,
+      "name": "BidTooLow",
+      "msg": "Bid too low"
+    },
+    {
+      "code": 6029,
+      "name": "InvalidPreviousBidder",
+      "msg": "Previous bidder account missing or wrong"
+    },
+    {
+      "code": 6030,
+      "name": "AlreadyHighestBidder",
+      "msg": "Current highest bidder cannot outbid themselves"
+    },
+    {
+      "code": 6031,
+      "name": "BuybackCapExceeded",
+      "msg": "Buyback hourly cap exceeded"
+    },
+    {
+      "code": 6032,
+      "name": "BuybackOutstanding",
+      "msg": "Previous buyback release not yet recorded"
+    },
+    {
+      "code": 6033,
+      "name": "BuybackAmountTooHigh",
+      "msg": "Buyback amount exceeds outstanding released lamports"
+    },
+    {
+      "code": 6034,
+      "name": "BuybackRateTooLow",
+      "msg": "Too few tokens burned for the lamports spent"
+    },
+    {
+      "code": 6035,
+      "name": "InsufficientVaultFunds",
+      "msg": "Insufficient funds in buyback vault"
+    }
+  ],
+  "types": [
+    {
+      "name": "Ad",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "id",
+            "type": "u32"
+          },
+          {
+            "name": "owner",
+            "type": "pubkey"
+          },
+          {
+            "name": "kind",
+            "type": {
+              "defined": {
+                "name": "AdKind"
+              }
+            }
+          },
+          {
+            "name": "x",
+            "type": "u8"
+          },
+          {
+            "name": "y",
+            "type": "u8"
+          },
+          {
+            "name": "w",
+            "type": "u8"
+          },
+          {
+            "name": "h",
+            "type": "u8"
+          },
+          {
+            "name": "title",
+            "type": "string"
+          },
+          {
+            "name": "link",
+            "type": "string"
+          },
+          {
+            "name": "image_uri",
+            "type": "string"
+          },
+          {
+            "name": "image_sha256",
+            "type": {
+              "array": [
+                "u8",
+                32
+              ]
+            }
+          },
+          {
+            "name": "pay_mode",
+            "type": {
+              "defined": {
+                "name": "PayMode"
+              }
+            }
+          },
+          {
+            "name": "paid_lamports",
+            "type": "u64"
+          },
+          {
+            "name": "paid_tokens",
+            "type": "u64"
+          },
+          {
+            "name": "usd_micro",
+            "type": "u64"
+          },
+          {
+            "name": "created_at",
+            "type": "i64"
+          },
+          {
+            "name": "updated_at",
+            "type": "i64"
+          },
+          {
+            "name": "bump",
+            "type": "u8"
+          }
+        ]
+      }
+    },
+    {
+      "name": "AdKind",
+      "type": {
+        "kind": "enum",
+        "variants": [
+          {
+            "name": "Rect"
+          },
+          {
+            "name": "AuctionLot"
+          }
+        ]
+      }
+    },
+    {
+      "name": "AdPurchased",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "ad_id",
+            "type": "u32"
+          },
+          {
+            "name": "ad",
+            "docs": [
+              "Ad account address (rect: [\"ad\", y*100+x u16 LE]; auction lot: [\"ad_auction\"])."
+            ],
+            "type": "pubkey"
+          },
+          {
+            "name": "owner",
+            "type": "pubkey"
+          },
+          {
+            "name": "x",
+            "type": "u8"
+          },
+          {
+            "name": "y",
+            "type": "u8"
+          },
+          {
+            "name": "w",
+            "type": "u8"
+          },
+          {
+            "name": "h",
+            "type": "u8"
+          },
+          {
+            "name": "pay_mode",
+            "type": {
+              "defined": {
+                "name": "PayMode"
+              }
+            }
+          },
+          {
+            "name": "lamports",
+            "type": "u64"
+          },
+          {
+            "name": "tokens_burned",
+            "type": "u64"
+          },
+          {
+            "name": "usd_micro",
+            "type": "u64"
+          },
+          {
+            "name": "ts",
+            "type": "i64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "AdTransferred",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "ad_id",
+            "type": "u32"
+          },
+          {
+            "name": "ad",
+            "type": "pubkey"
+          },
+          {
+            "name": "from",
+            "type": "pubkey"
+          },
+          {
+            "name": "to",
+            "type": "pubkey"
+          },
+          {
+            "name": "ts",
+            "type": "i64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "AdUpdated",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "ad_id",
+            "type": "u32"
+          },
+          {
+            "name": "ad",
+            "type": "pubkey"
+          },
+          {
+            "name": "ts",
+            "type": "i64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "Auction",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "status",
+            "type": {
+              "defined": {
+                "name": "AuctionStatus"
+              }
+            }
+          },
+          {
+            "name": "start_ts",
+            "type": "i64"
+          },
+          {
+            "name": "end_ts",
+            "type": "i64"
+          },
+          {
+            "name": "highest_bidder",
+            "type": "pubkey"
+          },
+          {
+            "name": "highest_bid",
+            "type": "u64"
+          },
+          {
+            "name": "bid_count",
+            "type": "u32"
+          },
+          {
+            "name": "lot_blocks",
+            "type": "u16"
+          },
+          {
+            "name": "lot_bitmap",
+            "docs": [
+              "Blocks in the lot (free blocks when the auction started)."
+            ],
+            "type": {
+              "array": [
+                "u8",
+                1250
+              ]
+            }
+          },
+          {
+            "name": "ad_id",
+            "docs": [
+              "Ad id created at settlement (valid when status == Settled)."
+            ],
+            "type": "u32"
+          },
+          {
+            "name": "bump",
+            "type": "u8"
+          }
+        ]
+      }
+    },
+    {
+      "name": "AuctionBid",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "bidder",
+            "type": "pubkey"
+          },
+          {
+            "name": "lamports",
+            "type": "u64"
+          },
+          {
+            "name": "end_ts",
+            "type": "i64"
+          },
+          {
+            "name": "ts",
+            "type": "i64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "AuctionRestarted",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "end_ts",
+            "type": "i64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "AuctionResumed",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "end_ts",
+            "type": "i64"
+          },
+          {
+            "name": "paused_secs",
+            "type": "i64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "AuctionSettled",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "winner",
+            "type": "pubkey"
+          },
+          {
+            "name": "lamports",
+            "type": "u64"
+          },
+          {
+            "name": "ad_id",
+            "type": "u32"
+          },
+          {
+            "name": "ad",
+            "type": "pubkey"
+          }
+        ]
+      }
+    },
+    {
+      "name": "AuctionStarted",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "lot_blocks",
+            "type": "u16"
+          },
+          {
+            "name": "start_ts",
+            "type": "i64"
+          },
+          {
+            "name": "end_ts",
+            "type": "i64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "AuctionStatus",
+      "type": {
+        "kind": "enum",
+        "variants": [
+          {
+            "name": "Active"
+          },
+          {
+            "name": "Settled"
+          }
+        ]
+      }
+    },
+    {
+      "name": "BuybackBurned",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "lamports_in",
+            "type": "u64"
+          },
+          {
+            "name": "tokens_burned",
+            "type": "u64"
+          },
+          {
+            "name": "ts",
+            "type": "i64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "BuybackReleased",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "keeper",
+            "type": "pubkey"
+          },
+          {
+            "name": "lamports",
+            "type": "u64"
+          },
+          {
+            "name": "ts",
+            "type": "i64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "BuybackWrittenOff",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "keeper",
+            "type": "pubkey"
+          },
+          {
+            "name": "lamports",
+            "type": "u64"
+          },
+          {
+            "name": "ts",
+            "type": "i64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "Canvas",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "bitmap",
+            "type": {
+              "array": [
+                "u8",
+                1250
+              ]
+            }
+          },
+          {
+            "name": "sold_blocks",
+            "type": "u16"
+          },
+          {
+            "name": "next_ad_id",
+            "type": "u32"
+          },
+          {
+            "name": "usd_micro_raised",
+            "type": "u64"
+          },
+          {
+            "name": "lamports_raised",
+            "type": "u64"
+          },
+          {
+            "name": "lamports_to_treasury",
+            "type": "u64"
+          },
+          {
+            "name": "lamports_to_buyback",
+            "type": "u64"
+          },
+          {
+            "name": "tokens_burned_direct",
+            "type": "u64"
+          },
+          {
+            "name": "tokens_burned_buyback",
+            "type": "u64"
+          },
+          {
+            "name": "lamports_spent_buyback",
+            "type": "u64"
+          },
+          {
+            "name": "bump",
+            "type": "u8"
+          }
+        ]
+      }
+    },
+    {
+      "name": "Config",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "admin",
+            "type": "pubkey"
+          },
+          {
+            "name": "pending_admin",
+            "docs": [
+              "Two-step admin transfer; `Pubkey::default()` when none pending."
+            ],
+            "type": "pubkey"
+          },
+          {
+            "name": "treasury",
+            "type": "pubkey"
+          },
+          {
+            "name": "keeper",
+            "type": "pubkey"
+          },
+          {
+            "name": "token_mint",
+            "type": "pubkey"
+          },
+          {
+            "name": "token_program",
+            "type": "pubkey"
+          },
+          {
+            "name": "token_decimals",
+            "type": "u8"
+          },
+          {
+            "name": "pyth_feed_id",
+            "type": {
+              "array": [
+                "u8",
+                32
+              ]
+            }
+          },
+          {
+            "name": "price_source",
+            "type": {
+              "defined": {
+                "name": "PriceSource"
+              }
+            }
+          },
+          {
+            "name": "token_ema_price_sol",
+            "docs": [
+              "lamports per token base unit * 1e18."
+            ],
+            "type": "u128"
+          },
+          {
+            "name": "token_ema_prev_price_sol",
+            "docs": [
+              "EMA value before the most recent crank. Used by buys in the same slot as a crank."
+            ],
+            "type": "u128"
+          },
+          {
+            "name": "token_slow_ema_price_sol",
+            "docs": [
+              "Slow EMA (4 h window), same unit; and its pre-slot value."
+            ],
+            "type": "u128"
+          },
+          {
+            "name": "token_slow_ema_prev_price_sol",
+            "type": "u128"
+          },
+          {
+            "name": "token_spot_price_sol",
+            "docs": [
+              "Last spot read by the crank (informational)."
+            ],
+            "type": "u128"
+          },
+          {
+            "name": "ema_updated_at",
+            "type": "i64"
+          },
+          {
+            "name": "ema_updated_slot",
+            "type": "u64"
+          },
+          {
+            "name": "max_price_age_secs",
+            "type": "u64"
+          },
+          {
+            "name": "paused",
+            "type": "bool"
+          },
+          {
+            "name": "buyback_cap_lamports_per_hour",
+            "type": "u64"
+          },
+          {
+            "name": "buyback_max_slippage_bps",
+            "type": "u16"
+          },
+          {
+            "name": "buyback_allowance_updated_at",
+            "docs": [
+              "Token bucket for buyback releases: refills at cap/hour, holds at most `cap`."
+            ],
+            "type": "i64"
+          },
+          {
+            "name": "buyback_allowance",
+            "type": "u64"
+          },
+          {
+            "name": "buyback_outstanding_lamports",
+            "docs": [
+              "Lamports released to the keeper that have not yet been reconciled by `record_buyback_burn`."
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "buyback_written_off_lamports",
+            "docs": [
+              "Outstanding releases written off when the admin rotated a keeper that never reconciled (audit trail)."
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "bump",
+            "type": "u8"
+          },
+          {
+            "name": "canvas_bump",
+            "type": "u8"
+          },
+          {
+            "name": "buyback_vault_bump",
+            "type": "u8"
+          },
+          {
+            "name": "ema_warmup_cranks",
+            "docs": [
+              "Cranks since the EMA was (re)seeded by the admin, and the time of the first of them."
+            ],
+            "type": "u16"
+          },
+          {
+            "name": "ema_warmup_started_at",
+            "type": "i64"
+          },
+          {
+            "name": "paused_at",
+            "docs": [
+              "Set when pausing; used to extend a running auction by the paused duration on unpause."
+            ],
+            "type": "i64"
+          },
+          {
+            "name": "token_blocks_cap_per_hour",
+            "docs": [
+              "Token bucket limiting blocks bought with tokens: refills at cap/hour, holds at most cap."
+            ],
+            "type": "u16"
+          },
+          {
+            "name": "token_blocks_allowance",
+            "type": "u32"
+          },
+          {
+            "name": "token_blocks_allowance_updated_at",
+            "type": "i64"
+          },
+          {
+            "name": "_reserved",
+            "type": {
+              "array": [
+                "u8",
+                32
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "InitializeParams",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "treasury",
+            "type": "pubkey"
+          },
+          {
+            "name": "keeper",
+            "type": "pubkey"
+          },
+          {
+            "name": "pyth_feed_id",
+            "type": {
+              "array": [
+                "u8",
+                32
+              ]
+            }
+          },
+          {
+            "name": "price_source",
+            "type": {
+              "defined": {
+                "name": "PriceSource"
+              }
+            }
+          },
+          {
+            "name": "max_price_age_secs",
+            "type": "u64"
+          },
+          {
+            "name": "buyback_cap_lamports_per_hour",
+            "type": "u64"
+          },
+          {
+            "name": "buyback_max_slippage_bps",
+            "type": "u16"
+          },
+          {
+            "name": "initial_token_ema_price_sol",
+            "docs": [
+              "Admin-supplied EMA seed (lamports per base unit * 1e18). 0 = token pricing disabled until set_price_source."
+            ],
+            "type": "u128"
+          },
+          {
+            "name": "token_blocks_cap_per_hour",
+            "docs": [
+              "Token-paid blocks per hour (1..=5000; default 1000)."
+            ],
+            "type": "u16"
+          }
+        ]
+      }
+    },
+    {
+      "name": "PayMode",
+      "type": {
+        "kind": "enum",
+        "variants": [
+          {
+            "name": "Sol"
+          },
+          {
+            "name": "Token"
+          },
+          {
+            "name": "Auction"
+          }
+        ]
+      }
+    },
+    {
+      "name": "PriceFeedMessage",
+      "repr": {
+        "kind": "c"
+      },
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "feed_id",
+            "docs": [
+              "`FeedId` but avoid the type alias because of compatibility issues with Anchor's `idl-build` feature."
+            ],
+            "type": {
+              "array": [
+                "u8",
+                32
+              ]
+            }
+          },
+          {
+            "name": "price",
+            "type": "i64"
+          },
+          {
+            "name": "conf",
+            "type": "u64"
+          },
+          {
+            "name": "exponent",
+            "type": "i32"
+          },
+          {
+            "name": "publish_time",
+            "docs": [
+              "The timestamp of this price update in seconds"
+            ],
+            "type": "i64"
+          },
+          {
+            "name": "prev_publish_time",
+            "docs": [
+              "The timestamp of the previous price update. This field is intended to allow users to",
+              "identify the single unique price update for any moment in time:",
+              "for any time t, the unique update is the one such that prev_publish_time < t <= publish_time.",
+              "",
+              "Note that there may not be such an update while we are migrating to the new message-sending logic,",
+              "as some price updates on pythnet may not be sent to other chains (because the message-sending",
+              "logic may not have triggered). We can solve this problem by making the message-sending mandatory",
+              "(which we can do once publishers have migrated over).",
+              "",
+              "Additionally, this field may be equal to publish_time if the message is sent on a slot where",
+              "where the aggregation was unsuccesful. This problem will go away once all publishers have",
+              "migrated over to a recent version of pyth-agent."
+            ],
+            "type": "i64"
+          },
+          {
+            "name": "ema_price",
+            "type": "i64"
+          },
+          {
+            "name": "ema_conf",
+            "type": "u64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "PriceSource",
+      "docs": [
+        "Where the token spot price is read from."
+      ],
+      "type": {
+        "kind": "enum",
+        "variants": [
+          {
+            "name": "BondingCurve",
+            "fields": [
+              {
+                "name": "curve",
+                "type": "pubkey"
+              }
+            ]
+          },
+          {
+            "name": "Pool",
+            "fields": [
+              {
+                "name": "pool",
+                "type": "pubkey"
+              },
+              {
+                "name": "base_vault",
+                "type": "pubkey"
+              },
+              {
+                "name": "quote_vault",
+                "type": "pubkey"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "name": "PriceUpdateV2",
+      "docs": [
+        "A price update account. This account is used by the Pyth Receiver program to store a verified price update from a Pyth price feed.",
+        "It contains:",
+        "- `write_authority`: The write authority for this account. This authority can close this account to reclaim rent or update the account to contain a different price update.",
+        "- `verification_level`: The [`VerificationLevel`] of this price update. This represents how many Wormhole guardian signatures have been verified for this price update.",
+        "- `price_message`: The actual price update.",
+        "- `posted_slot`: The slot at which this price update was posted."
+      ],
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "write_authority",
+            "type": "pubkey"
+          },
+          {
+            "name": "verification_level",
+            "type": {
+              "defined": {
+                "name": "VerificationLevel"
+              }
+            }
+          },
+          {
+            "name": "price_message",
+            "type": {
+              "defined": {
+                "name": "PriceFeedMessage"
+              }
+            }
+          },
+          {
+            "name": "posted_slot",
+            "type": "u64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "TokenPriceUpdated",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "spot",
+            "docs": [
+              "lamports per token base unit * 1e18"
+            ],
+            "type": "u128"
+          },
+          {
+            "name": "ema",
+            "docs": [
+              "lamports per token base unit * 1e18"
+            ],
+            "type": "u128"
+          },
+          {
+            "name": "slow_ema",
+            "docs": [
+              "slow (4 h) EMA, same unit"
+            ],
+            "type": "u128"
+          },
+          {
+            "name": "ts",
+            "type": "i64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "VerificationLevel",
+      "docs": [
+        "Pyth price updates are bridged to all blockchains via Wormhole.",
+        "Using the price updates on another chain requires verifying the signatures of the Wormhole guardians.",
+        "The usual process is to check the signatures for two thirds of the total number of guardians, but this can be cumbersome on Solana because of the transaction size limits,",
+        "so we also allow for partial verification.",
+        "",
+        "This enum represents how much a price update has been verified:",
+        "- If `Full`, we have verified the signatures for two thirds of the current guardians.",
+        "- If `Partial`, only `num_signatures` guardian signatures have been checked.",
+        "",
+        "# Warning",
+        "Using partially verified price updates is dangerous, as it lowers the threshold of guardians that need to collude to produce a malicious price update."
+      ],
+      "type": {
+        "kind": "enum",
+        "variants": [
+          {
+            "name": "Partial",
+            "fields": [
+              {
+                "name": "num_signatures",
+                "type": "u8"
+              }
+            ]
+          },
+          {
+            "name": "Full"
+          }
+        ]
+      }
+    }
+  ],
+  "constants": [
+    {
+      "name": "AD_AUCTION_SEED",
+      "docs": [
+        "The single final-auction ad: [\"ad_auction\"]."
+      ],
+      "type": "bytes",
+      "value": "[97, 100, 95, 97, 117, 99, 116, 105, 111, 110]"
+    },
+    {
+      "name": "AD_SEED",
+      "docs": [
+        "Rect ads: [\"ad\", top-left block index u16 LE]. Blocks are exclusive, so the address is unique per ad and",
+        "independent of global state (no collisions between concurrent buyers of disjoint rects)."
+      ],
+      "type": "bytes",
+      "value": "[97, 100]"
+    },
+    {
+      "name": "AUCTION_DURATION_SECS",
+      "type": "i64",
+      "value": "259200"
+    },
+    {
+      "name": "AUCTION_EXTENSION_SECS",
+      "docs": [
+        "A bid inside the last 10 minutes pushes the end to now + 10 minutes (anti-sniping)."
+      ],
+      "type": "i64",
+      "value": "600"
+    },
+    {
+      "name": "AUCTION_MIN_INCREMENT_BPS",
+      "type": "u64",
+      "value": "500"
+    },
+    {
+      "name": "AUCTION_MIN_INCREMENT_LAMPORTS",
+      "type": "u64",
+      "value": "10000000"
+    },
+    {
+      "name": "AUCTION_MIN_OPENING_BID_LAMPORTS",
+      "type": "u64",
+      "value": "100000000"
+    },
+    {
+      "name": "AUCTION_SEED",
+      "type": "bytes",
+      "value": "[97, 117, 99, 116, 105, 111, 110]"
+    },
+    {
+      "name": "AUCTION_THRESHOLD_BLOCKS",
+      "type": "u16",
+      "value": "9900"
+    },
+    {
+      "name": "BPS_DENOMINATOR",
+      "type": "u64",
+      "value": "10000"
+    },
+    {
+      "name": "BUYBACK_VAULT_SEED",
+      "type": "bytes",
+      "value": "[98, 117, 121, 98, 97, 99, 107, 95, 118, 97, 117, 108, 116]"
+    },
+    {
+      "name": "BUYBACK_WINDOW_SECS",
+      "type": "i64",
+      "value": "3600"
+    },
+    {
+      "name": "CANVAS_SEED",
+      "type": "bytes",
+      "value": "[99, 97, 110, 118, 97, 115]"
+    },
+    {
+      "name": "CONFIG_SEED",
+      "type": "bytes",
+      "value": "[99, 111, 110, 102, 105, 103]"
+    },
+    {
+      "name": "DEFAULT_BUYBACK_MAX_SLIPPAGE_BPS",
+      "type": "u16",
+      "value": "1500"
+    },
+    {
+      "name": "DEFAULT_MAX_PRICE_AGE_SECS",
+      "type": "u64",
+      "value": "120"
+    },
+    {
+      "name": "DEFAULT_TOKEN_BLOCKS_CAP_PER_HOUR",
+      "docs": [
+        "Hard ceiling and default for the token-payment rate limit (blocks per hour, token bucket)."
+      ],
+      "type": "u16",
+      "value": "1000"
+    },
+    {
+      "name": "EMA_ALPHA_BPS",
+      "docs": [
+        "Fixed per-crank alpha = 30/600 = 5%."
+      ],
+      "type": "u64",
+      "value": "500"
+    },
+    {
+      "name": "EMA_MAX_DEVIATION_BPS",
+      "docs": [
+        "Token buys are rejected while spot > fast EMA * (1 + 15%) (one-sided; spot below the EMA is allowed)."
+      ],
+      "type": "u64",
+      "value": "1500"
+    },
+    {
+      "name": "EMA_MIN_INTERVAL_SECS",
+      "type": "i64",
+      "value": "30"
+    },
+    {
+      "name": "EMA_SEED_BAND_BPS",
+      "docs": [
+        "The admin-supplied EMA seed must be within 25% of spot at the first crank after seeding."
+      ],
+      "type": "u64",
+      "value": "2500"
+    },
+    {
+      "name": "EMA_SPOT_CLAMP_BPS",
+      "docs": [
+        "Spot input is clamped to EMA * (1 +/- 40%) before the alpha step, so one crank moves the EMA by at most",
+        "5% * 40% = 2% (MAX_EMA_STEP_BPS), and cranks are >= 30 s apart: <= 2% per 30 s."
+      ],
+      "type": "u64",
+      "value": "4000"
+    },
+    {
+      "name": "EMA_WARMUP_CRANKS",
+      "docs": [
+        "Warm-up after seeding: token buys / keeper reconciliation need >= 10 cranks spanning >= 600 s."
+      ],
+      "type": "u16",
+      "value": "10"
+    },
+    {
+      "name": "EMA_WARMUP_SECS",
+      "type": "i64",
+      "value": "600"
+    },
+    {
+      "name": "EMA_WINDOW_SECS",
+      "docs": [
+        "Nominal EMA time constant. Each crank uses the FIXED alpha EMA_MIN_INTERVAL_SECS / EMA_WINDOW_SECS (5%),",
+        "regardless of how long ago the previous crank was (a long gap never lets one crank jump to spot)."
+      ],
+      "type": "i64",
+      "value": "600"
+    },
+    {
+      "name": "GRID",
+      "docs": [
+        "Blocks per side (1000 px / 10 px)."
+      ],
+      "type": "u16",
+      "value": "100"
+    },
+    {
+      "name": "MAX_BUYBACK_SLIPPAGE_BPS_LIMIT",
+      "type": "u16",
+      "value": "5000"
+    },
+    {
+      "name": "MAX_CONF_BPS",
+      "docs": [
+        "Reject Pyth prices whose confidence interval exceeds 2% of the price."
+      ],
+      "type": "u64",
+      "value": "200"
+    },
+    {
+      "name": "MAX_EMA_AGE_SECS",
+      "docs": [
+        "`buy_with_token` refuses to price against an EMA older than this."
+      ],
+      "type": "i64",
+      "value": "900"
+    },
+    {
+      "name": "MAX_EMA_STEP_BPS",
+      "type": "u64",
+      "value": "200"
+    },
+    {
+      "name": "MAX_PRICE_AGE_LIMIT_SECS",
+      "docs": [
+        "Upper bound the admin can configure for the Pyth staleness window."
+      ],
+      "type": "u64",
+      "value": "300"
+    },
+    {
+      "name": "MAX_TOKEN_BLOCKS_CAP_PER_HOUR",
+      "type": "u16",
+      "value": "5000"
+    },
+    {
+      "name": "PRICE_PER_BLOCK_USD_MICRO",
+      "docs": [
+        "$100 per 10x10 block, micro-USD (6 decimals)."
+      ],
+      "type": "u64",
+      "value": "100000000"
+    },
+    {
+      "name": "SLOW_EMA_WINDOW_SECS",
+      "docs": [
+        "Slow EMA (audit round 2, ratchet fix): 4-hour window, alpha = 30 s / 14_400 s = 1/480 per crank, same ±40% clamp,",
+        "so it moves at most 0.0833% per crank (~ +10.5% per hour of a held +40% pump). Token price = min(spot, fast, slow)."
+      ],
+      "type": "i64",
+      "value": "14400"
+    },
+    {
+      "name": "TOKEN_DISCOUNT_BPS",
+      "docs": [
+        "Discount for paying in the token."
+      ],
+      "type": "u64",
+      "value": "1000"
+    },
+    {
+      "name": "TOKEN_SYMBOL",
+      "docs": [
+        "Ticker placeholder. The only place in the program that names the token."
+      ],
+      "type": "string",
+      "value": "\"PIXEL\""
+    },
+    {
+      "name": "TOTAL_BLOCKS",
+      "type": "u16",
+      "value": "10000"
+    },
+    {
+      "name": "TREASURY_BPS",
+      "docs": [
+        "Share of SOL payments sent to the treasury. The remainder (incl. rounding dust) goes to the buyback vault."
+      ],
+      "type": "u64",
+      "value": "5000"
+    }
+  ]
+}

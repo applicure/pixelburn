@@ -1,0 +1,14 @@
+packages:
+  - "apps/*"
+  - "packages/*"
+  - "services"
+allowBuilds:
+  bigint-buffer: false
+  bufferutil: false
+  esbuild: true
+  keccak: false
+  protobufjs: false
+  secp256k1: false
+  utf-8-validate: false
+overrides:
+  "jito-ts>@solana/web3.js": "^1.98.4"

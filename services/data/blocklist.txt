@@ -1,0 +1,6 @@
+# Domain blocklist for ad links (one domain per line; subdomains match too).
+# Lines starting with # are comments.
+example-scam.invalid
+bit.ly
+tinyurl.com
+t.co
