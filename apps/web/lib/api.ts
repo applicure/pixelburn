@@ -103,7 +103,8 @@ const HttpApi: Api = {
   canvasPngUrl: () => `${API_URL}/api/canvas.png`,
   getFeed: (limit = 50) => getJson<FeedItem[]>(`/api/feed?limit=${limit}`).then((f) => f.map(normFeed)),
   getLeaderboard: () => getJson<LeaderRow[]>("/api/leaderboard"),
-  getQuote: (w, h, mode) => getJson<Quote>(`/api/quote?w=${w}&h=${h}&mode=${mode}`),
+  // services sends expiresAt in unix seconds like every other timestamp
+  getQuote: (w, h, mode) => getJson<Quote>(`/api/quote?w=${w}&h=${h}&mode=${mode}`).then((q) => ({ ...q, expiresAt: ms(q.expiresAt) })),
   getAuction: async () => normAuction(await getJson<RawAuction | null>("/api/auction")),
   getBuybacks: async (cursor, limit = 50) => {
     const r = await getJson<{ items: Omit<BuybackItem, "type">[]; nextCursor: string | null }>(

@@ -53,7 +53,8 @@ export function useQuote(w: number, h: number, mode: PayMode, enabled = true, au
   useEffect(() => {
     const at = Math.max(retryAt, autoRefresh ? quote?.expiresAt ?? 0 : 0);
     if (!at) return;
-    const t = setTimeout(refresh, Math.max(0, at - Date.now()));
+    // never refetch faster than every 5 s, whatever the server says (guards against unit bugs and clock skew)
+    const t = setTimeout(refresh, Math.max(5_000, at - Date.now()));
     return () => clearTimeout(t);
   }, [quote, retryAt, refresh, autoRefresh]);
 
