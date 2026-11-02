@@ -1,5 +1,6 @@
 // Keeper process: `pnpm --filter @mpb/services keeper`.
 // DRY-RUN BY DEFAULT. Transactions are only sent when KEEPER_LIVE=1.
+import { writeFileSync } from "node:fs";
 import { Connection, PublicKey } from "@solana/web3.js";
 import { loadConfig } from "../config.js";
 import { RpcChainReader } from "../chain/accounts.js";
@@ -7,11 +8,21 @@ import { createLogger } from "../lib/log.js";
 import { heartbeat } from "../lib/heartbeat.js";
 import { loadKeypair, NoProgramActions, SdkKeeperActions } from "./actions.js";
 import { Keeper } from "./keeper.js";
+import { LookupTableManager } from "./alt.js";
 import { JupiterRoute, PumpCurveRoute, PumpSwapPoolRoute, type SwapRoute } from "./routes.js";
 
 const cfg = loadConfig();
 const log = createLogger("keeper", cfg.LOG_LEVEL);
 const hb = process.env.HEARTBEAT_FILE || "/tmp/keeper.heartbeat";
+/** Keeper status next to the heartbeat (the heartbeat file itself must stay a bare timestamp for the healthcheck). */
+const statusFile = `${hb.replace(/\.heartbeat$/, "")}.status.json`;
+const writeStatus = (s: Record<string, unknown>) => {
+  try {
+    writeFileSync(statusFile, JSON.stringify(s));
+  } catch {
+    /* best effort */
+  }
+};
 heartbeat(hb);
 setInterval(() => heartbeat(hb), 30_000).unref();
 const conn = new Connection(cfg.rpcUrl, "confirmed");
@@ -66,6 +77,16 @@ if (chain) {
     if (cfg.TOKEN_MINT && cfg.TOKEN_MINT !== c.tokenMint.toBase58()) log.warn(`TOKEN_MINT env differs from Config.token_mint; using the on-chain mint`);
     void resolveRoutes();
   }).catch((e) => log.warn(`config read failed: ${(e as Error).message}`));
+}
+// The atomic buyback tx needs an Address Lookup Table (otherwise > 1232 bytes). Live only.
+if (payer && cfg.KEEPER_LIVE) {
+  const allowScan = cfg.SOLANA_CLUSTER !== "mainnet-beta";
+  if (!allowScan && !cfg.KEEPER_LOOKUP_TABLE) {
+    log.error("ACTION REQUIRED: KEEPER_LOOKUP_TABLE is unset on mainnet — the first buyback will create a table; then pin its address");
+  }
+  keeper.alt = new LookupTableManager(conn, payer, { live: true, computeUnitLimit: 20_000 }, log, cfg.KEEPER_LOOKUP_TABLE, allowScan, (address) =>
+    writeStatus({ lookupTable: address, action: `set KEEPER_LOOKUP_TABLE=${address}`, at: new Date().toISOString() }),
+  );
 }
 keeper.start();
 const stop = () => {

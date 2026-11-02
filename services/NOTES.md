@@ -98,6 +98,16 @@ docker build -f services/Dockerfile --target keeper  -t mpb-keeper .
   (tmjd8oi0tegozxrplcveegzj, target `keeper`, no domain, `KEEPER_LIVE=1`). All secrets are runtime-only.
   The keeper has no `DATABASE_URL` (least privilege). RPC = Helius devnet via `SOLANA_RPC_HELIUS_KEY`;
   never QuickNode mainnet.
+- **Keeper lookup table**: the atomic buyback tx (release → PumpSwap buy → record with price-source
+  accounts) references 31 accounts. That is 1262 bytes, over the 1232 limit, and was rejected on
+  devnet. The keeper keeps one Address Lookup Table it owns and extends it with any missing static
+  keys before sending: 552 bytes with the ALT. Live only; dry-run never creates on-chain state.
+  - Mainnet: `KEEPER_LOOKUP_TABLE` is required; the ALT program is never scanned (millions of ALTs).
+    If it's unset, the first buyback creates one table, logs `ACTION REQUIRED: set
+    KEEPER_LOOKUP_TABLE=<addr>` on every run, and writes it to `<heartbeat>.status.json`.
+  - Devnet: if unset, the keeper finds its table on chain by authority, else creates one.
+  - A table is only used if it is active and its authority is the current keeper key. After
+    `set_keeper` rotation, a table owned by the old key is rejected and a new one is created.
 - **Keeper buyback routes**: these are resolved from the current Config on every run. While the
   token is on the pump.fun curve the keeper uses `pump-curve` (legacy `buy`, exact tokens out, live
   mint supply); after graduation it uses `pumpswap-pool` (canonical pool `buy`, exact base out, max

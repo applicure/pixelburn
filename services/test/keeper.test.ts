@@ -20,7 +20,10 @@ const dummyIx = () => new TransactionInstruction({ programId: PublicKey.default,
 /** Connection whose every method throws: proves dry-run touches nothing that sends. */
 const explodingConn = new Proxy({}, { get: (_t, p) => (p === "then" ? undefined : () => { throw new Error(`conn.${String(p)} called`); }) }) as unknown as Connection;
 
-afterEach(() => vi.unstubAllGlobals());
+afterEach(() => {
+  vi.unstubAllGlobals();
+  vi.restoreAllMocks(); // never leak a Math.random mock into the next test
+});
 const Q = 10n ** 16n;
 
 describe("keeper", () => {
@@ -42,12 +45,17 @@ describe("keeper", () => {
     chain.fetchTokenPrice = async () => ({ spot: Q, ema: Q, slow: Q });
     chain.fetchBuybackVaultLamports = async () => 5_000_000_000n;
     const routes = [new JupiterRoute(explodingConn, "https://jup.invalid", randKey(), 100, silentLogger)];
+    // Root cause of the earlier flake: chunk sizes come from Math.random, and ~5% of plans left
+    // sub-minimum dust so the sum missed 3e9. The planner now avoids avoidable dust; we also pin the
+    // randomness here so this test is fully deterministic.
+    const rnd = vi.spyOn(Math, "random").mockReturnValue(0.37);
     const k = new Keeper(explodingConn, null, actions, chain, cfg(false), silentLogger, async () => {}, routes);
     expect(await k.crankOnce()).toBeNull();
     const r = await k.buybackOnce();
     expect(r.sent).toEqual([]);
     expect(r.chunks.reduce((a, b) => a + b, 0n)).toBe(3_000_000_000n); // capped per run
     expect(calls.filter((c) => c.startsWith("record")).length).toBe(r.chunks.length);
+    rnd.mockRestore();
   });
 
   it("never releases without a swap: no route -> no release/record, run skipped", async () => {
@@ -272,6 +280,7 @@ describe("keeper", () => {
 
   it("runs the first buyback ~90 s after start (redeploys can't starve it), then on the interval", async () => {
     vi.useFakeTimers();
+    const rnd = vi.spyOn(Math, "random").mockReturnValue(0.5); // deterministic jitter: first at 105 s, next 660 s later
     try {
       const k = new Keeper(explodingConn, null, { crankTokenPriceIxs: async () => null, releaseBuybackIxs: async () => null, recordBuybackBurnIxs: async () => null },
         null, { ...cfg(false), buybackIntervalMs: 600_000, buybackJitterMs: 120_000, firstBuybackDelayMs: 90_000, crankIntervalMs: 3_600_000 }, silentLogger);
@@ -288,6 +297,7 @@ describe("keeper", () => {
       expect(runs).toBe(2);
       k.stop();
     } finally {
+      rnd.mockRestore();
       vi.useRealTimers();
     }
   });

@@ -80,6 +80,7 @@ const EnvSchema = z.object({
   KEEPER_CRANK_INTERVAL_MS: z.coerce.number().int().default(45_000), // chain: crank every 30-60 s (EMA moves <= 2%/crank)
   KEEPER_BUYBACK_INTERVAL_MS: z.coerce.number().int().default(15 * 60_000),
   KEEPER_BUYBACK_JITTER_MS: z.coerce.number().int().default(5 * 60_000),
+  KEEPER_LOOKUP_TABLE: optStr, // keeper-owned ALT for the atomic buyback tx (found/created automatically if unset)
   KEEPER_BUYBACK_FIRST_DELAY_MS: z.coerce.number().int().default(90_000), // first run soon after (re)start
   KEEPER_BUYBACK_MAX_CHUNK_LAMPORTS: z.coerce.bigint().default(2_000_000_000n),
   KEEPER_BUYBACK_MIN_CHUNK_LAMPORTS: z.coerce.bigint().default(50_000_000n),

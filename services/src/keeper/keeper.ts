@@ -1,4 +1,5 @@
-import { Connection, Keypair, PublicKey, type TransactionInstruction } from "@solana/web3.js";
+import { Connection, Keypair, PublicKey, type AddressLookupTableAccount, type TransactionInstruction } from "@solana/web3.js";
+import { altCandidates, type LookupTableManager } from "./alt.js";
 import { CU_LIMITS } from "@mpb/sdk";
 import type { ChainReader } from "../chain/accounts.js";
 import type { Logger } from "../lib/log.js";
@@ -65,6 +66,19 @@ export class Keeper {
   ) {
     if (cfg.live && !payer) throw new Error("KEEPER_LIVE=1 requires KEEPER_KEYPAIR");
     this.sendOpts = { live: cfg.live, jito: cfg.jito, simulateInDryRun: cfg.simulateInDryRun ?? false };
+  }
+
+  /** Keeper-owned lookup table for the atomic buyback tx (too large without one). Live only. */
+  alt: LookupTableManager | null = null;
+
+  /** Lookup tables for a tx: the route's own plus the keeper ALT extended with this tx's static keys. */
+  private async lookupTablesFor(ixs: TransactionInstruction[], routeTables: AddressLookupTableAccount[]) {
+    if (!this.alt) return routeTables;
+    const t = await this.alt.ensure(altCandidates(ixs, this.keeperKey)).catch((e) => {
+      this.log.warn(`lookup table unavailable: ${(e as Error).message}`);
+      return null;
+    });
+    return t ? [...routeTables, t] : routeTables;
   }
 
   /** Config.buyback_max_slippage_bps (set via setOnchainSlippage once read); null = unknown. */
@@ -146,7 +160,8 @@ export class Keeper {
     if (!record) return "waiting";
     const swap = await plan.build();
     this.log.warn(`buyback: outstanding release of ${o.lamports} lamports — resume via ${plan.route}: spend ${plan.lamportsSpent}, burn ${plan.minTokensOut + leftover}`);
-    const r = await sendIxsResult(this.conn, payer, [...swap.ixs, ...record], this.sendOpts, this.log, "buyback-resume-outstanding", swap.lookupTables);
+    const resumeIxs = [...swap.ixs, ...record];
+    const r = await sendIxsResult(this.conn, payer, resumeIxs, this.sendOpts, this.log, "buyback-resume-outstanding", await this.lookupTablesFor(resumeIxs, swap.lookupTables));
     if (r.sig) {
       sent.push(r.sig);
       this.log.info(`buyback: outstanding release resolved ${r.sig}`);
@@ -264,9 +279,10 @@ export class Keeper {
       this.log.info(
         `buyback chunk ${i}: ${plan.route} release ${lamports}, spend ${plan.lamportsSpent}, burn ${tokensToBurn} (impact ${plan.impactPct.toFixed(2)}%)`,
       );
+      const txIxs = [...release, ...swap.ixs, ...record];
       const res = await sendIxsResult(
-        this.conn, this.payer ?? Keypair.generate(), [...release, ...swap.ixs, ...record], this.sendOpts, this.log,
-        `buyback#${i}`, swap.lookupTables,
+        this.conn, this.payer ?? Keypair.generate(), txIxs, this.sendOpts, this.log,
+        `buyback#${i}`, await this.lookupTablesFor(txIxs, swap.lookupTables),
       );
       if (res.sig) {
         sent.push(res.sig);

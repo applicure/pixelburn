@@ -100,6 +100,14 @@ describe("keeper buyback planning", () => {
       expect(c).toBeLessThanOrEqual(200n); // never above the max chunk (a price-impact limit)
     }
   });
+  it("never strands avoidable dust and never exceeds [min, max] (property over 5000 random plans)", () => {
+    for (let i = 0; i < 5000; i++) {
+      const c = planBuybackChunks({ vaultLamports: 3_000_000_000n, reserveLamports: 0n, maxPerRunLamports: 3_000_000_000n, minChunkLamports: 500_000_000n, maxChunkLamports: 2_000_000_000n });
+      expect(c.reduce((a, b) => a + b, 0n)).toBe(3_000_000_000n);
+      for (const x of c) expect(x >= 500_000_000n && x <= 2_000_000_000n).toBe(true);
+    }
+  });
+
   it("keeps the reserve and skips dust", () => {
     expect(planBuybackChunks({ ...base, vaultLamports: 40n })).toEqual([]);
     const chunks = planBuybackChunks({ ...base, vaultLamports: 100n, rng: () => 0 });

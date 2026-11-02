@@ -22,9 +22,14 @@ export function planBuybackChunks(o: BuybackPlanOptions): bigint[] {
     // Random size in [min, max], never more than what's left.
     let size = o.minChunkLamports + (span > 0n ? BigInt(Math.floor(rng() * Number(span))) : 0n);
     if (size > budget) size = budget;
-    // Absorb a dust remainder below the minimum chunk, but never beyond the max chunk (the max is a
-    // price-impact limit); otherwise the dust simply stays in the vault for a later run.
-    if (budget - size > 0n && budget - size < o.minChunkLamports && budget <= o.maxChunkLamports) size = budget;
+    // Never strand a sub-minimum remainder when it can be avoided, and never exceed the max chunk
+    // (a price-impact limit): either take everything (fits in one chunk) or shrink this chunk so
+    // exactly the minimum is left for the next one. Only if neither is possible does dust stay.
+    const rest = budget - size;
+    if (rest > 0n && rest < o.minChunkLamports) {
+      if (budget <= o.maxChunkLamports) size = budget;
+      else if (budget - o.minChunkLamports >= o.minChunkLamports) size = budget - o.minChunkLamports;
+    }
     chunks.push(size);
     budget -= size;
   }
