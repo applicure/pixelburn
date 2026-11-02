@@ -60,9 +60,17 @@ class MockWorld {
   uploads = new Map<string, string>();
   started = false;
 
+  /** Mock-only launch-day override: `?empty=1` starts with nothing sold; add `&live=1` to watch the first buys land. */
+  empty = false;
+  liveWhenEmpty = false;
+
   constructor() {
     const r = this.rand;
     for (let i = 0; i < 520; i++) this.owners.push(base58(r));
+    const q = typeof window !== "undefined" ? new URLSearchParams(window.location.search) : null;
+    this.empty = q?.get("empty") === "1";
+    this.liveWhenEmpty = q?.get("live") === "1";
+    if (this.empty) return;
     this.seedAds();
     this.seedBuybacks();
   }
@@ -356,6 +364,7 @@ class MockWorld {
   simulateBuyback() {
     const s = this.stats();
     const avail = BigInt(s.lamportsToBuyback) - BigInt(s.lamportsSpentBuyback);
+    if (this.empty && avail <= 0n) return; // nothing in the vault yet, nothing to burn
     const lamportsIn = avail > 0n ? avail / 3n + BigInt(Math.round(this.rand() * 3 * LAMPORTS_PER_SOL)) : BigInt(Math.round((1 + this.rand() * 4) * LAMPORTS_PER_SOL));
     const b = { sig: base58(this.rand, 88), ts: Date.now(), lamportsIn, tokensBurned: this.tokensFor(lamportsIn) };
     this.buybacks.push(b);
@@ -365,6 +374,7 @@ class MockWorld {
 
   start() {
     if (this.started) return;
+    if (this.empty && !this.liveWhenEmpty) return; // a frozen, empty launch-day world
     this.started = true;
     const loopP = () => {
       this.timers.push(setTimeout(() => { this.simulatePurchase(); loopP(); }, 3200 + this.rand() * 4200));

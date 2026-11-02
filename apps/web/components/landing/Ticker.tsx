@@ -16,7 +16,18 @@ function line(f: FeedItem) {
 export function Ticker() {
   const feed = useLive((s) => s.feed);
   const items = feed.slice(0, 14);
-  if (!items.length) return <div className="h-11 border-y border-char" aria-hidden />;
+  const stats = useLive((s) => s.stats);
+  if (!items.length)
+    return (
+      <div className="flex h-11 items-center justify-center gap-3 border-y border-char px-4 text-[0.85rem]">
+        {stats ? (
+          <>
+            <span className="inline-block h-2 w-2 animate-[flicker_2s_infinite] bg-flame" aria-hidden />
+            <span className="text-heat/85">No purchases yet. Every one of the 10,000 blocks is open, from $100.</span>
+          </>
+        ) : null}
+      </div>
+    );
   const row = (dup: boolean) =>
     items.map((f) => (
       <span key={(dup ? "b" : "a") + f.sig} className="flex shrink-0 items-center gap-3 pr-10">

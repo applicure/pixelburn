@@ -118,11 +118,21 @@ export function BurnsPage() {
       <section className="relative overflow-hidden pb-16 pt-16 sm:pt-24" aria-labelledby="burns-title">
         <div aria-hidden className="pointer-events-none absolute inset-x-0 top-0 -z-10 h-[120%] bg-[radial-gradient(70%_60%_at_20%_0%,rgba(255,91,20,.22),transparent_70%)]" />
         <div className="mx-auto max-w-[1400px] px-4 sm:px-6">
-          <KineticHeading as="h1" lines={["Burned,", "on the record."]} className="font-black text-[clamp(3rem,10vw,8.5rem)] leading-[0.88]" rest={104} />
+          <KineticHeading as="h1" lines={["Burned,", "on the record."]} className="font-black text-[clamp(2.4rem,9.4vw,8.5rem)] leading-[0.92]" rest={96} />
           <p className="mt-6 max-w-[52ch] text-heat/85">
             Every token below is gone for good. Two ways in: buyers who pay in {BRAND.ticker} burn it directly, and the
             buyback vault spends half of every SOL purchase on {BRAND.ticker} and burns that too.
           </p>
+          {stats && burned === 0 ? (
+            <div className="mt-12 border-y border-char py-8">
+              <p className="font-display text-[clamp(2rem,5vw,3.6rem)] font-black leading-none [font-variation-settings:'wdth'_70]">
+                Nothing burned yet.
+              </p>
+              <p className="mt-3 text-heat/80">
+                All {fmtInt(supply0)} {BRAND.ticker} are still in circulation. The record starts with the first purchase.
+              </p>
+            </div>
+          ) : (
           <div className="mt-12 grid gap-px bg-char sm:grid-cols-3">
             <div className="bg-soot py-5 pr-6">
               <p className="text-[clamp(2.2rem,4.2vw,3.9rem)] font-medium leading-none text-cone">
@@ -144,6 +154,7 @@ export function BurnsPage() {
               <p className="mt-3 text-[0.9rem] text-ash">{BRAND.ticker} still in circulation</p>
             </div>
           </div>
+          )}
           <div className="mt-6">
             <Bar
               parts={[
@@ -153,6 +164,13 @@ export function BurnsPage() {
               ]}
             />
             <p className="mt-2 text-[0.8rem] text-ash">Full bar is the starting supply of {fmtInt(supply0)} {BRAND.ticker} ({TOKEN_DECIMALS} decimals).</p>
+            {stats && burned === 0 && (
+              <p className="mt-6 flex max-w-[62ch] gap-2.5 text-[0.95rem] text-heat/85">
+                <span className="mt-2 block h-2 w-2 shrink-0 animate-[flicker_2s_infinite] bg-flame" aria-hidden />
+                How it starts: the first {BRAND.ticker}-paid block burns in its own transaction; the first SOL purchase
+                fills the buyback vault for the next buyback. Every one will be listed here with its transaction.
+              </p>
+            )}
           </div>
         </div>
       </section>
@@ -164,7 +182,13 @@ export function BurnsPage() {
             The firing curve
           </h2>
           <p className="mb-8 mt-3 max-w-[52ch] text-heat/80">Cumulative {BRAND.ticker} burned. Steps up are buybacks landing; the slope between them is people paying in {BRAND.ticker}.</p>
-          {stats && merged.length > 1 ? <BurnChart feed={merged} stats={stats} now={now} /> : <div className="h-[360px] animate-pulse bg-char/40" aria-label="Loading chart" />}
+          {!stats || history.loading ? (
+            <div className="h-[360px] animate-pulse bg-char/40" aria-label="Loading chart" />
+          ) : burned === 0 ? (
+            <EmptyCurve />
+          ) : (
+            <BurnChart feed={merged} stats={stats} now={now} />
+          )}
         </div>
       </section>
 
@@ -258,6 +282,15 @@ export function BurnsPage() {
                 )}
               </tbody>
             </table>
+            {!pages.loading && buybacks.length === 0 && (
+              <div className="border-b border-char py-8">
+                <p className="text-heat/85">No buybacks yet.</p>
+                <p className="mt-1 max-w-[52ch] text-[0.88rem] text-ash">
+                  Half of every SOL purchase lands in the buyback vault. When it holds enough, it buys {BRAND.ticker} on the market and
+                  burns it, and the transaction shows up here.
+                </p>
+              </div>
+            )}
             {pages.next && (
               <button className="btn-line mt-5" onClick={loadMore} disabled={pages.loading}>
                 {pages.loading ? "Loading…" : "Load older buybacks"}
@@ -270,6 +303,15 @@ export function BurnsPage() {
               Biggest holders of the wall
             </h2>
             {board.error && <p className="mt-4 text-flame">{board.error}</p>}
+            {board.data && board.data.length === 0 && (
+              <div className="mt-6 border-y border-char py-8">
+                <p className="flex items-baseline gap-3 text-heat/85">
+                  <span className="num text-cone">1</span> The top spot is open.
+                </p>
+                <p className="mt-1 max-w-[46ch] text-[0.88rem] text-ash">Nobody holds any of the wall yet. Whoever buys first leads this list.</p>
+                <a href="/canvas?select=1&w=1&h=1" className="btn-line mt-5">Claim the first block</a>
+              </div>
+            )}
             <ol className="mt-6 divide-y divide-char border-y border-char">
               {(board.data ?? []).slice(0, 15).map((r, i) => {
                 const top = board.data?.[0]?.blocks ?? 1;
@@ -297,5 +339,24 @@ export function BurnsPage() {
         </div>
       </section>
     </main>
+  );
+}
+
+/** The firing curve before anything has burned: the axis is there, the line waits at zero. */
+function EmptyCurve() {
+  return (
+    <figure className="relative h-[300px] sm:h-[360px]" aria-label="No burns yet: the curve starts at the first purchase">
+      <svg className="absolute inset-0 h-full w-full" preserveAspectRatio="none" viewBox="0 0 100 100" aria-hidden>
+        {[20, 40, 60, 80].map((y) => (
+          <line key={y} x1="0" x2="100" y1={y} y2={y} stroke="#1c1714" strokeWidth="0.4" vectorEffect="non-scaling-stroke" />
+        ))}
+        <line x1="0" x2="100" y1="96" y2="96" stroke="#9a9087" strokeWidth="1.5" strokeDasharray="4 6" vectorEffect="non-scaling-stroke" />
+      </svg>
+      <span className="absolute bottom-[4%] right-0 block h-3 w-3 -translate-y-1/2 translate-x-1/2 animate-[flicker_2s_infinite] bg-flame shadow-[0_0_18px_4px_rgba(255,91,20,.55)]" aria-hidden />
+      <figcaption className="absolute left-0 top-[18%] max-w-[34ch]">
+        <p className="font-display text-[clamp(1.5rem,3vw,2.2rem)] font-black leading-none [font-variation-settings:'wdth'_100]">The curve starts at zero.</p>
+        <p className="mt-2 text-[0.92rem] text-ash">It climbs with the first {BRAND.ticker}-paid block and steps up with every buyback.</p>
+      </figcaption>
+    </figure>
   );
 }

@@ -270,8 +270,8 @@ function Inner() {
       {/* stats + zoom */}
       <div className="absolute right-3 top-[4.25rem] flex flex-col items-end gap-2 sm:right-5">
         <div className="bg-soot/85 px-3 py-2 text-right ring-1 ring-char backdrop-blur-md">
-          <p className="num text-[0.95rem] leading-none">{pct.toFixed(2)}%</p>
-          <p className="mt-1 text-[0.7rem] text-ash">sold</p>
+          <p className="num text-[0.95rem] leading-none">{pct === 0 ? "0" : `${pct.toFixed(2)}%`}</p>
+          <p className="mt-1 text-[0.7rem] text-ash">{pct === 0 ? "sold yet" : "sold"}</p>
         </div>
         <div className="flex flex-col bg-soot/85 ring-1 ring-char backdrop-blur-md">
           <button className="grid h-10 w-10 place-items-center hover:bg-char" onClick={() => vp.current?.zoomBy(1.6)} aria-label="Zoom in">
@@ -324,6 +324,12 @@ function Inner() {
           </motion.div>
         )}
       </AnimatePresence>
+      {stats && stats.soldBlocks === 0 && !sel && !sheet && (
+        <div className="pointer-events-none absolute left-3 right-[4.75rem] top-[8.25rem] bg-soot/90 px-4 py-3 ring-1 ring-cone/50 backdrop-blur-md sm:left-1/2 sm:right-auto sm:top-[5rem] sm:w-[26rem] sm:-translate-x-1/2 sm:text-center">
+          <p className="font-display text-[1.15rem] font-extrabold leading-tight [font-variation-settings:'wdth'_110]">Every block is open.</p>
+          <p className="mt-1 text-[0.85rem] text-heat/80">Nobody has bought yet. Pick any spot: the first ad on the wall is yours for $100 a block.</p>
+        </div>
+      )}
       {mode === "select" && !sel && (
         <p className="pointer-events-none absolute bottom-5 right-5 hidden max-w-xs bg-soot/85 px-3 py-2 text-[0.85rem] text-heat/85 ring-1 ring-char sm:block">
           {hint}

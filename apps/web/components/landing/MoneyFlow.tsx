@@ -50,7 +50,8 @@ export function MoneyFlow() {
   const [flare, setFlare] = useState<{ sol: string; tokens: string; key: string } | null>(null);
   const burstRef = useRef(0);
   // treasury vessel level = treasury value / the $500k it would hold at sell-out if every block were paid in SOL
-  const fillTarget = stats ? Math.min(0.95, Math.max(0.02, (lamportsToSol(stats.lamportsToTreasury) * stats.solPriceUsd) / 500_000)) : 0.02;
+  const fillReal = stats ? (lamportsToSol(stats.lamportsToTreasury) * stats.solPriceUsd) / 500_000 : 0;
+  const fillTarget = Math.min(0.95, Math.max(0.02, fillReal)); // visual floor so the vessel never looks broken
   const fillRef = useRef(fillTarget);
   useEffect(() => {
     fillRef.current = fillTarget;
@@ -254,6 +255,9 @@ export function MoneyFlow() {
             Every SOL purchase splits in the same transaction. Half lands in the treasury. The other half goes to the
             buyback vault, which can only do one thing: buy {BRAND.ticker} on the market and burn it.
           </p>
+          {stats && BigInt(stats.lamportsRaised) === 0n ? (
+            <FirstBlockSplit solUsd={stats.solPriceUsd} tokenUsd={stats.tokenPriceUsd} />
+          ) : (
           <dl className="mt-10 grid grid-cols-1 gap-px bg-char sm:grid-cols-2">
             <div className="bg-soot py-4 pr-4">
               <dt className="text-[0.85rem] text-cobalt-hi">Treasury, 50%</dt>
@@ -274,6 +278,7 @@ export function MoneyFlow() {
               </dd>
             </div>
           </dl>
+          )}
         </div>
 
         <div className="relative lg:col-span-7">
@@ -282,7 +287,7 @@ export function MoneyFlow() {
             <span className="absolute left-1/2 top-0 -translate-x-1/2 -translate-y-full pb-1 text-[0.85rem] text-heat">Your SOL</span>
             <span className="absolute left-[20%] top-[88%] -translate-x-1/2 whitespace-nowrap text-center text-[0.85rem] leading-tight text-cobalt-hi">
               Treasury
-              <span className="num block text-[0.7rem] text-ash">{Math.round(fillTarget * 100)}% of sell-out</span>
+              <span className="num block text-[0.7rem] text-ash">{fillReal === 0 ? "empty for now" : fillReal < 0.01 ? "under 1% of sell-out" : `${Math.round(fillReal * 100)}% of sell-out`}</span>
             </span>
             <span className="absolute left-[80%] top-[88%] -translate-x-1/2 whitespace-nowrap text-[0.85rem] text-flame">Buyback, then burn</span>
             <AnimatePresence>
@@ -307,5 +312,31 @@ export function MoneyFlow() {
         </div>
       </div>
     </section>
+  );
+}
+
+/** Nothing raised yet: instead of three zeros, show what the first $100 block does at today's prices. */
+function FirstBlockSplit({ solUsd, tokenUsd }: { solUsd: number; tokenUsd: number }) {
+  const sol = solUsd > 0 ? 100 / solUsd : 0;
+  const tokens = tokenUsd > 0 ? 50 / tokenUsd : 0;
+  return (
+    <div className="mt-10">
+      <p className="text-[0.95rem] text-heat/85">Nothing raised yet. Here is what the first $100 block paid in SOL does, at today&apos;s prices:</p>
+      <dl className="mt-4 grid grid-cols-1 gap-px bg-char sm:grid-cols-3">
+        <div className="bg-soot py-4 pr-4">
+          <dt className="text-[0.85rem] text-cobalt-hi">To the treasury</dt>
+          <dd className="num mt-1 text-[1.5rem]">{solUsd > 0 ? (sol / 2).toFixed(3) : "…"} <span className="text-[0.8rem] text-ash">SOL</span></dd>
+        </div>
+        <div className="bg-soot py-4 pr-4">
+          <dt className="text-[0.85rem] text-flame">To the buyback vault</dt>
+          <dd className="num mt-1 text-[1.5rem]">{solUsd > 0 ? (sol / 2).toFixed(3) : "…"} <span className="text-[0.8rem] text-ash">SOL</span></dd>
+        </div>
+        <div className="bg-soot py-4 pr-4">
+          <dt className="text-[0.85rem] text-ash">Then burned, estimated</dt>
+          <dd className="num mt-1 text-[1.5rem] text-cone">{tokenUsd > 0 ? fmtCompact(tokens) : "…"} <span className="text-[0.8rem] text-ash">{BRAND.ticker}</span></dd>
+        </div>
+      </dl>
+      <p className="mt-3 text-[0.78rem] text-ash">The burn is an estimate: the vault buys later, at the price of the day.</p>
+    </div>
   );
 }

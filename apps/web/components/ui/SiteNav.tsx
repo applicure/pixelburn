@@ -55,7 +55,7 @@ export function SiteNav() {
             <span className="relative block h-1.5 w-16 bg-char">
               <span className="absolute inset-y-0 left-0 bg-flame" style={{ width: `${pct}%` }} />
             </span>
-            <span className="num">{pct.toFixed(2)}% sold</span>
+            <span className="num">{pct === 0 ? "all blocks open" : `${pct.toFixed(2)}% sold`}</span>
           </Link>
         )}
 

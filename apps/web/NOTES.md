@@ -131,6 +131,24 @@ Not exercised against a live cluster from this workstream (no deployed program /
   the expected token burn for a SOL purchase at current prices (the success card currently estimates half of
   the USD at the quoted token price).
 
+## Launch-day / early states
+
+When nothing is sold (`soldBlocks === 0`), or the wall is under 2% sold (`< 200` blocks):
+- **Hero**: the nearest free block to the centre glows in the WebGL scene (shader uniform `uClaim`) with a pulsing
+  ring and a "Be the first." / "N claimed. Yours next." price tag. At 0 the counters read "All 10,000 open" /
+  "Starts with the first buy", and the CTA becomes "Claim the first block".
+- **Nav chip and ticker**: "all blocks open", and a static "No purchases yet…" band.
+- **Money flow**: the zero counters are replaced by what the first $100 block does at today's prices (an estimate),
+  and the vessel reads "empty for now".
+- **Live from the kiln**: a "The kiln is cold." panel replaces the zero readouts; the firing log shows a waiting state.
+- **/burns**: "Nothing burned yet." statement, an empty firing curve with a waiting ember, empty buybacks with an
+  explanation, and "the top spot is open" on the leaderboard.
+- **/canvas**: an "Every block is open." hint.
+- Everything switches to the normal UI on the first `stats`/`feed` update, with no reload; the claim glow fades out
+  in the shader.
+- Mock overrides: `?empty=1` for a frozen empty world, `?empty=1&live=1` to watch the first buys land.
+  `node scripts/emptyshots.mjs <base>` captures every state.
+
 ## Known gaps (honest list)
 
 - Lighthouse mobile on `/` (prod build; same numbers for the Docker image against the real API):

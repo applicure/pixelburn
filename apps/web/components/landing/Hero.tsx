@@ -1,13 +1,34 @@
 "use client";
 import dynamic from "next/dynamic";
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useReducedMotion } from "motion/react";
 import { KineticHeading } from "@/components/ui/KineticHeading";
 import { LiveCanvas } from "@/components/ui/LiveCanvas";
 import { BRAND, TOTAL_BLOCKS } from "@/lib/config";
 import { fmtCompact, fmtInt, tokensToWhole } from "@/lib/format";
 import { useLive } from "@/lib/store";
+
+const EARLY_BLOCKS = 200;
+
+/** Free block closest to the centre of the wall (where the claim tag lines up best with the tilted plane). */
+function nearestFree(occ: Uint8Array) {
+  let best: { x: number; y: number } | null = null;
+  let bd = Infinity;
+  for (let r = 0; r < 50 && !best; r++)
+    for (let y = 49 - r; y <= 50 + r; y++)
+      for (let x = 49 - r; x <= 50 + r; x++) {
+        if (x < 0 || y < 0 || x > 99 || y > 99) continue;
+        const i = y * 100 + x;
+        if ((occ[i >> 3] >> (i & 7)) & 1) continue;
+        const d = Math.hypot(x - 49.5, y - 49.5);
+        if (d < bd) {
+          bd = d;
+          best = { x, y };
+        }
+      }
+  return best;
+}
 
 const KilnScene = dynamic(() => import("./KilnScene"), { ssr: false });
 
@@ -24,6 +45,12 @@ export function Hero() {
   const [gl, setGl] = useState<boolean | null>(null);
   const [sceneOn, setSceneOn] = useState(false);
   const stats = useLive((s) => s.stats);
+  // launch day (nothing sold) and the early days (< 2% sold): keep one claimable block glowing near the centre
+  const occupancy = useLive((s) => s.occupancy);
+  const sold = stats?.soldBlocks ?? null;
+  const launch = sold === 0;
+  const early = sold !== null && sold < EARLY_BLOCKS;
+  const claim = useMemo(() => (early ? nearestFree(occupancy) : null), [early, occupancy]);
   // small screens: the 2D poster paints first; WebGL hydrates after idle, already assembled
   const [poster, setPoster] = useState(true);
   useEffect(() => {
@@ -65,7 +92,8 @@ export function Hero() {
               <LiveCanvas className="h-full w-full shadow-[0_30px_120px_-20px_rgba(255,91,20,.45)]" />
             </div>
           )}
-          {gl && <KilnScene assembled={small} onReady={() => setSceneOn(true)} />}
+          {gl && <KilnScene assembled={small} claim={claim} onReady={() => setSceneOn(true)} />}
+          <ClaimTag claim={claim} sold={sold ?? 0} />
           <p className="sr-only">
             The live billboard: {stats ? fmtInt(stats.soldBlocks) : "…"} of {fmtInt(TOTAL_BLOCKS)} blocks are sold and showing ads.
           </p>
@@ -93,29 +121,75 @@ export function Hero() {
               burns {BRAND.ticker}. Pay in {BRAND.ticker} instead and every token you pay is burned.
             </p>
             <div className="mt-6 flex flex-wrap items-center gap-3 sm:mt-8">
-              <Link href="/canvas?select=1" className="btn-fire text-lg">
-                Buy pixels
+              <Link href={launch ? `/canvas?select=1&w=1&h=1` : "/canvas?select=1"} className="btn-fire text-lg">
+                {launch ? "Claim the first block" : "Buy pixels"}
               </Link>
               <Link href="/canvas" className="btn-line">
                 Explore the canvas
               </Link>
             </div>
             <dl className="mt-6 grid max-w-md grid-cols-2 gap-x-6 border-t border-char pt-3 text-[0.82rem] sm:mt-10 sm:pt-4">
-              <div>
-                <dt className="text-ash">Blocks sold</dt>
-                <dd className="mt-1 text-[1.1rem] font-semibold tabular-nums text-heat">
-                  {stats ? fmtInt(stats.soldBlocks) : "—"}
-                  <span className="text-ash"> / 10,000</span>
-                </dd>
-              </div>
-              <div>
-                <dt className="text-ash">{BRAND.ticker} burned</dt>
-                <dd className="mt-1 text-[1.1rem] font-semibold tabular-nums text-cone">{stats ? fmtCompact(tokensToWhole(stats.tokensBurned)) : "—"}</dd>
-              </div>
+              {launch ? (
+                <>
+                  <div>
+                    <dt className="text-ash">Open blocks</dt>
+                    <dd className="mt-1 text-[1.1rem] font-semibold text-heat">All 10,000</dd>
+                  </div>
+                  <div>
+                    <dt className="text-ash">Burned so far</dt>
+                    <dd className="mt-1 text-[1.1rem] font-semibold text-cone">Starts with the first buy</dd>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div>
+                    <dt className="text-ash">Blocks sold</dt>
+                    <dd className="mt-1 text-[1.1rem] font-semibold tabular-nums text-heat">
+                      {stats ? fmtInt(stats.soldBlocks) : "—"}
+                      <span className="text-ash"> / 10,000</span>
+                    </dd>
+                  </div>
+                  <div>
+                    <dt className="text-ash">{BRAND.ticker} burned</dt>
+                    <dd className="mt-1 text-[1.1rem] font-semibold tabular-nums text-cone">{stats ? fmtCompact(tokensToWhole(stats.tokensBurned)) : "—"}</dd>
+                  </div>
+                </>
+              )}
             </dl>
           </div>
         </div>
       </div>
     </section>
+  );
+}
+
+/**
+ * Launch-day / early tag: a pulsing ring on the claimable block plus a price tag. The block sits near the centre,
+ * where the tilted WebGL plane barely moves, so the ring lines up with the in-scene glow (and with the 2D poster).
+ */
+function ClaimTag({ claim, sold }: { claim: { x: number; y: number } | null; sold: number }) {
+  const show = !!claim;
+  // plane spans 1/1.06 of the square mount, centred
+  const pos = (b: number) => 50 + (b + 0.5 - 50) * (100 / 106);
+  const lx = claim ? pos(claim.x) : 50;
+  const ly = claim ? pos(claim.y) : 50;
+  return (
+    <div className="pointer-events-none absolute inset-0 transition-opacity duration-700" style={{ opacity: show ? 1 : 0 }} aria-hidden={!show}>
+      <span className="claim-ring absolute block h-[2.6%] w-[2.6%] -translate-x-1/2 -translate-y-1/2 border-2 border-cone" style={{ left: `${lx}%`, top: `${ly}%` }} />
+      <span className="absolute block h-px w-[9%] origin-left -rotate-[32deg] bg-cone/70" style={{ left: `${lx + 1}%`, top: `${ly - 0.6}%` }} />
+      <Link
+        href="/canvas?select=1&w=1&h=1"
+        tabIndex={show ? 0 : -1}
+        className="pointer-events-auto absolute block bg-soot/90 px-3 py-2.5 ring-1 ring-cone/60 backdrop-blur hover:ring-cone sm:px-4 sm:py-3"
+        style={{ left: `${Math.min(lx + 8, 62)}%`, top: `${ly - 12}%` }}
+      >
+        <span className="block font-display text-[clamp(0.95rem,1.6vw,1.25rem)] font-extrabold leading-none [font-variation-settings:'wdth'_115]">
+          {sold === 0 ? "Be the first." : `${fmtInt(sold)} claimed. Yours next.`}
+        </span>
+        <span className="mt-1 block text-[clamp(0.72rem,1vw,0.85rem)] text-heat/80">
+          One block, <span className="num text-cone">10×10 px</span>, $100
+        </span>
+      </Link>
+    </div>
   );
 }

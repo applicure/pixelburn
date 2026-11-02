@@ -19,6 +19,8 @@ const VERT = /* glsl */ `
   uniform float uHover;
   uniform vec4 uFlash;
   uniform float uFlashT;
+  uniform vec2 uClaim;
+  uniform float uClaimOn;
   out vec2 vUv;
   out float vHeat;
   out float vGlow;
@@ -45,7 +47,12 @@ const VERT = /* glsl */ `
     float inFlash = step(uFlash.x, aGrid.x) * step(aGrid.x, uFlash.x + uFlash.z - 1.0)
                   * step(uFlash.y, aGrid.y) * step(aGrid.y, uFlash.y + uFlash.w - 1.0);
     float fl = inFlash * uFlashT;
-    p.z += (bump * 4.0 + fl * 9.0) * e;
+    // launch day: one claimable block breathes with heat, its neighbours warm up around it
+    float dc = length(aGrid - uClaim);
+    float pulse = 0.72 + 0.28 * sin(uTime * 2.1);
+    float isClaim = 1.0 - step(0.5, dc);
+    float claim = uClaimOn * (exp(-dc * dc / 26.0) * 0.55 * pulse + isClaim * 1.35 * pulse);
+    p.z += (bump * 4.0 + fl * 9.0 + isClaim * uClaimOn * 2.5) * e;
 
     float ang = (1.0 - e) * (aSeed - 0.5) * 9.0;
     float sc = mix(0.42, 1.0, e) * (1.0 + fl * 0.12);
@@ -53,7 +60,7 @@ const VERT = /* glsl */ `
     q = mat2(cos(ang), -sin(ang), sin(ang), cos(ang)) * q;
 
     vHeat = 1.0 - smoothstep(0.55, 1.0, t);
-    vGlow = bump + fl * 1.6;
+    vGlow = bump + fl * 1.6 + claim * e;
     gl_Position = projectionMatrix * modelViewMatrix * vec4(p + vec3(q, 0.0), 1.0);
   }
 `;
@@ -137,7 +144,16 @@ const EMBER_FRAG = /* glsl */ `
   }
 `;
 
-export default function KilnScene({ onReady, assembled = false }: { onReady?: () => void; assembled?: boolean }) {
+export default function KilnScene({
+  onReady,
+  assembled = false,
+  claim = null,
+}: {
+  onReady?: () => void;
+  assembled?: boolean;
+  /** block to present as claimable (launch day); null once ads exist */
+  claim?: { x: number; y: number } | null;
+}) {
   const mountRef = useRef<HTMLDivElement>(null);
   const version = useLive((s) => s.canvasVersion);
   const ready = useLive((s) => s.ready);
@@ -148,6 +164,11 @@ export default function KilnScene({ onReady, assembled = false }: { onReady?: ()
     if (texRef.current) texRef.current.needsUpdate = true;
     if (uniRef.current && ready) uniRef.current.uReady.value = 1;
   }, [version, ready]);
+  const claimTarget = useRef(0);
+  useEffect(() => {
+    claimTarget.current = claim ? 1 : 0;
+    if (uniRef.current && claim) uniRef.current.uClaim.value.set(claim.x, claim.y);
+  }, [claim]);
 
   useEffect(() => {
     const mount = mountRef.current;
@@ -202,6 +223,8 @@ export default function KilnScene({ onReady, assembled = false }: { onReady?: ()
       uFlash: { value: new THREE.Vector4(-10, -10, 0, 0) },
       uFlashT: { value: 0 },
       uReady: { value: ready ? 1 : 0 },
+      uClaim: { value: new THREE.Vector2(claim?.x ?? -99, claim?.y ?? -99) },
+      uClaimOn: { value: 0 },
     };
     uniRef.current = uniforms;
     const mat = new THREE.ShaderMaterial({
@@ -305,6 +328,8 @@ export default function KilnScene({ onReady, assembled = false }: { onReady?: ()
       const startAt = uniforms.uReady.value ? 0.15 : 99;
       uniforms.uProgress.value = assembled ? 1 : Math.min(1, Math.max(0, (t - startAt) / 3.4));
       uniforms.uHover.value += (hoverTarget - uniforms.uHover.value) * 0.08;
+      // fade the claim glow in/out so the switch to the normal state is seamless
+      uniforms.uClaimOn.value += (claimTarget.current * Math.min(1, uniforms.uProgress.value * 1.2) - uniforms.uClaimOn.value) * 0.04;
       if (flashStart > 0) {
         const ft = (now - flashStart) / 1000;
         uniforms.uFlashT.value = ft < 0.15 ? ft / 0.15 : Math.max(0, 1 - (ft - 0.15) / 1.6);
