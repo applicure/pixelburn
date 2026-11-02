@@ -4,7 +4,7 @@ import type { ChainReader } from "../chain/accounts.js";
 import type { Logger } from "../lib/log.js";
 import { sendIxs, type KeeperActions, type SendOptions } from "./actions.js";
 import type { SwapPlan, SwapRoute } from "./routes.js";
-import { jittered, minBuybackTokens, planBuybackChunks } from "./plan.js";
+import { checkDeviation, jittered, minBuybackTokens, planBuybackChunks } from "./plan.js";
 
 export interface KeeperConfig {
   live: boolean;
@@ -20,6 +20,10 @@ export interface KeeperConfig {
   maxPriceImpactPct: number;
   jupiterApiUrl: string;
   jito: { enabled: boolean; url: string; tipLamports: number };
+  /** Skip when spot is (or would be) more than this % above the fast EMA (program pauses token pay at 15%). */
+  maxSpotOverEmaPct: number;
+  /** Cap on the projected cumulative spot increase caused by one run. */
+  maxRunPriceMovePct: number;
   /** KEEPER_BUYBACK_ENABLED: false = crank only. */
   buybackEnabled: boolean;
   /** Leave an outstanding release alone for this long (someone may be mid-way through a manual run). */
@@ -148,8 +152,15 @@ export class Keeper {
       this.log.warn(`buyback: skipped, token EMA not usable (${price.unavailable.reason}: ${price.unavailable.detail})`);
       return { chunks: [], sent };
     }
+    // Deviation guard: token payments pause when spot > fast EMA x 1.15 (one-sided band). A buyback
+    // pushes spot UP, so it must never be the thing that trips that band. Two limits per run:
+    //  - skip if spot is already more than maxSpotOverEmaPct above the fast EMA (now, or projected
+    //    after the next chunk);
+    //  - cap the run's cumulative projected spot increase at maxRunPriceMovePct.
+    let runFactor = 1; // product of projected per-chunk spot multipliers
     for (const [i, lamports] of chunks.entries()) {
       if (this.stopped) break;
+      const now = i === 0 ? price : ((await this.chain?.fetchTokenPrice().catch(() => null)) ?? price);
       // Fresh plan right before each chunk (min-out bounds slippage and sandwich profit).
       // Routes in priority order: pump curve while the token is on the curve, then Jupiter.
       let plan: SwapPlan | null = null;
@@ -167,6 +178,15 @@ export class Keeper {
         this.log.warn(`buyback chunk ${i}: ${plan.route} price impact ${plan.impactPct.toFixed(3)}% > cap ${this.cfg.maxPriceImpactPct}% — stopping run`);
         break;
       }
+      const guard = checkDeviation({
+        spotQ: now?.spot ?? null, emaQ: now?.ema ?? null, impactPct: plan.impactPct, runFactor,
+        maxSpotOverEmaPct: this.cfg.maxSpotOverEmaPct, maxRunPriceMovePct: this.cfg.maxRunPriceMovePct,
+      });
+      if (!guard.ok) {
+        this.log.warn(`buyback chunk ${i}: ${guard.reason} — stopping run (nothing released)`);
+        break;
+      }
+      runFactor = guard.runFactor;
       // The program rejects the record if tokens < lamports_spent * 1e18 / EMA * (1 - slippage).
       if (price && this.onchainSlippageBps !== null) {
         const chainMin = minBuybackTokens(plan.lamportsSpent, price.ema, this.onchainSlippageBps);
@@ -208,7 +228,10 @@ export class Keeper {
       try {
         await this.crankOnce();
       } catch (e) {
-        this.log.error("crank", e);
+        const msg = (e as Error).message;
+        // 6015 CrankTooSoon: someone else cranked within the 30 s minimum. The EMA is fresh; not an error.
+        if (/"Custom":6015|CrankTooSoon/.test(msg)) this.log.info("crank_token_price: skipped, cranked by someone else < 30 s ago (6015 CrankTooSoon)");
+        else this.log.error(`crank_token_price failed: ${msg.slice(0, 400)}`);
       }
     };
     void crank();

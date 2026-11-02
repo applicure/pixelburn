@@ -48,3 +48,34 @@ export function minBuybackTokens(lamports: bigint, emaQ: bigint, slippageBps: nu
   const fair = (lamports * 10n ** 18n) / emaQ;
   return (fair * BigInt(10_000 - slippageBps)) / 10_000n;
 }
+
+/**
+ * Pre-trade deviation guard for one buyback chunk.
+ * A buy that costs `impactPct` above spot (avg price, fees incl.) moves a constant-product price by
+ * roughly (1 + impact)^2, so the projected post-trade spot is spot * (1 + impact)^2 (conservative:
+ * fees inflate impact). Rejects when spot already exceeds the fast EMA by more than
+ * maxSpotOverEmaPct, when the projected post-trade spot would, or when the run's cumulative
+ * projected move would exceed maxRunPriceMovePct. Unknown prices are rejected (fail closed).
+ */
+export function checkDeviation(o: {
+  spotQ: bigint | null;
+  emaQ: bigint | null;
+  impactPct: number;
+  runFactor: number;
+  maxSpotOverEmaPct: number;
+  maxRunPriceMovePct: number;
+}): { ok: true; runFactor: number } | { ok: false; reason: string } {
+  if (o.spotQ === null || o.emaQ === null || o.emaQ <= 0n) return { ok: false, reason: "spot/EMA unavailable" };
+  const ratio = Number((o.spotQ * 1_000_000n) / o.emaQ) / 1_000_000; // spot / fast EMA
+  const limit = 1 + o.maxSpotOverEmaPct / 100;
+  if (ratio > limit) return { ok: false, reason: `spot already ${((ratio - 1) * 100).toFixed(2)}% above fast EMA (limit ${o.maxSpotOverEmaPct}%)` };
+  const step = (1 + Math.max(0, o.impactPct) / 100) ** 2;
+  if (ratio * step > limit) {
+    return { ok: false, reason: `projected spot ${((ratio * step - 1) * 100).toFixed(2)}% above fast EMA after this chunk (limit ${o.maxSpotOverEmaPct}%)` };
+  }
+  const runFactor = o.runFactor * step;
+  if (runFactor > 1 + o.maxRunPriceMovePct / 100) {
+    return { ok: false, reason: `run would move spot ${((runFactor - 1) * 100).toFixed(2)}% (cap ${o.maxRunPriceMovePct}%)` };
+  }
+  return { ok: true, runFactor };
+}

@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { Connection, Keypair, PublicKey, TransactionInstruction } from "@solana/web3.js";
 import { Keeper, type KeeperConfig } from "../src/keeper/keeper.js";
 import type { KeeperActions } from "../src/keeper/actions.js";
-import { minBuybackTokens } from "../src/keeper/plan.js";
+import { checkDeviation, minBuybackTokens } from "../src/keeper/plan.js";
 import { JupiterRoute, type SwapRoute } from "../src/keeper/routes.js";
 import { silentLogger } from "../src/lib/log.js";
 import { FakeChain, randKey } from "./helpers.js";
@@ -12,7 +12,7 @@ const cfg = (live: boolean): KeeperConfig => ({
   maxChunkLamports: 2_000_000_000n, minChunkLamports: 500_000_000n, maxPerRunLamports: 3_000_000_000n, reserveLamports: 0n,
   slippageBps: 100, maxPriceImpactPct: 1, jupiterApiUrl: "https://jup.invalid", jito: { enabled: false, url: "", tipLamports: 0 },
   chunkDelayMs: { min: 0, jitter: 1 },
-  buybackEnabled: true, outstandingGraceSecs: 900,
+  buybackEnabled: true, outstandingGraceSecs: 900, maxSpotOverEmaPct: 10, maxRunPriceMovePct: 5,
 });
 
 const dummyIx = () => new TransactionInstruction({ programId: PublicKey.default, keys: [], data: Buffer.alloc(0) });
@@ -21,6 +21,7 @@ const dummyIx = () => new TransactionInstruction({ programId: PublicKey.default,
 const explodingConn = new Proxy({}, { get: (_t, p) => (p === "then" ? undefined : () => { throw new Error(`conn.${String(p)} called`); }) }) as unknown as Connection;
 
 afterEach(() => vi.unstubAllGlobals());
+const Q = 10n ** 16n;
 
 describe("keeper", () => {
   it("dry-run never touches the network for sending, even with ix builders available", async () => {
@@ -38,6 +39,7 @@ describe("keeper", () => {
       return new Response(JSON.stringify({ swapInstruction: { programId: PublicKey.default.toBase58(), accounts: [], data: "" }, addressLookupTableAddresses: [] }));
     });
     const chain = new FakeChain();
+    chain.fetchTokenPrice = async () => ({ spot: Q, ema: Q, slow: Q });
     chain.fetchBuybackVaultLamports = async () => 5_000_000_000n;
     const routes = [new JupiterRoute(explodingConn, "https://jup.invalid", randKey(), 100, silentLogger)];
     const k = new Keeper(explodingConn, null, actions, chain, cfg(false), silentLogger, async () => {}, routes);
@@ -57,6 +59,7 @@ describe("keeper", () => {
     };
     const noRoute: SwapRoute = { name: "none", plan: async () => null }; // e.g. Jupiter can't route PXTEST on devnet
     const chain = new FakeChain();
+    chain.fetchTokenPrice = async () => ({ spot: Q, ema: Q, slow: Q });
     chain.fetchBuybackVaultLamports = async () => 5_000_000_000n;
     const k = new Keeper(explodingConn, null, actions, chain, cfg(false), silentLogger, async () => {}, [noRoute]);
     const r = await k.buybackOnce();
@@ -69,6 +72,7 @@ describe("keeper", () => {
     const curve: SwapRoute = { name: "pump-curve", plan: async (l) => (planned.push(l), { route: "pump-curve", minTokensOut: 10n ** 12n, lamportsSpent: l, impactPct: 0.5, build: async () => ({ ixs: [dummyIx()], lookupTables: [] }) }) };
     const jup: SwapRoute = { name: "jupiter", plan: async () => { throw new Error("must not be reached"); } };
     const chain = new FakeChain();
+    chain.fetchTokenPrice = async () => ({ spot: Q, ema: Q, slow: Q });
     chain.fetchBuybackVaultLamports = async () => 50_000_000_000n;
     (chain as any).fetchBuybackReleasable = async () => 1_000_000_000n;
     const actions: KeeperActions = { crankTokenPriceIxs: async () => null, releaseBuybackIxs: async () => [dummyIx()], recordBuybackBurnIxs: async () => [dummyIx()] };
@@ -87,6 +91,7 @@ describe("keeper", () => {
     };
     const route: SwapRoute = { name: "pumpswap-pool", plan: async (l) => ({ route: "pumpswap-pool", minTokensOut: 7n, lamportsSpent: l - 1n, impactPct: 1, build: async () => ({ ixs: [dummyIx()], lookupTables: [] }) }) };
     const chain = new FakeChain();
+    chain.fetchTokenPrice = async () => ({ spot: Q, ema: Q, slow: Q });
     chain.fetchBuybackVaultLamports = async () => 5_000_000_000n;
     let since = 60;
     (chain as any).fetchBuybackOutstanding = async () => ({ lamports: 20_000_000n, sinceSecs: since });
@@ -106,6 +111,7 @@ describe("keeper", () => {
       recordBuybackBurnIxs: async (_k, l, t) => (calls.push(`record ${l} ${t}`), [dummyIx()]),
     };
     const chain = new FakeChain();
+    chain.fetchTokenPrice = async () => ({ spot: Q, ema: Q, slow: Q });
     chain.fetchBuybackVaultLamports = async () => 5_000_000_000n;
     (chain as any).fetchBuybackOutstanding = async () => ({ lamports: 20_000_000n, sinceSecs: 5_000 });
     await new Keeper(explodingConn, null, actions, chain, cfg(false), silentLogger, async () => {}, []).buybackOnce();
@@ -113,6 +119,39 @@ describe("keeper", () => {
     calls.length = 0;
     await new Keeper(explodingConn, null, actions, chain, { ...cfg(false), buybackEnabled: false }, silentLogger, async () => {}, []).buybackOnce();
     expect(calls).toEqual([]);
+  });
+
+  it("deviation guard: never let a buyback push spot past the band", () => {
+    const base = { emaQ: Q, runFactor: 1, maxSpotOverEmaPct: 10, maxRunPriceMovePct: 5 };
+    expect(checkDeviation({ ...base, spotQ: Q, impactPct: 1 })).toMatchObject({ ok: true }); // 1.01^2 = +2.01%
+    expect(checkDeviation({ ...base, spotQ: (Q * 111n) / 100n, impactPct: 0.1 })).toMatchObject({ ok: false }); // already +11%
+    const near = checkDeviation({ ...base, spotQ: (Q * 108n) / 100n, impactPct: 1.5 }); // 1.08 * 1.015^2 = 1.1126
+    expect(near.ok).toBe(false);
+    expect(checkDeviation({ ...base, spotQ: Q, impactPct: 3 })).toMatchObject({ ok: false }); // 1.03^2 = +6.09% > 5% run cap
+    const a = checkDeviation({ ...base, spotQ: Q, impactPct: 1 });
+    if (!a.ok) throw new Error("first chunk should pass");
+    // cumulative: two +2.01% chunks pass (4.06%), a third would exceed 5%
+    const b = checkDeviation({ ...base, spotQ: Q, impactPct: 1, runFactor: a.runFactor });
+    if (!b.ok) throw new Error("second chunk should pass");
+    expect(checkDeviation({ ...base, spotQ: Q, impactPct: 1, runFactor: b.runFactor })).toMatchObject({ ok: false });
+    expect(checkDeviation({ ...base, spotQ: null, impactPct: 0 })).toMatchObject({ ok: false }); // fail closed
+  });
+
+  it("stops a run before releasing once the projected move would breach the run cap", async () => {
+    const calls: string[] = [];
+    const actions: KeeperActions = {
+      crankTokenPriceIxs: async () => null,
+      releaseBuybackIxs: async (_k, l) => (calls.push(`release ${l}`), [dummyIx()]),
+      recordBuybackBurnIxs: async () => [dummyIx()],
+    };
+    const route: SwapRoute = { name: "pumpswap-pool", plan: async (l) => ({ route: "pumpswap-pool", minTokensOut: 10n ** 12n, lamportsSpent: l, impactPct: 1.9, build: async () => ({ ixs: [dummyIx()], lookupTables: [] }) }) };
+    const chain = new FakeChain();
+    chain.fetchTokenPrice = async () => ({ spot: Q, ema: Q, slow: Q });
+    chain.fetchBuybackVaultLamports = async () => 50_000_000_000n;
+    const k = new Keeper(explodingConn, null, actions, chain, { ...cfg(false), maxPriceImpactPct: 8, minChunkLamports: 500_000_000n, maxChunkLamports: 500_000_000n, maxPerRunLamports: 2_000_000_000n }, silentLogger, async () => {}, [route]);
+    await k.buybackOnce();
+    // +3.84% per chunk: the first fits the 5% run cap, the second (7.8% cumulative) would not
+    expect(calls).toEqual(["release 500000000"]);
   });
 
   it("refuses to start live without a keypair", () => {

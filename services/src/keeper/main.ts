@@ -52,6 +52,8 @@ const keeper = new Keeper(conn, payer, cfg.PROGRAM_ID ? new SdkKeeperActions(con
   chunkDelayMs: { min: 5_000, jitter: 25_000 },
   simulateInDryRun: !!payer,
   buybackEnabled: cfg.KEEPER_BUYBACK_ENABLED,
+  maxSpotOverEmaPct: cfg.KEEPER_BUYBACK_MAX_SPOT_OVER_EMA_PCT,
+  maxRunPriceMovePct: cfg.KEEPER_BUYBACK_MAX_RUN_PRICE_MOVE_PCT,
   outstandingGraceSecs: cfg.KEEPER_OUTSTANDING_GRACE_SECS,
 }, log, undefined, resolveRoutes);
 

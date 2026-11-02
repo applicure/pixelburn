@@ -107,7 +107,13 @@ docker build -f services/Dockerfile --target keeper  -t mpb-keeper .
   curve is complete. An outstanding release (external/manual run or crash) blocks new releases. It is
   left alone for `KEEPER_OUTSTANDING_GRACE_SECS` (900), then resumed as buy + record with the
   outstanding lamports (no new release), or refunded with `record_buyback_burn(0, 0)` when no route
-  can buy. `KEEPER_BUYBACK_ENABLED=0` means crank-only. Devnet sizing (lead): chunks 0.005–0.02 SOL,
+  can buy. `KEEPER_BUYBACK_ENABLED=0` means crank-only. A **deviation guard** keeps buybacks from
+  ever tripping the program's 15% one-sided spot/EMA band (which pauses token payments). Before each
+  chunk it re-reads spot and the fast EMA and projects the post-trade spot as spot·(1+impact)²
+  (conservative, since impact includes fees). It stops the run, releasing nothing, when spot is or
+  would be more than `KEEPER_BUYBACK_MAX_SPOT_OVER_EMA_PCT` (10) above the fast EMA, or when the run's
+  cumulative projected move exceeds `KEEPER_BUYBACK_MAX_RUN_PRICE_MOVE_PCT` (5). Unknown prices fail
+  closed. `CrankTooSoon` (someone else cranked) is logged at info, not as an error. Devnet sizing (lead): chunks 0.005–0.02 SOL,
   ≤ 0.02 SOL per run, impact cap 8%, every 10 ± 2 min. Mainnet should keep the 1% cap.
 - **Pointing at the deployed program**: api needs `PROGRAM_ID` + `TOKEN_MINT`. indexer needs
   `PROGRAM_ID`. keeper needs `PROGRAM_ID` + `KEEPER_KEYPAIR` (must equal `Config.keeper`) + `TOKEN_MINT`

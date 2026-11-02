@@ -10,7 +10,7 @@ import { loadConfig } from "../src/config.js";
 import { buildContext } from "../src/context.js";
 import { createDb } from "../src/db/client.js";
 import { createApp } from "../src/api/app.js";
-import type { AdAccount, AdRef, ChainReader } from "../src/chain/accounts.js";
+import type { AdAccount, AdRef, ChainReader, OnchainTokenPrice } from "../src/chain/accounts.js";
 import { StaticSolPrice, StaticTokenPrice } from "../src/pricing/prices.js";
 import { silentLogger } from "../src/lib/log.js";
 import type { NsfwChecker } from "../src/moderation/checks.js";
@@ -40,7 +40,7 @@ export class FakeChain implements ChainReader {
   async fetchTokenSupply() {
     return this.supply;
   }
-  async fetchTokenPrice() {
+  async fetchTokenPrice(): Promise<OnchainTokenPrice | null> {
     return null;
   }
   async fetchBuybackVaultLamports() {
