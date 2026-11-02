@@ -3,6 +3,7 @@ import { Anybody, Martian_Mono, Schibsted_Grotesk } from "next/font/google";
 import "./globals.css";
 import { SiteNav } from "@/components/ui/SiteNav";
 import { SmoothScroll } from "@/components/ui/SmoothScroll";
+import { SkewGuard } from "@/components/ui/SkewGuard";
 import { BRAND } from "@/lib/config";
 
 const anybody = Anybody({ subsets: ["latin"], axes: ["wdth"], variable: "--font-anybody", display: "swap" });
@@ -44,6 +45,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           Skip to content
         </a>
         <SmoothScroll />
+        <SkewGuard />
         <SiteNav />
         {children}
       </body>

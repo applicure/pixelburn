@@ -4,6 +4,7 @@ import { AnimatePresence, motion, useDragControls, useReducedMotion, type PanInf
 import { api } from "@/lib/api";
 import { mulberry32 } from "@/lib/adArt";
 import { chain, TokenPaymentUnavailable, type BuyStep } from "@/lib/chain";
+import { isChunkLoadError, SKEW_MESSAGE } from "@/lib/skew";
 import { normTokenStatus, SLOW_EMA_HINT, tokenStatusCopy } from "@/lib/tokenStatus";
 import { BRAND, QUOTE_TTL_MS, USE_MOCK } from "@/lib/config";
 import { fmtInt, fmtSol, fmtTokens, fmtUsd, fmt2, explorerTx, tokensToWhole, fmtCompact } from "@/lib/format";
@@ -26,6 +27,7 @@ const STEP_LABEL: Record<BuyStep | "upload", string> = {
 
 /** Wallet-adapter errors often have an empty message; the real cause sits in `.error`. Never show a blank error. */
 function describeError(e: unknown, fallback: string) {
+  if (isChunkLoadError(e)) return SKEW_MESSAGE;
   const err = e as { message?: string; name?: string; error?: { message?: string } } | null;
   const msg = err?.message || err?.error?.message;
   if (msg && msg !== "null") return msg;

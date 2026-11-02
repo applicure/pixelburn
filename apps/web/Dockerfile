@@ -24,7 +24,9 @@ RUN --mount=type=cache,id=pnpm-store,target=/pnpm/store \
 FROM deps AS build
 ARG NEXT_PUBLIC_API_URL=""
 ARG NEXT_PUBLIC_SOLANA_CLUSTER="devnet"
-ENV NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL} NEXT_PUBLIC_SOLANA_CLUSTER=${NEXT_PUBLIC_SOLANA_CLUSTER}
+# Coolify passes SOURCE_COMMIT; it becomes Next's deploymentId (version-skew protection across deploys)
+ARG SOURCE_COMMIT=""
+ENV NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL} NEXT_PUBLIC_SOLANA_CLUSTER=${NEXT_PUBLIC_SOLANA_CLUSTER} NEXT_DEPLOYMENT_ID=${SOURCE_COMMIT}
 COPY packages/sdk packages/sdk
 COPY apps/web apps/web
 RUN pnpm --filter @mpb/sdk build && pnpm --filter @mpb/web build

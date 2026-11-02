@@ -63,6 +63,15 @@ page.on("console", async (m) => {
   errors.push(parts.join(" || ").slice(0, 1200));
 });
 page.on("pageerror", (e) => errors.push("pageerror " + e.message));
+// diagnostics: anything that failed on the wire, plus where console errors come from
+const net = [];
+page.on("requestfailed", (r) => net.push(`FAILED ${r.method()} ${r.url().slice(0, 160)} :: ${r.failure()?.errorText}`));
+page.on("response", (r) => r.status() >= 400 && net.push(`HTTP ${r.status()} ${r.request().method()} ${r.url().slice(0, 160)}`));
+page.on("console", (m) => {
+  if (m.type() !== "error") return;
+  const l = m.location();
+  net.push(`CONSOLE.error text=${JSON.stringify(m.text().slice(0, 300))} at ${l.url?.slice(0, 140)}:${l.lineNumber}:${l.columnNumber}`);
+});
 await page.exposeFunction("__pbSign", async (b64s) =>
   b64s.map((b64) => {
     const tx = VersionedTransaction.deserialize(Buffer.from(b64, "base64"));
@@ -137,6 +146,7 @@ if (DRY) {
   await shot("03b-sheet-form");
   log("DRY RUN: stopped at sheet-ready, nothing signed. CTA:", await page.locator("button.btn-fire").last().innerText());
   log("page console errors:", errors.length ? errors.join("\n") : "none");
+  log("network/console diagnostics:\n" + (net.length ? net.join("\n") : "none"));
   await browser.close();
   process.exit(0);
 }

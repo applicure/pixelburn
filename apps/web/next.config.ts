@@ -49,6 +49,9 @@ const nextConfig: NextConfig = {
   reactStrictMode: true,
   poweredByHeader: false,
   output: "standalone",
+  // Version-skew protection: a tab opened before a deploy hard-reloads on its next navigation instead of
+  // asking the new server for chunks that no longer exist. Set from the git SHA at build time (Dockerfile).
+  deploymentId: process.env.NEXT_DEPLOYMENT_ID || undefined,
   // trace from the monorepo root so the standalone bundle includes the @mpb/sdk workspace package
   outputFileTracingRoot: path.join(here, "../.."),
   experimental: {
