@@ -8,7 +8,7 @@ import { createLogger } from "../lib/log.js";
 import { heartbeat } from "../lib/heartbeat.js";
 import { loadKeypair, NoProgramActions, SdkKeeperActions } from "./actions.js";
 import { Keeper } from "./keeper.js";
-import { LookupTableManager } from "./alt.js";
+import { LookupTableManager, shortKey } from "./alt.js";
 import { JupiterRoute, PumpCurveRoute, PumpSwapPoolRoute, type SwapRoute } from "./routes.js";
 
 const cfg = loadConfig();
@@ -81,6 +81,8 @@ if (chain) {
 // The atomic buyback tx needs an Address Lookup Table (otherwise > 1232 bytes). Live only.
 if (payer && cfg.KEEPER_LIVE) {
   const allowScan = cfg.SOLANA_CLUSTER !== "mainnet-beta";
+  if (cfg.KEEPER_LOOKUP_TABLE) log.info(`using pinned lookup table ${shortKey(cfg.KEEPER_LOOKUP_TABLE)} (KEEPER_LOOKUP_TABLE; no scan)`);
+  else if (allowScan) log.info("no pinned lookup table: will find the keeper's table by authority (devnet) or create one");
   if (!allowScan && !cfg.KEEPER_LOOKUP_TABLE) {
     log.error("ACTION REQUIRED: KEEPER_LOOKUP_TABLE is unset on mainnet — the first buyback will create a table; then pin its address");
   }

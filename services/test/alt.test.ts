@@ -18,6 +18,23 @@ describe("keeper lookup table", () => {
     expect(keys).toEqual([a, b, prog, SystemProgram.programId].map((k) => k.toBase58()).sort());
   });
 
+  it("logs a pinned table truncated (Coolify masks the full env value) and never scans", async () => {
+    const payer = Keypair.generate();
+    const key = new PublicKey("6rQpuXs19EpbFtPeFAG6JbwpvTQQZFYAoebSk1uEzpdf");
+    const infos: string[] = [];
+    let scanned = false;
+    const conn = {
+      getProgramAccounts: async () => ((scanned = true), []),
+      getAddressLookupTable: async () => ({ value: new AddressLookupTableAccount({ key, state: { deactivationSlot: MAX, lastExtendedSlot: 0, lastExtendedSlotStartIndex: 0, authority: payer.publicKey, addresses: [PublicKey.unique()] } }) }),
+    } as unknown as Connection;
+    const log = { debug() {}, info: (m: string) => void infos.push(m), warn() {}, error() {} };
+    const m = new LookupTableManager(conn, payer, { live: true }, log, key.toBase58(), true);
+    await m.ensure([]);
+    expect(infos).toContain("using pinned lookup table 6rQp…zpdf (1 addresses, no scan)");
+    expect(infos.join(" ")).not.toContain(key.toBase58());
+    expect(scanned).toBe(false);
+  });
+
   it("never creates on-chain state in dry-run", async () => {
     const m = new LookupTableManager({} as Connection, Keypair.generate(), { live: false }, silentLogger);
     expect(await m.ensure([PublicKey.unique()])).toBeNull();

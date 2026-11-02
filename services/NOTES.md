@@ -108,6 +108,15 @@ docker build -f services/Dockerfile --target keeper  -t mpb-keeper .
   - Devnet: if unset, the keeper finds its table on chain by authority, else creates one.
   - Creation takes `recent_slot` from the SlotHashes sysvar (getSlot("finalized") was rejected on
     devnet with "<slot> is not a recent slot") and retries with an older entry.
+  - **Bounded growth**: PumpSwap's GlobalConfig lists exactly 8 protocol fee recipients (plus 8 buyback
+    fee recipients; mayhem pools use 1 + 7 reserved ones), on both devnet and mainnet (read 2026-11-02).
+    The SDK picks one at random per buy, and each pick adds at most the recipient and its quote token
+    account. So the table converges to ≈ 29 static keys + ≤ 2×8 + 2×8 = ~61 addresses, far below the
+    256-address ALT maximum. Rent: 31 addresses (devnet today) = 1048 bytes ≈ 0.0060 SOL; 64 addresses
+    ≈ 0.0113 SOL; the absolute ceiling (256) ≈ 0.0426 SOL. Each extend costs only the incremental rent
+    plus a fee.
+  - Startup logs `using pinned lookup table 6rQp…zpdf` (truncated, so Coolify's env-value masking
+    doesn't hide it), and the first run logs `… (N addresses, no scan)`.
   - A table is only used if it is active and its authority is the current keeper key. After
     `set_keeper` rotation, a table owned by the old key is rejected and a new one is created.
 - **Keeper buyback routes**: these are resolved from the current Config on every run. While the

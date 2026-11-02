@@ -16,6 +16,9 @@ import type { Logger } from "../lib/log.js";
 import { sendIxsResult, type SendOptions } from "./actions.js";
 
 const MAX_U64 = 18446744073709551615n;
+
+/** "6rQp…zpdf". Log-safe: Coolify masks full env values in logs, so the full address would show as <REDACTED>. */
+export const shortKey = (k: string) => (k.length > 8 ? `${k.slice(0, 4)}…${k.slice(-4)}` : k);
 const EXTEND_BATCH = 25;
 
 /** Every account key a set of instructions references (programs included), minus the signer/payer. */
@@ -68,7 +71,11 @@ export class LookupTableManager {
 
   /** Configured ALT, else an existing active ALT with the keeper as authority, else null. */
   private async find(): Promise<AddressLookupTableAccount | null> {
-    if (this.configured) return this.load(new PublicKey(this.configured));
+    if (this.configured) {
+      const t = await this.load(new PublicKey(this.configured));
+      if (t) this.log.info(`using pinned lookup table ${shortKey(this.configured)} (${t.state.addresses.length} addresses, no scan)`);
+      return t;
+    }
     if (!this.allowScan) return null; // mainnet: never scan the ALT program
     try {
       const found = await this.conn.getProgramAccounts(AddressLookupTableProgram.programId, {
