@@ -1,11 +1,13 @@
 # Deployment
 
+The site is Pixel Frame (formerly The Million Pixel Burn). Infrastructure names keep `pixelburn`: see `brand/README.md`. The move to pixelframe.tech is prepared but not run: `docs/domain-cutover.md`.
+
 Same infrastructure as `pumpswap-pools` (Juice): Coolify on srv1, Traefik + Let's Encrypt, `*.applicure.io` wildcard DNS → 94.16.31.213.
 
 | | |
 |---|---|
-| Site | https://pixelburn.applicure.io (planned) |
-| API | https://api.pixelburn.applicure.io (planned) |
+| Site | https://pixelburn.applicure.io (live); https://pixelframe.tech after the cutover |
+| API | https://api.pixelburn.applicure.io (live); https://api.pixelframe.tech after the cutover |
 | Coolify dashboard | https://coolify.applicure.io → **pixelburn → production** |
 | Coolify project | `pixelburn` — `uasdgghhvaeprxcqqaztubhd` |
 | Database | `pixelburn-db` — `72ukjfjrfpmftkq88r0hhwqe`, `postgres:17-alpine`, DB/user `pixelburn`, internal only, 512 MB / 1 CPU |
