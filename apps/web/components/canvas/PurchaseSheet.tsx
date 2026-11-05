@@ -7,6 +7,7 @@ import { chain, TokenPaymentUnavailable, type BuyStep } from "@/lib/chain";
 import { isChunkLoadError, SKEW_MESSAGE } from "@/lib/skew";
 import { normTokenStatus, SLOW_EMA_HINT, tokenStatusCopy } from "@/lib/tokenStatus";
 import { BRAND, QUOTE_TTL_MS, USE_MOCK } from "@/lib/config";
+import { useLaunchState } from "@/lib/launchState";
 import { fmtInt, fmtSol, fmtTokens, fmtUsd, fmt2, explorerTx, tokensToWhole, fmtCompact } from "@/lib/format";
 import type { PayMode, Rect } from "@/lib/types";
 import { useQuote } from "@/lib/useQuote";
@@ -162,6 +163,7 @@ export function PurchaseSheet({ rect, open, onClose, onPurchased }: { rect: Rect
 
 function SheetBody({ rect, onClose, onPurchased }: { rect: Rect; onClose(): void; onPurchased(r: Rect): void }) {
   const wallet = useWalletBridge();
+  const launching = useLaunchState() === "soon";
   const [chosen, setMode] = useState<PayMode>("sol");
   const [blob, setBlob] = useState<Blob | null>(null);
   const [dataUrl, setDataUrl] = useState<string | null>(null);
@@ -459,8 +461,8 @@ function SheetBody({ rect, onClose, onPurchased }: { rect: Rect; onClose(): void
               </p>
             )}
             <WalletChip />
-            <button className="btn-fire w-full justify-center text-[1.02rem] sm:text-lg" onClick={submit} disabled={!wallet.address || !quote}>
-              {mode === "sol" ? `Buy for ${quote?.lamports ? fmtSol(quote.lamports, 3) : "…"} SOL` : `Burn ${quote?.tokens ? fmtCompact(tokensToWhole(quote.tokens)) : "…"} ${BRAND.ticker} and buy`}
+            <button className="btn-fire w-full justify-center text-[1.02rem] sm:text-lg" onClick={submit} disabled={!wallet.address || !quote || launching}>
+              {launching ? "Opens at launch" : mode === "sol" ? `Buy for ${quote?.lamports ? fmtSol(quote.lamports, 3) : "…"} SOL` : `Burn ${quote?.tokens ? fmtCompact(tokensToWhole(quote.tokens)) : "…"} ${BRAND.ticker} and buy`}
             </button>
             {!blob && wallet.address && <p className="text-center text-[0.8rem] text-ash">Add an image to continue.</p>}
           </div>

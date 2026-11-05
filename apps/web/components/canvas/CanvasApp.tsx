@@ -3,6 +3,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { BRAND, GRID } from "@/lib/config";
+import { useLaunchState } from "@/lib/launchState";
 import { fmtCompact, fmtInt, fmtSol, fmtUsd, tokensToWhole } from "@/lib/format";
 import { bitGet, isRectFree } from "@/lib/quote";
 import { onLiveEvent, useLive } from "@/lib/store";
@@ -32,6 +33,7 @@ function SelectionBar({ sel, onBuy, onClear }: { sel: Rect; onBuy(): void; onCle
   const tokenOk = normTokenStatus(sol.quote?.tokenPaymentStatus) === "ok";
   const tok = useQuote(sel.w, sel.h, "token", free && tokenOk);
   const usd = sel.w * sel.h * 100;
+  const launching = useLaunchState() === "soon";
   return (
     <div className="flex flex-wrap items-center gap-x-6 gap-y-3 bg-soot/90 p-3 pl-4 shadow-[0_20px_60px_-10px_rgba(0,0,0,.9)] ring-1 ring-char backdrop-blur-md sm:flex-nowrap">
       <div className="min-w-0">
@@ -68,8 +70,8 @@ function SelectionBar({ sel, onBuy, onClear }: { sel: Rect; onBuy(): void; onCle
         <button className="px-3 py-2 text-[0.9rem] text-ash hover:text-heat" onClick={onClear}>
           Clear
         </button>
-        <button className="btn-fire" onClick={onBuy} disabled={!free}>
-          Buy these blocks
+        <button className="btn-fire" onClick={onBuy} disabled={!free || launching}>
+          {launching ? "Opens at launch" : "Buy these blocks"}
         </button>
       </div>
     </div>

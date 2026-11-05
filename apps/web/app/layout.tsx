@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { Anybody, Martian_Mono, Schibsted_Grotesk } from "next/font/google";
 import "./globals.css";
 import { SiteNav } from "@/components/ui/SiteNav";
+import { LaunchBanner } from "@/components/ui/LaunchBanner";
 import { SmoothScroll } from "@/components/ui/SmoothScroll";
 import { SkewGuard } from "@/components/ui/SkewGuard";
 import { BRAND, CLUSTER, SITE_URL, USE_MOCK } from "@/lib/config";
@@ -54,6 +55,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             Test network, not launched yet. All figures here are test data, no real money.
           </p>
         )}
+        <LaunchBanner />
         {children}
       </body>
     </html>

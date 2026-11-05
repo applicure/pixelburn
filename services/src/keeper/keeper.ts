@@ -8,6 +8,7 @@ import { sendIxsResult, type KeeperActions, type SendOptions } from "./actions.j
 /** Program error codes the keeper reacts to (from the pixel IDL). */
 const ERR = {
   CrankTooSoon: 6015,
+  EmaSeedMismatch: 6019,
   BuybackAmountTooHigh: 6033,
   BuybackRateTooLow: 6034,
   BuybackPushesPriceOutOfBand: 6035,
@@ -17,6 +18,8 @@ const ERR_NAME: Record<number, string> = Object.fromEntries(Object.entries(ERR).
 const REFUND_ON = new Set<number>([ERR.BuybackAmountTooHigh, ERR.BuybackRateTooLow, ERR.BuybackPushesPriceOutOfBand]);
 import type { SwapPlan, SwapRoute } from "./routes.js";
 import { checkDeviation, jittered, minBuybackTokens, planBuybackChunks } from "./plan.js";
+
+const LAUNCH_POLL_MS = 5_000;
 
 export interface KeeperConfig {
   live: boolean;
@@ -83,6 +86,8 @@ export class Keeper {
 
   /** Config.buyback_max_slippage_bps (set via setOnchainSlippage once read); null = unknown. */
   onchainSlippageBps: number | null = null;
+  private waitingLogged = false;
+  private crankTimer?: ReturnType<typeof setTimeout>;
 
   private async keeperTokenBalance(): Promise<bigint> {
     if (!this.payer || !this.cfg.tokenMint) return 0n;
@@ -97,11 +102,13 @@ export class Keeper {
   async crankOnce(): Promise<string | null> {
     const ixs = await this.actions.crankTokenPriceIxs(this.keeperKey);
     if (!ixs) {
-      this.log.warn("crank_token_price: no program configured (PROGRAM_ID unset) — skipped");
+      if (!this.waitingLogged) this.log.info("crank_token_price: no pixel Config yet, waiting for the program to be initialised");
+      this.waitingLogged = true;
       return null;
     }
     const r = await sendIxsResult(this.conn, this.payer ?? Keypair.generate(), ixs, { ...this.sendOpts, computeUnitLimit: CU_LIMITS.crankTokenPrice }, this.log, "crank_token_price");
     if (r.sig) this.log.info(`crank_token_price confirmed ${r.sig}`);
+    else if (r.errorCode === ERR.EmaSeedMismatch) this.log.warn("crank_token_price: spot left the seed band (6019); waiting for the admin's re-seed (mainnet-guard.ts)");
     else if (r.errorCode === ERR.CrankTooSoon) this.log.info("crank_token_price: skipped, cranked by someone else < 30 s ago (6015 CrankTooSoon)");
     else if (!r.ok) this.log.error(`crank_token_price failed: ${(r.error ?? "").slice(0, 400)}`);
     return r.sig;
@@ -306,8 +313,13 @@ export class Keeper {
         this.log.error(`crank_token_price failed: ${(e as Error).message.slice(0, 400)}`);
       }
     };
-    void crank();
-    this.timers.push(setInterval(crank, this.cfg.crankIntervalMs));
+    const crankLoop = async () => {
+      if (this.stopped) return;
+      await crank();
+      if (this.stopped) return;
+      this.crankTimer = setTimeout(crankLoop, await this.nextCrankDelayMs());
+    };
+    void crankLoop();
     // The FIRST run comes soon after start: every redeploy restarts the process, and with only the
     // regular 10-15 min interval a keeper that is redeployed more often than that (e.g. Coolify
     // auto-deploying on every push to main) would never run a buyback at all.
@@ -333,8 +345,25 @@ export class Keeper {
     scheduleBuyback();
   }
 
+  /**
+   * Normal cadence once warm-up has started. Tighter around launch: while there's no Config yet (so services notice it without a restart), and
+   * until the first crank after a seed lands, because the warm-up clock only starts there.
+   */
+  private async nextCrankDelayMs(): Promise<number> {
+    const c = await this.chain?.fetchConfig?.().catch(() => undefined);
+    if (c === null) return LAUNCH_POLL_MS;
+    if (c && c.emaWarmupCranks === 0 && c.tokenEmaPriceSol > 0n) return LAUNCH_POLL_MS;
+    return this.cfg.crankIntervalMs;
+  }
+
+  /** Config.token_mint, once it exists (env may leave the mint unset ahead of launch). */
+  setTokenMint(mint: string) {
+    this.cfg.tokenMint = mint;
+  }
+
   stop() {
     this.stopped = true;
+    clearTimeout(this.crankTimer);
     this.timers.forEach((t) => clearTimeout(t));
   }
 }

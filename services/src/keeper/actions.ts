@@ -41,9 +41,11 @@ export class SdkKeeperActions implements KeeperActions {
     return decodeConfig(info.data);
   }
 
-  async crankTokenPriceIxs(): Promise<TransactionInstruction[]> {
-    const cfg = await this.config();
-    return [crankTokenPriceIx({ priceSource: cfg.priceSource, programId: this.programId })];
+  /** null before the program is initialised: a keeper started ahead of launch waits for Config instead of failing. */
+  async crankTokenPriceIxs(): Promise<TransactionInstruction[] | null> {
+    const info = await this.conn.getAccountInfo(configPda(this.programId), "confirmed");
+    if (!info) return null;
+    return [crankTokenPriceIx({ priceSource: decodeConfig(info.data).priceSource, programId: this.programId })];
   }
 
   async releaseBuybackIxs(keeper: PublicKey, lamports: bigint): Promise<TransactionInstruction[]> {

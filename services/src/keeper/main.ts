@@ -70,13 +70,26 @@ const keeper = new Keeper(conn, payer, cfg.PROGRAM_ID ? new SdkKeeperActions(con
 }, log, undefined, resolveRoutes);
 
 if (chain) {
-  // Pre-check buyback chunks against the same min-out rule the program enforces.
-  chain.fetchConfig().then((c) => {
-    if (!c) return log.warn("pixel Config not found; buybacks disabled");
-    keeper.onchainSlippageBps = c.buybackMaxSlippageBps;
-    if (cfg.TOKEN_MINT && cfg.TOKEN_MINT !== c.tokenMint.toBase58()) log.warn(`TOKEN_MINT env differs from Config.token_mint; using the on-chain mint`);
-    void resolveRoutes();
-  }).catch((e) => log.warn(`config read failed: ${(e as Error).message}`));
+  // Pre-check buyback chunks against the same min-out rule the program enforces. Started ahead of launch there's no Config yet: keep looking.
+  let told = false;
+  const adopt = () =>
+    chain.fetchConfig().then((c) => {
+      if (!c) {
+        if (!told) log.warn("pixel Config not found; waiting for it, buybacks off until then");
+        told = true;
+        setTimeout(() => void adopt(), 5_000).unref();
+        return;
+      }
+      keeper.onchainSlippageBps = c.buybackMaxSlippageBps;
+      if (cfg.TOKEN_MINT && cfg.TOKEN_MINT !== c.tokenMint.toBase58()) log.warn(`TOKEN_MINT env differs from Config.token_mint; using Config for routes`);
+      keeper.setTokenMint(c.tokenMint.toBase58());
+      if (told) log.info(`pixel Config appeared: mint ${c.tokenMint.toBase58()}`);
+      void resolveRoutes();
+    }).catch((e) => {
+      log.warn(`config read failed: ${(e as Error).message}`);
+      setTimeout(() => void adopt(), 5_000).unref();
+    });
+  void adopt();
 }
 // The atomic buyback tx needs an Address Lookup Table (otherwise > 1232 bytes). Live only.
 if (payer && cfg.KEEPER_LIVE) {

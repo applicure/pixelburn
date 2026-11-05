@@ -67,6 +67,8 @@ export interface OnchainTokenPrice {
 export interface ChainReader {
   fetchAd(ref: AdRef, commitment?: Commitment): Promise<AdAccount | null>;
   fetchTokenSupply(): Promise<bigint | null>;
+  /** The on-chain Config; null before the program is initialised. */
+  fetchConfig?(): Promise<ConfigAccount | null>;
   /**
    * Spot and EMA as q (lamports per base unit * 1e18); null if unavailable. `unavailable` is set
    * when buy_with_token would currently be rejected (EMA not seeded / warming up / stale / spot deviation).
@@ -106,9 +108,16 @@ export class RpcChainReader implements ChainReader {
     };
   }
 
+  /** The mint comes from env if set, else from the on-chain Config (null until the program is initialised). */
+  private mintFromConfig: PublicKey | null = null;
   async fetchTokenSupply() {
-    if (!this.tokenMint) return null;
-    const s = await this.conn.getTokenSupply(new PublicKey(this.tokenMint), "confirmed");
+    let mint = this.tokenMint ? new PublicKey(this.tokenMint) : this.mintFromConfig;
+    if (!mint) {
+      mint = (await this.fetchConfig())?.tokenMint ?? null;
+      this.mintFromConfig = mint; // Config.token_mint never changes once set
+    }
+    if (!mint) return null;
+    const s = await this.conn.getTokenSupply(mint, "confirmed");
     return BigInt(s.value.amount);
   }
 
