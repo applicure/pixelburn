@@ -10,7 +10,7 @@
  */
 import type { Connection, PublicKey, Transaction, VersionedTransaction } from "@solana/web3.js";
 import { normTokenStatus, tokenStatusCopy, type TokenStatus } from "./tokenStatus";
-import { USE_MOCK } from "./config";
+import { CLUSTER, USE_MOCK } from "./config";
 import type { PayMode, Rect } from "./types";
 
 export interface BuyParams {
@@ -144,7 +144,7 @@ const sdkChain: ChainClient = {
     if (problem) throw new Error(`Can't buy yet: ${problem}.`);
     let built: Awaited<ReturnType<typeof sdk.buildBuyTx>>;
     try {
-      built = await sdk.buildBuyTx(connection, { mode: p.payMode, buyer: wallet.publicKey, rect: p.rect, content, slippageBps: 150 });
+      built = await sdk.buildBuyTx(connection, { mode: p.payMode, buyer: wallet.publicKey, rect: p.rect, content, slippageBps: 150, programId: sdk.programIdForCluster(CLUSTER) });
     } catch (e) {
       if (e instanceof sdk.TokenPricingUnavailableError) throw new TokenPaymentUnavailable(normTokenStatus(e.reason));
       throw e;
@@ -168,7 +168,7 @@ const sdkChain: ChainClient = {
     if (!connection || !wallet.publicKey || !wallet.sendTransaction) throw new Error("Connect a wallet to bid.");
     const sdk = await import("@mpb/sdk");
     const { TransactionMessage, VersionedTransaction: VT } = await import("@solana/web3.js");
-    const built = await sdk.buildBidIxs(connection, { bidder: wallet.publicKey, lamports });
+    const built = await sdk.buildBidIxs(connection, { bidder: wallet.publicKey, lamports, programId: sdk.programIdForCluster(CLUSTER) });
     const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash("confirmed");
     const tx = new VT(new TransactionMessage({ payerKey: wallet.publicKey, recentBlockhash: blockhash, instructions: built.instructions }).compileToV0Message());
     return { signature: await simulateSendConfirm(tx, lastValidBlockHeight, wallet, connection) };

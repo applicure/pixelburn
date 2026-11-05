@@ -50,7 +50,7 @@ export default function Page() {
           English or German is fine.
         </p>
         <p className="mt-3 text-heat/80">
-          Please test on devnet where you can, don&apos;t touch funds or data that aren&apos;t yours, and give us a reasonable chance
+          Please test on a local validator or devnet where you can, don&apos;t touch funds or data that aren&apos;t yours, and give us a reasonable chance
           to fix the issue before you publish it.
         </p>
 

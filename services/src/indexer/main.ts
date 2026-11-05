@@ -7,6 +7,7 @@ import { SdkEventParser } from "../chain/events.js";
 import { createLogger } from "../lib/log.js";
 import { heartbeat } from "../lib/heartbeat.js";
 import { runIndexerWithLock } from "./run.js";
+import { assertDatabaseIsForProgram } from "./guard.js";
 import { makeHistoryFallbacks } from "./indexer.js";
 
 const cfg = loadConfig();
@@ -20,6 +21,7 @@ if (!cfg.PROGRAM_ID) {
 } else {
   const h = createDb(cfg.DATABASE_URL, { max: 4 });
   await runMigrations(h);
+  if (cfg.SOLANA_CLUSTER === "mainnet-beta") await assertDatabaseIsForProgram(h.db, cfg.PROGRAM_ID);
   const conn = new Connection(cfg.rpcUrl, { commitment: "confirmed", wsEndpoint: cfg.wsUrl });
   log.info(`starting: program=${cfg.PROGRAM_ID} cluster=${cfg.SOLANA_CLUSTER}`);
   const historyFallbacks = await makeHistoryFallbacks(conn, cfg.historyRpcFallbacks, log);

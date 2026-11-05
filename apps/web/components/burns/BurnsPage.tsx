@@ -25,11 +25,12 @@ function useAddresses() {
     let live = true;
     (async () => {
       const sdk = await import("@mpb/sdk");
-      const base = [sdk.PROGRAM_ID.toBase58(), null, sdk.buybackVaultPda().toBase58(), null];
+      const programId = sdk.programIdForCluster(CLUSTER);
+      const base = [programId.toBase58(), null, sdk.buybackVaultPda(programId).toBase58(), null];
       if (live) setAddrs(ADDR_NOTES.map((a, i) => ({ ...a, value: base[i] })));
       try {
         const { Connection } = await import("@solana/web3.js");
-        const cfg = await sdk.fetchConfig(new Connection(rpcEndpoint(), { commitment: "confirmed", disableRetryOnRateLimit: true }));
+        const cfg = await sdk.fetchConfig(new Connection(rpcEndpoint(), { commitment: "confirmed", disableRetryOnRateLimit: true }), programId);
         if (live) setAddrs(ADDR_NOTES.map((a, i) => ({ ...a, value: [base[0], cfg.treasury.toBase58(), base[2], cfg.tokenMint.toBase58()][i] })));
       } catch {
         // RPC not configured or program not deployed on this cluster: keep the derived ones

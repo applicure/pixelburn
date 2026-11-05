@@ -1,3 +1,4 @@
+import { PROGRAM_IDS } from "@mpb/sdk";
 import { registerSecret } from "./lib/redact.js";
 import { z } from "zod";
 
@@ -115,12 +116,28 @@ export function heliusUrls(cluster: "devnet" | "mainnet-beta", key: string) {
 }
 
 /**
+ * Refuses env that mixes clusters. A wrong PROGRAM_ID is otherwise only noticed as "no config account" at runtime, and a wrong
+ * IRYS_NETWORK would store mainnet ads on Irys devnet, which is pruned, or spend real SOL from a devnet deployment.
+ */
+export function assertClusterConsistent(e: { SOLANA_CLUSTER: "devnet" | "mainnet-beta"; PROGRAM_ID?: string; IRYS_KEY?: string; IRYS_NETWORK: string }) {
+  const other = e.SOLANA_CLUSTER === "mainnet-beta" ? "devnet" : "mainnet-beta";
+  if (e.PROGRAM_ID === PROGRAM_IDS[other].toBase58()) {
+    throw new Error(`PROGRAM_ID is the ${other} program but SOLANA_CLUSTER=${e.SOLANA_CLUSTER}`);
+  }
+  const wantIrys = e.SOLANA_CLUSTER === "mainnet-beta" ? "mainnet" : "devnet";
+  if (e.IRYS_KEY && e.IRYS_NETWORK !== wantIrys) {
+    throw new Error(`IRYS_NETWORK=${e.IRYS_NETWORK} with SOLANA_CLUSTER=${e.SOLANA_CLUSTER}: set IRYS_NETWORK=${wantIrys}`);
+  }
+}
+
+/**
  * RPC precedence: RPC_URL override > SOLANA_RPC (QuickNode) > Helius (from key + cluster) > public cluster RPC.
  * WS precedence:  WS_URL override  > Helius websocket > derived from the HTTP RPC.
  */
 export function loadConfig(env: Record<string, string | undefined> = process.env): Config {
   // Empty values (e.g. `LOG_LEVEL=` copied from .env.example) mean "unset".
   const parsed = EnvSchema.parse(Object.fromEntries(Object.entries(env).filter(([, v]) => v !== undefined && v.trim() !== "")));
+  assertClusterConsistent(parsed);
   const helius = parsed.SOLANA_RPC_HELIUS_KEY ? heliusUrls(parsed.SOLANA_CLUSTER, parsed.SOLANA_RPC_HELIUS_KEY) : null;
   const publicRpc = parsed.SOLANA_CLUSTER === "mainnet-beta" ? "https://api.mainnet-beta.solana.com" : "https://api.devnet.solana.com";
   const rpcUrl = parsed.RPC_URL ?? parsed.SOLANA_RPC ?? helius?.http ?? publicRpc;

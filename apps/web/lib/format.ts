@@ -1,4 +1,4 @@
-import { LAMPORTS_PER_SOL, TOKEN_DECIMALS } from "./config";
+import { CLUSTER, LAMPORTS_PER_SOL, TOKEN_DECIMALS } from "./config";
 
 const nf0 = new Intl.NumberFormat("en-US", { maximumFractionDigits: 0 });
 const nf2 = new Intl.NumberFormat("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -36,9 +36,9 @@ export function linkHost(link: string) {
   }
 }
 
-export function explorerTx(sig: string, cluster = "devnet") {
+export function explorerTx(sig: string, cluster: string = CLUSTER) {
   return `https://explorer.solana.com/tx/${sig}${cluster === "mainnet-beta" ? "" : `?cluster=${cluster}`}`;
 }
-export function explorerAddr(addr: string, cluster = "devnet") {
+export function explorerAddr(addr: string, cluster: string = CLUSTER) {
   return `https://explorer.solana.com/address/${addr}${cluster === "mainnet-beta" ? "" : `?cluster=${cluster}`}`;
 }

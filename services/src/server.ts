@@ -1,5 +1,6 @@
 import { serve } from "@hono/node-server";
 import { loadConfig } from "./config.js";
+import { assertDatabaseIsForProgram } from "./indexer/guard.js";
 import { buildContext, type ServicesContext } from "./context.js";
 import { runMigrations, NOTIFY_CHANNEL } from "./db/client.js";
 import { createApp } from "./api/app.js";
@@ -54,8 +55,14 @@ export async function wireNotifications(ctx: ServicesContext, getStats: (fresh?:
 async function main() {
   const cfg = loadConfig();
   const log = createLogger("api", cfg.LOG_LEVEL);
+  // The site promises images on Arweave. A mainnet api without an uploader would quietly store them on this server's disk,
+  // under an on-chain URI that depends on this domain forever.
+  if (cfg.SOLANA_CLUSTER === "mainnet-beta" && cfg.NODE_ENV === "production" && !cfg.IRYS_KEY) {
+    throw new Error("IRYS_KEY is required on mainnet (docs/mainnet-cutover.md)");
+  }
   const ctx = await buildContext(cfg, { log });
   await runMigrations(ctx.handle);
+  if (cfg.PROGRAM_ID && cfg.SOLANA_CLUSTER === "mainnet-beta") await assertDatabaseIsForProgram(ctx.db, cfg.PROGRAM_ID);
 
   const app = createApp({
     db: ctx.db,
