@@ -76,6 +76,7 @@ async function main() {
     resolveImageUrl: ctx.resolveImageUrl,
     bus: ctx.bus,
     webOrigins: cfg.corsOrigins,
+    cluster: cfg.SOLANA_CLUSTER,
     adminToken: cfg.ADMIN_TOKEN,
     helius:
       cfg.HELIUS_WEBHOOK_SECRET && cfg.PROGRAM_ID

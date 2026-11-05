@@ -48,7 +48,7 @@ export class FakeChain implements ChainReader {
   }
 }
 
-export async function makeTestContext(opts: { nsfw?: NsfwChecker; autoApprove?: boolean; uploadsPerMin?: number } = {}) {
+export async function makeTestContext(opts: { nsfw?: NsfwChecker; autoApprove?: boolean; uploadsPerMin?: number; cardRendersPerMin?: number } = {}) {
   const dataDir = mkdtempSync(path.join(tmpdir(), "mpb-test-"));
   const cfg = loadConfig({
     DATABASE_URL: testDatabaseUrl(),
@@ -85,9 +85,10 @@ export async function makeTestContext(opts: { nsfw?: NsfwChecker; autoApprove?: 
     resolveImageUrl: ctx.resolveImageUrl,
     bus: ctx.bus,
     webOrigins: ["http://localhost:3000"],
+    cluster: cfg.SOLANA_CLUSTER,
     adminToken: ADMIN,
     helius: { secret: HELIUS_SECRET, conn: null, programId: PROGRAM_ID, decoder: ctx.decoder },
-    rateLimits: { uploadsPerMin: opts.uploadsPerMin ?? 1000, quotePerMin: 1000 },
+    rateLimits: { uploadsPerMin: opts.uploadsPerMin ?? 1000, quotePerMin: 1000, cardRendersPerMin: opts.cardRendersPerMin },
   });
   return { ctx, app, chain, cfg };
 }

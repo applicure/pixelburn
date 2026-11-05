@@ -140,7 +140,7 @@ export class Composer {
   }
 
   /** Image bytes for an ad, from the on-disk cache (keyed by sha256) or fetched + verified. */
-  private async loadImage(row: AdRow): Promise<Buffer | null> {
+  async loadImage(row: AdRow): Promise<Buffer | null> {
     if (!row.imageUri || !row.imageSha256) return null;
     const file = path.join(this.cacheDir, "images", `${row.imageSha256}`);
     const cached = await readFile(file).catch(() => null);

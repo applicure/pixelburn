@@ -24,6 +24,32 @@ export interface AdDto {
   createdAt: number;
 }
 
+/**
+ * GET /api/ads/:id/share. What the ad page and the share panel may know. `ad` is the ONLY place buyer content appears,
+ * and it stays null until the ad is approved. Everything else is public on-chain data.
+ */
+export interface AdShareDto {
+  id: number;
+  status: "approved" | "pending" | "rejected";
+  owner: string;
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+  blockCount: number;
+  payMode: "sol" | "token" | "auction";
+  usd: number;
+  lamports: string;
+  tokensBurned: string;
+  createdAt: number;
+  signature: string;
+  finalized: boolean;
+  cluster: "devnet" | "mainnet-beta";
+  /** Goes in the card image URL: changes with approval state and content. */
+  cardVersion: string;
+  ad: { title: string; link: string; imageUrl: string } | null;
+}
+
 export type FeedItem =
   | {
       type: "purchase";

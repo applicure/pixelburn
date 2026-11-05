@@ -17,7 +17,9 @@ import type { EventParser } from "../chain/events.js";
 import type { Connection } from "@solana/web3.js";
 import { ingestHeliusPayload } from "../indexer/indexer.js";
 import { auctionState, buybackPage, computeStats, decodeCursor, feed, leaderboard, occupancy, type StatsDeps } from "./queries.js";
-import { toAdDto, type FeedItem, type StatsDto } from "./dto.js";
+import { toAdDto, type AdRow, type AdShareDto, type FeedItem, type StatsDto } from "./dto.js";
+import { CardBusy, CardService, cardState } from "../card/service.js";
+import { microToUsd } from "../lib/quote-math.js";
 import { rateLimit } from "./rate-limit.js";
 import { TokenPricingUnavailable } from "../pricing/prices.js";
 import { dbReady } from "./health.js";
@@ -41,7 +43,8 @@ export interface AppDeps {
   adminToken?: string;
   helius?: { secret: string; conn: Connection | null; programId: string; decoder: EventParser };
   trustProxy?: boolean;
-  rateLimits: { uploadsPerMin: number; quotePerMin: number };
+  rateLimits: { uploadsPerMin: number; quotePerMin: number; cardRendersPerMin?: number };
+  cluster: "devnet" | "mainnet-beta";
   /** /healthz payload (monitoring). Defaults to a DB-only check. */
   health?: () => Promise<{ ok: boolean; db: boolean } & Record<string, unknown>>;
 }
@@ -130,6 +133,74 @@ export function createApp(d: AppDeps) {
     // Unapproved ads are not public; expose only their moderation status so a buyer's UI can say "under review".
     if (row.status !== "approved") return c.json({ error: "not_found", status: row.status, reason: row.status === "rejected" ? row.reason : null }, 404);
     return c.json(toAdDto(row, d.resolveImageUrl));
+  });
+
+  // ---- share: the ad page's data and its server-rendered card ----
+  const cards = new CardService(d.db, d.composer, d.cluster, d.stats.decimals, d.log);
+  const cardRenderLimit = rateLimit({ perMinute: d.rateLimits.cardRendersPerMin ?? 60, key: "card", clientIp });
+
+  /** A real on-chain ad id or nothing: `1e3`, `0x10` and ids past int4 never reach the database. */
+  const adRow = async (raw: string): Promise<AdRow | null> => {
+    if (!/^\d{1,10}$/.test(raw) || Number(raw) > 2_147_483_647) return null;
+    const [row] = await d.db.select().from(ads).where(eq(ads.id, Number(raw)));
+    return row ?? null;
+  };
+
+  app.get("/api/ads/:id/share", async (c) => {
+    const row = await adRow(c.req.param("id"));
+    c.header("Cache-Control", "no-cache");
+    if (!row) return c.json({ error: "not_found" }, 404);
+    const state = cardState(row);
+    const dto: AdShareDto = {
+      id: row.id,
+      status: state,
+      owner: row.owner,
+      x: row.x,
+      y: row.y,
+      w: row.w,
+      h: row.h,
+      blockCount: row.blocks?.length || row.w * row.h,
+      payMode: row.payMode,
+      usd: microToUsd(row.usdMicro),
+      lamports: row.paidLamports,
+      tokensBurned: row.paidTokens,
+      createdAt: Math.floor(row.createdAt.getTime() / 1000),
+      signature: row.signature,
+      finalized: row.finalized,
+      cluster: d.cluster,
+      cardVersion: cards.version(row),
+      ad: state === "approved" ? { title: row.title, link: row.link, imageUrl: row.imageUri ? d.resolveImageUrl(row.imageUri) : "" } : null,
+    };
+    return c.json(dto);
+  });
+
+  app.get("/api/ads/:id/card.png", async (c) => {
+    const row = await adRow(c.req.param("id"));
+    if (!row) return c.json({ error: "not_found" }, 404);
+    let card = cards.cached(row);
+    if (!card) {
+      // Only renders count against the limit: crawlers and repeat views of a finished card cost nothing.
+      const limited = await cardRenderLimit(c, async () => {});
+      if (limited) return limited;
+      try {
+        card = await cards.render(row);
+      } catch (e) {
+        if (!(e instanceof CardBusy)) throw e;
+        c.header("Retry-After", "10");
+        return c.json({ error: "busy" }, 503);
+      }
+    }
+    c.header("X-Content-Type-Options", "nosniff");
+    if (!card.complete) {
+      c.header("Cache-Control", "no-store");
+    } else {
+      // No `immutable`, even on a current URL: a rejection has to be able to take the picture down.
+      c.header("Cache-Control", `public, max-age=${c.req.query("v") === card.version ? 300 : 60}`);
+      c.header("ETag", `"${card.version}"`);
+      if (c.req.header("if-none-match")?.split(",").map((s) => s.trim().replace(/^W\//, "")).includes(`"${card.version}"`)) return c.body(null, 304);
+    }
+    c.header("Content-Type", "image/png");
+    return c.body(new Uint8Array(card.png));
   });
 
   app.get("/api/occupancy", async (c) => {

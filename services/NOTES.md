@@ -389,3 +389,19 @@ Doc only. Every step needs explicit sign-off; chain's program and launch steps a
   to exactly `HELIUS_WEBHOOK_SECRET` (`Bearer <secret>` also works).
 - **Seed** uses local-disk image URLs built from `PUBLIC_BASE_URL`/`PORT` at seed time. Reseed after
   changing the port. Seed broadcasts a `canvas` NOTIFY, so a running API re-renders.
+
+## Share cards (`src/card`, `/api/ads/:id/share`, `/api/ads/:id/card.png`)
+
+- Rendered here, not in the web app: this process already has sharp, the DB and the composed canvas.
+- Text is drawn from glyph outlines (`glyphs.generated.ts`, rebuilt by `scripts/build-card-glyphs.py`). The image has no system
+  fonts, and no buyer text reaches librsvg as text. Characters without a glyph are dropped; a title that loses over 30% (CJK,
+  mostly emoji) is shown as `Ad #<id>`.
+- Moderation: every request reads the row and serves only that state. `cardVersion` hashes state plus content, and for an
+  unapproved ad only public figures. A stale `?v=` gets the current card, and nothing is `immutable`, so a rejection takes the
+  image down on every URL we control. X's own cache is out of our hands.
+- Images come from `Composer.loadImage`: sha256-keyed disk cache, else the allow-listed fetcher, verified against the on-chain hash.
+- Cost: results cached per (ad, version) in an LRU of 256, invalidated when the wall changes. Renders are single-flight, 2 at a
+  time, 16 queued (then 503), and 60 per minute per client IP. Cache hits are not limited. Behind a proxy the per-IP limit needs
+  `TRUST_PROXY`, or all clients share one bucket.
+- The older `/api/ads/:id` still returns the rejection `reason` on its 404, and that text can quote the link's host. The new routes
+  never return it.

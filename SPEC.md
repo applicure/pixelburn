@@ -63,6 +63,8 @@ All JSON, camelCase, amounts as strings for u64 values. CORS open for the web or
 | GET | `/api/stats` | `{soldBlocks, totalBlocks, adsCount, usdRaised, lamportsRaised, lamportsToTreasury, lamportsToBuyback, lamportsSpentBuyback, tokensBurned, tokensBurnedDirect, tokensBurnedBuyback, tokenSupply, burnedPct, solPriceUsd, tokenPriceUsd, marketCapUsd, auction: null \| {...}, updatedAt}` |
 | GET | `/api/ads` | `Ad[]` approved only: `{id, owner, x, y, w, h, title, link, imageUrl, payMode, usd, createdAt}` |
 | GET | `/api/ads/:id` | `Ad` |
+| GET | `/api/ads/:id/share` | public facts of any indexed ad: `{id, status, owner, x, y, w, h, blockCount, payMode, usd, lamports, tokensBurned, createdAt, signature, finalized, cluster, cardVersion, ad}`. `ad` (`{title, link, imageUrl}`) is null until approved. 404 until indexed |
+| GET | `/api/ads/:id/card.png?v=` | 1200×630 share card of the ad's current moderation state. `v` = `cardVersion`, for caches only |
 | GET | `/api/occupancy` | `{bitmap: base64(1250 bytes), soldBlocks}` — includes pending/unapproved (sold is sold) |
 | GET | `/api/canvas.png` | 1000×1000 PNG of approved ads, ETag |
 | GET | `/api/feed?limit=50` | `FeedItem[]` newest first: `{type:'purchase'\|'buyback'\|'bid', sig, ts, …}` |
