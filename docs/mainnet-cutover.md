@@ -2,7 +2,9 @@
 
 Goal: under 4 minutes from the owner handing over the mint to the site accepting mainnet SOL purchases. All build-time work happens before the coin exists. Once the mint arrives nothing is rebuilt, restarted or edited: services read the mint from the on-chain `Config` and the site flips by itself.
 
-Nothing here has run on mainnet. Rehearsal numbers are at the end.
+**This phase: a PUMP-paired coin, SOL purchases only.** The coin is paired with PUMP on pump.fun, and the deployed program can't price a coin quoted in PUMP. So SOL purchases open at once and split 50/50, and the buyback half accumulates in the vault. Buybacks and $PXL payments come later with a program upgrade. No upgrade is needed to launch. The keeper app stays stopped.
+
+Nothing here has run on mainnet. Rehearsal numbers are at the end; they're from the SOL-paired path with sampling and cranks.
 
 Apps (Coolify): api `xvlz2veeyem2wmwl2wp7yiwt`, web `bmo4kdaoxkyzvjmrxenootrr`, indexer `ymqskn1mdvofamqrvsagqdjk`, keeper `tmjd8oi0tegozxrplcveegzj`. Database today: `pixelburn-db` (`72ukjfjrfpmftkq88r0hhwqe`, postgres:17-alpine), which holds the devnet rows.
 
@@ -52,7 +54,7 @@ The api's `/data` volume holds devnet uploads and the devnet `canvas.png`. `canv
 | | `IRYS_NETWORK` | `mainnet` |
 | | `ARWEAVE_GATEWAY` | `https://gateway.irys.xyz` |
 | | `PUBLIC_API_URL_ALIASES` | can go: mainnet image URIs are `ar://` |
-| keeper | `KEEPER_KEYPAIR` | `keys/mainnet/keeper.json` (secret; `--write-secrets`). Public key `EKVJrMEs…` |
+| keeper (stopped this phase; set these for when it returns with the upgrade) | `KEEPER_KEYPAIR` | `keys/mainnet/keeper.json` (secret; `--write-secrets`). Public key `EKVJrMEs…` |
 | | `KEEPER_LOOKUP_TABLE` | from `node mainnet-env.ts` (the old value is a devnet table) |
 | | `KEEPER_LIVE`, `KEEPER_BUYBACK_ENABLED` | `1`, `1` (preview rows: buybacks are `0`, keep them off) |
 | | `KEEPER_BUYBACK_MIN_CHUNK_LAMPORTS` | `50000000` (now devnet-sized `5000000`) |
@@ -78,11 +80,11 @@ The FAQ and landing page say images live on Arweave; the deployment uses local d
 The Irys upload path has not been run against mainnet.
 
 ### Redeploy and check
-Redeploy api, indexer, keeper, then web (about 3.5 min). Then:
+Redeploy api and indexer, then web (about 3.5 min). The keeper stays stopped. Then:
 - [ ] Site: empty canvas, "launching soon" banner, Buy shows "Opens at launch", no test-network label.
 - [ ] api logs `cluster=mainnet-beta storage=irys`; `/healthz` ok; `/api/stats` zeros.
 - [ ] indexer logs fallbacks `helius-mainnet…`, never a devnet label.
-- [ ] keeper logs `mode=LIVE`, `pixel Config not found; waiting`, `using pinned lookup table`.
+- [ ] keeper app is stopped, and stays stopped until the upgrade.
 
 Devnet behaviour was kept up to this point: a devnet env still gets the devnet program, explorer links and label.
 
@@ -90,31 +92,27 @@ Devnet behaviour was kept up to this point: a devnet env still gets the devnet p
 
 Roles: owner launches on pump.fun with their own wallet; operator runs the scripts on the machine holding `keys/mainnet/launch.json`. That key never goes on a server.
 
-**T-10 min.** Terminal 1, the graduation watcher. A curve can complete minutes after launch:
-```sh
-caffeinate -i node mainnet-graduation.ts watch --auto-execute --execute --mainnet-i-understand
-```
-It idles until a mint is recorded and Config exists.
+No graduation watcher this phase. A PUMP-paired coin graduating doesn't affect SOL purchases, and the program can't switch to its pool before the upgrade.
 
-**Owner, on pump.fun, from wallet `DrwhHphNRoLwTkRMjHxdUU6FFsqF7oMDHyTypa2nw8Vu`:** init refuses a coin with any other creator, because `Config.token_mint` has no setter and a copycat mint would mean a new program deployment. The owner signs in the pump.fun UI; no script reads this wallet's key or sends to it. Name `Pixel Frame`, symbol `PXL`, image `brand/token-image-1000.png`, website `https://pixelframe.tech`. Leave mayhem mode OFF, leave holder rewards OFF, and pair it with SOL: init refuses mayhem and non-SOL coins outright, and with holder rewards the curve's creator becomes a PDA, so the creator check refuses it too. Send the mint to the operator.
+**Owner, on pump.fun, from wallet `DrwhHphNRoLwTkRMjHxdUU6FFsqF7oMDHyTypa2nw8Vu`:** init refuses a coin with any other creator, because `Config.token_mint` has no setter and a copycat mint would mean a new program deployment. The owner signs in the pump.fun UI; no script reads this wallet's key or sends to it. Name `Pixel Frame`, symbol `PXL`, image `brand/token-image-1000.png`, website `https://pixelframe.tech`. Under "Pool liquidity pair" choose Custom, then "Pair with Pump (PUMP)". Leave mayhem mode OFF and holder rewards OFF: init refuses mayhem coins and any quote other than SOL or exactly PUMP, and with holder rewards the curve's creator becomes a PDA, so the creator check refuses it too. Send the mint to the operator.
 
-**T0: mint received.** Terminal 2, paste carefully:
+**T0: mint received.** Paste carefully:
 ```sh
 node mainnet-init.ts --mint <MINT> --execute --mainnet-i-understand
 ```
 
-| Time | What happens | If not |
+| Step | What happens | If not |
 |---|---|---|
-| T+1 s | Mint validated from chain, creator included | It refuses and nothing is sent. Check the mint with the owner. **Don't work around this: the mint is permanent.** If only the spelling of the name or symbol differs and the owner confirms it, pass `--expect-name` / `--expect-symbol`. If the owner launched from another wallet, `--expect-creator <wallet>` |
-| T+1 to 61 s | Spot sampled. A wild market doesn't abort | Lower `--sample-secs` to go faster |
-| T+65 s | `INITIALIZED`. Fees escalate and rebroadcast across both RPCs | It retries up to 6 blockhashes, then exits. Re-run the same command: safe |
-| T+70 s | **Site flips by itself; SOL purchases open** | Reload once. Check `/api/rpc` on web |
-| T+95 s | First crank (guard or keeper, at least 30 s after the seed) | Guard re-seeds on `EmaSeedMismatch` and retries every 30 s. It stops after 40. `node mainnet-guard.ts --execute --mainnet-i-understand` resumes |
-| about T+11 min | Warm-up complete: token payments open | The site shows warming-up until then |
+| About 1 s | Mint validated from chain, creator included. Prints `PUMP-paired coin: no sampling, seeding 0` | It refuses and nothing is sent. Check the mint with the owner. **Don't work around this: the mint is permanent.** If only the spelling of the name or symbol differs and the owner confirms it, pass `--expect-name` / `--expect-symbol`. If the owner launched from another wallet, `--expect-creator <wallet>` |
+| Next, until it lands | Initialize is simulated and sent. Fees escalate and rebroadcast across both RPCs. Prints `INITIALIZED` | It retries up to 6 blockhashes, then exits. Re-run the same command: safe |
+| Once it lands | **Site flips by itself; SOL purchases open** | Reload once. Check `/api/rpc` on web |
+| Then | Guard reports `parked` and the script exits. It sends nothing | Nothing to do |
 
-- Token payments and buybacks stay gated on-chain until warm-up. It's 10 cranks and 600 s from the first crank that passes the seed band, compile-time and not configurable. Each re-seed restarts it.
-- If the curve already completed at T0, init seeds 0, SOL purchases still open, and the watcher does the switch.
-- A seed taken in the first minutes can be far from where the price settles. Token buyers are charged `min(spot, fast EMA, slow EMA)`, so if the seed is low they pay more tokens for hours after a rally. If that matters, re-seed once the market has formed: `node mainnet-graduation.ts reseed --execute --mainnet-i-understand`. It restarts the warm-up.
+- No sampling, seed 0, no first crank, no warm-up. A crank or token payment on this coin is refused by the program.
+- Graduation doesn't affect SOL purchases, even if it happens before init.
+- `mainnet-guard.ts` and `mainnet-graduation.ts` report parked and send nothing. Their parked branches haven't been run against a real PUMP Config.
+- `/api/quote` reports `tokenPaymentStatus: "upgrade_pending"`, and `/api/stats` reports `buybackPhase: "later"` and the live `buybackVaultLamports`.
+- Simulated against the deployed program with a real PUMP coin (2026-11-05, not sent): `simulate ok, 32354 CU`. The time from mint to landing hasn't been measured on this path.
 
 **After T+2 min:**
 ```sh
@@ -122,13 +120,13 @@ node mainnet-verify.ts config
 node mainnet-smoke.ts status
 node mainnet-smoke.ts sol --x <x> --y <y> --image-uri <uri> --image-sha256 <hex> --execute --mainnet-i-understand   # optional, a real block, about $100
 ```
-Token-payment smoke test, optional and after warm-up: `buy-tokens --sol <amount>` market-buys from the launch wallet (about +6.7% for 1 SOL on a fresh curve), then `token --x --y ...`.
+`node mainnet-verify.ts config` should show EMA 0. Don't run the `buy-tokens` or `token` smoke tests this phase.
 
 ```sh
 node mainnet-registry.ts --execute --mainnet-i-understand     # verified build; the launch key signs the PDA directly
 ```
 
-**Graduation** runs through terminal 1. Without the auto watcher: `node mainnet-graduation.ts watch` (no key) writes a proposal; review it, then `node mainnet-graduation.ts execute --execute --mainnet-i-understand` on the key machine. Token payments pause again for at least 10 minutes. SOL purchases are never affected.
+**Graduation:** nothing to do this phase. After the upgrade, the price source moves to the PXL/PUMP pool. That procedure comes with the upgrade.
 
 ## Keeper lookup table
 `mainnet-keeper-alt.ts` creates it during step 1, so it's pinned from the first deploy and the "ACTION REQUIRED" flow never happens. The keeper never scans on mainnet.
@@ -137,6 +135,8 @@ node mainnet-registry.ts --execute --mainnet-i-understand     # verified build; 
 Restore the env values, point `DATABASE_URL` back at `pixelburn-db`, set `NEXT_PUBLIC_SOLANA_CLUSTER=devnet`, rebuild web. The devnet program and rows are untouched. After initialize there's no rollback of the mint.
 
 ## Rehearsal timings
+SOL-paired path, kept for reference. The sampling, crank and warm-up rows don't apply to this phase.
+
 Run 2026-11-05 on devnet, one run: the real `--features mainnet` binary deployed at `C44y…`, a fresh pump coin, and a local api, indexer, keeper and web in the pre-launch state (`SOLANA_CLUSTER=mainnet-beta`, no mint, fresh database, devnet behind `RPC_URL`). A trader bought every 9 s through sampling, and both RPC endpoints went through a proxy that silently dropped the first 6 sends. A headless Chrome sat on `/canvas`.
 
 | Step | Time after the mint was handed over |
