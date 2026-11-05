@@ -1,11 +1,12 @@
 "use client";
 import { useState } from "react";
 import { IconCheck, IconCopy } from "./icons";
-import { BRAND } from "@/lib/config";
+import { BRAND, CLUSTER } from "@/lib/config";
 
 /** The token's contract address with copy and a pump.fun link. */
 export function ContractAddress({ className = "" }: { className?: string }) {
   const [copied, setCopied] = useState(false);
+  if (CLUSTER !== "mainnet-beta") return null; // the address is a mainnet token
   const copy = async () => {
     try {
       await navigator.clipboard.writeText(BRAND.ca);
