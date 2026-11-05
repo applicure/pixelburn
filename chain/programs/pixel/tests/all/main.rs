@@ -8,6 +8,7 @@ mod buy_sol;
 mod buy_token;
 mod buyback;
 mod oracle;
+mod pump_quote;
 mod ads;
 mod cu;
 mod security;
