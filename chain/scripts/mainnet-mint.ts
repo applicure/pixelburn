@@ -49,7 +49,7 @@ export function parseMint(data: Uint8Array) {
 
 const METAPLEX = new PublicKey("metaqbxxUerdq28cj1RbAWkYQm3ybzjb6a8bt518x1s");
 
-export async function validateMint(conns: Connection[], mint: PublicKey, o: { expectName?: string; expectSymbol?: string } = {}): Promise<MintCheck> {
+export async function validateMint(conns: Connection[], mint: PublicKey, o: { expectName?: string; expectSymbol?: string; expectCreator?: string } = {}): Promise<MintCheck> {
   const errors: string[] = [], notes: string[] = [];
   const curve = PublicKey.findProgramAddressSync([Buffer.from("bonding-curve"), mint.toBuffer()], PUMP_PROGRAM_ID)[0];
   const pool = canonicalPumpPoolPda(mint);
@@ -75,6 +75,8 @@ export async function validateMint(conns: Connection[], mint: PublicKey, o: { ex
   const total = u64(d, 40);
   if (total.toString() !== TOKEN_INITIAL_SUPPLY) errors.push(`curve's token_total_supply is ${total}, expected ${TOKEN_INITIAL_SUPPLY}: TOKEN_INITIAL_SUPPLY and burnedPct assume it`);
   if (d.length >= 81) r.creator = new PublicKey(d.subarray(49, 81)).toBase58();
+  // Name and symbol can be copied by anyone; the creator on the curve can't. Config.token_mint has no setter, so this is the check that counts.
+  if (o.expectCreator && r.creator !== o.expectCreator) errors.push(`curve creator is ${r.creator ?? "absent"}, expected ${o.expectCreator}: not the owner's coin`);
   if (d.length > 81 && d[81] === 1) errors.push("this is a mayhem-mode coin: refused, its supply and fee flow differ");
   if (d.length > 82 && d[82] === 1) errors.push("this is a cashback coin: refused");
   if (d.length >= 115 && d.subarray(83, 115).some((b) => b !== 0) && !new PublicKey(d.subarray(83, 115)).equals(WSOL_MINT)) errors.push("curve isn't quoted in SOL");

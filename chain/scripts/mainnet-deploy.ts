@@ -8,9 +8,10 @@
  *   node mainnet-deploy.ts --close-buffer [--execute --mainnet-i-understand]   # abandon a partial deploy, refund the buffer
  */
 import { PublicKey } from "@solana/web3.js";
+import { execSync } from "node:child_process";
 import { existsSync } from "node:fs";
 import { readFileSync } from "node:fs";
-import { BUFFER_HEADER, DEVNET_PROGRAM_ID, connect, die, ensureKey, explorer, keypath, loadKey, main, markStep, maxLenFor, parseArgs, priorityMicroLamports, programDataAddress, parseProgramData, programId, readState, roles, runMode, sha256File, sleep, solanaCli, sol } from "./mainnet-lib.ts";
+import { BUFFER_HEADER, DEVNET_PROGRAM_ID, connect, die, ensureKey, explorer, keypath, loadKey, main, markStep, maxLenFor, parseArgs, priorityMicroLamports, programDataAddress, parseProgramData, programId, readState, repoDir, roles, runMode, sha256File, sleep, solanaCli, sol } from "./mainnet-lib.ts";
 
 main(async () => {
   const args = parseArgs();
@@ -52,6 +53,17 @@ main(async () => {
   if (!so.includes(pid.toBuffer())) die(`${st.build.path} doesn't embed ${pid.toBase58()}: rebuild with mainnet-build (--features mainnet)`);
   if (so.includes(new PublicKey(DEVNET_PROGRAM_ID).toBuffer())) die(`${st.build.path} embeds the devnet program id: refusing to deploy`);
   if ((await sha256File(st.build.path)) !== st.build.sha256) die(`${st.build.path} no longer matches the recorded build hash: rebuild`);
+  // A stale binary can't deploy: what's on chain must be what the commit says.
+  const head = execSync("git rev-parse HEAD", { cwd: repoDir, encoding: "utf8" }).trim();
+  const dirty = execSync("git status --porcelain -- chain/programs chain/Cargo.lock chain/Cargo.toml", { cwd: repoDir, encoding: "utf8" }).trim();
+  const stale = st.build.commit !== head ? `the build is from ${st.build.commit.slice(0, 10)} but HEAD is ${head.slice(0, 10)}: rebuild (mainnet-launch.ts --only build --redo build)` : dirty ? `chain/programs has uncommitted changes:\n${dirty}` : null;
+  if (stale) { if (mode.execute) die(stale); console.log(`would refuse: ${stale}`); }
+  // A partial buffer from a different build: the CLI would keep its trailing bytes, and they'd end up in the program.
+  if (bufferAcc && bufferAcc.data.length !== BUFFER_HEADER + so.length) {
+    const m = `buffer ${bufferPk!.toBase58()} holds ${bufferAcc.data.length - BUFFER_HEADER} B but this .so is ${so.length} B. Run mainnet-deploy.ts --close-buffer (refunds it), then re-run.`;
+    if (mode.execute) die(m);
+    console.log(`would refuse: ${m}`);
+  }
   const maxLen = maxLenFor(so.length);
   const micro = await priorityMicroLamports(c);
   console.log(`so        ${so.length} B, sha256 ${st.build.sha256}, verifiable: ${st.build.verifiable}\nmax-len   ${maxLen}\npriority  ${micro} microLamports/CU`);

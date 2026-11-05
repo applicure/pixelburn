@@ -25,7 +25,7 @@ Runs preflight, reproducible build (Docker must be running), fund keeper + uploa
 
 ## 2. Pre-launch switch (well before the coin, allow 30 min)
 
-Devnet stops being served from here on. Take the steps in order. `node mainnet-env.ts` prints the values; `--write-secrets <dir>` writes the two secret bodies to files (mode 600) so they never pass through a terminal. Delete those files afterwards.
+Devnet stops being served from here on. Take the steps in order. `node mainnet-env.ts` prints the values; `--write-secrets <dir>` writes the two secret bodies to files (mode 600, and it refuses a path inside the repo) so they never pass through a terminal. Delete those files afterwards.
 
 ### Database: fresh, never reused
 1. Stop the indexer and keeper apps so nothing writes.
@@ -96,7 +96,7 @@ caffeinate -i node mainnet-graduation.ts watch --auto-execute --execute --mainne
 ```
 It idles until a mint is recorded and Config exists.
 
-**Owner, on pump.fun:** name `Pixel Frame`, symbol `PXL`, image `brand/token-image-1000.png`, website `https://pixelframe.tech`. Leave mayhem mode OFF and pair it with SOL: init refuses anything else. Send the mint to the operator.
+**Owner, on pump.fun, from wallet `DrwhHphNRoLwTkRMjHxdUU6FFsqF7oMDHyTypa2nw8Vu`:** init refuses a coin with any other creator, because `Config.token_mint` has no setter and a copycat mint would mean a new program deployment. The owner signs in the pump.fun UI; no script reads this wallet's key or sends to it. Name `Pixel Frame`, symbol `PXL`, image `brand/token-image-1000.png`, website `https://pixelframe.tech`. Leave mayhem mode OFF, leave holder rewards OFF, and pair it with SOL: init refuses mayhem and non-SOL coins outright, and with holder rewards the curve's creator becomes a PDA, so the creator check refuses it too. Send the mint to the operator.
 
 **T0: mint received.** Terminal 2, paste carefully:
 ```sh
@@ -105,7 +105,7 @@ node mainnet-init.ts --mint <MINT> --execute --mainnet-i-understand
 
 | Time | What happens | If not |
 |---|---|---|
-| T+1 s | Mint validated from chain | It refuses and nothing is sent. Check the mint with the owner. **Don't work around this: the mint is permanent** |
+| T+1 s | Mint validated from chain, creator included | It refuses and nothing is sent. Check the mint with the owner. **Don't work around this: the mint is permanent.** If only the spelling of the name or symbol differs and the owner confirms it, pass `--expect-name` / `--expect-symbol`. If the owner launched from another wallet, `--expect-creator <wallet>` |
 | T+1 to 61 s | Spot sampled. A wild market doesn't abort | Lower `--sample-secs` to go faster |
 | T+65 s | `INITIALIZED`. Fees escalate and rebroadcast across both RPCs | It retries up to 6 blockhashes, then exits. Re-run the same command: safe |
 | T+70 s | **Site flips by itself; SOL purchases open** | Reload once. Check `/api/rpc` on web |

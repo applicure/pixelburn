@@ -17,6 +17,8 @@ import { associatedTokenAddress, buildBuyTx, fetchCanvas, fetchConfig, readSpotP
 import BN from "bn.js";
 import { buildTx, connect, die, explorer, loadKey, main, parseArgs, programId, roles, runMode, sendAndConfirm, simulate, solToLamports, stringifyBig, strArg, toVersioned } from "./mainnet-lib.ts";
 
+const MAX_BUY_TOKENS_LAMPORTS = 1_500_000_000n;
+
 main(async () => {
   const args = parseArgs();
   const mode = runMode(args);
@@ -42,6 +44,7 @@ main(async () => {
     const v = strArg(args, "sol");
     if (!v) die("--sol <amount> is required");
     const lamports = solToLamports(v);
+    if (lamports > MAX_BUY_TOKENS_LAMPORTS) die(`--sol ${v} is above the 1.5 SOL cap: a smoke test shouldn't move the market`);
     let ixs: TransactionInstruction[];
     if (cfg.priceSource.kind === "pool") {
       const state = await new OnlinePumpAmmSdk(c).swapSolanaState(cfg.priceSource.pool, r.launch);

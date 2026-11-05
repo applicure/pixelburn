@@ -29,8 +29,9 @@ export const DEVNET_PROGRAM_ID = "A4uaXC9sU3UrbqcPZL4ZJMd2aKzmo5Rq4yDvRm8gpTS";
 
 /**
  * Owner decisions, 2026-11-05. The treasury has no key here on purpose: no script may read or need it. The coin is launched by the owner
- * through the pump.fun site, so there's no creator role either: keys/mainnet/creator.json is not used.
+ * through the pump.fun site from COIN_CREATOR. No script reads that wallet's key or sends to it; it's only compared with the creator on the curve.
  */
+export const COIN_CREATOR = "DrwhHphNRoLwTkRMjHxdUU6FFsqF7oMDHyTypa2nw8Vu";
 export const MAINNET_ROLES = {
   launch: "8FLcVCzsxgyH7iJRuwjk1tXREXnC4gjfh4am7tFCctEB",
   treasury: "FCgCSkEBH7nQoHw6NDPHmPbVmQMvUVQwDXGDjdn99i1J",
@@ -210,7 +211,7 @@ export function runMode(args = parseArgs()): RunMode {
   return { execute, rehearsal, keysDir, statePath, args };
 }
 
-const secretValues = () => [process.env.MAINNET_RPC_URL, process.env.MPB_REHEARSAL_RPC_URL, process.env.SOLANA_RPC, process.env.SOLANA_RPC_HELIUS_KEY, process.env.GRADUATION_WEBHOOK_URL];
+const secretValues = () => [process.env.MAINNET_RPC_URL, process.env.MAINNET_RPC_URL_2, process.env.MAINNET_RPC_URL_3, process.env.MPB_REHEARSAL_RPC_URL, process.env.MPB_REHEARSAL_RPC_URL_2, process.env.MPB_REHEARSAL_RPC_URL_3, process.env.SOLANA_RPC, process.env.SOLANA_RPC_HELIUS_KEY, process.env.GRADUATION_WEBHOOK_URL];
 
 export function redact(text: string): string {
   let out = text;

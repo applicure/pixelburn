@@ -2,7 +2,10 @@
  * Launch-minute init: mint -> validate -> sample <= 60 s -> initialize -> first crank. SOL purchases open the moment initialize lands, so this is built to
  * land: priority fees that escalate, rebroadcast, and failover across MAINNET_RPC_URL + MAINNET_RPC_URL_2 / _3.
  *
- *   node mainnet-init.ts --mint <address> [--sample-secs 60] [--no-guard] [--execute --mainnet-i-understand]
+ *   node mainnet-init.ts --mint <address> [--expect-creator <wallet>] [--sample-secs 60] [--no-guard] [--execute --mainnet-i-understand]
+ *
+ * The curve's creator must be COIN_CREATOR (--expect-creator overrides it): Config.token_mint has no setter, so a copycat mint would mean a new program deployment.
+ * If the owner typed the name or symbol differently on pump.fun, pass --expect-name / --expect-symbol with what they typed rather than editing code.
  *
  * Without --execute: validates and samples briefly, then simulates. A re-run after a crash is safe: if Config exists it goes straight to the seed guard.
  * The mint is permanent once initialized, so validation refuses anything that isn't exactly the coin we expect (mainnet-mint.ts).
@@ -14,7 +17,7 @@ import { SOL_USD_FEED_ID, buybackVaultPda, canvasPda, configPda, fetchConfig, in
 import { spawnSync } from "node:child_process";
 import { resolve } from "node:path";
 import {
-  EMA_SEED_BAND, INIT_PARAMS, SAMPLE_EVERY_MS, SAMPLE_MAX_SECS, buildTx, connect, die, explorer, failoverConnections, firstAnswer, here, loadKey, main, markStep, maxMinRatio, medianBig, parseArgs, parseProgramData,
+  COIN_CREATOR, EMA_SEED_BAND, INIT_PARAMS, SAMPLE_EVERY_MS, SAMPLE_MAX_SECS, buildTx, connect, die, explorer, failoverConnections, firstAnswer, here, loadKey, main, markStep, maxMinRatio, medianBig, parseArgs, parseProgramData,
   priorityMicroLamports, programDataAddress, programId, readState, redact, roles, runMode, sendRobust, simulate, sleep, strArg, watcherAlive, writeState,
 } from "./mainnet-lib.ts";
 import { validateMint } from "./mainnet-mint.ts";
@@ -45,6 +48,7 @@ main(async () => {
   const mode = runMode(args);
   const mintArg = strArg(args, "mint");
   if (!mintArg) die("--mint <address> is required");
+  const expectCreator = strArg(args, "expect-creator") ?? (mode.rehearsal ? undefined : COIN_CREATOR);
   let mint: PublicKey;
   try { mint = new PublicKey(mintArg); } catch { die(`not an address: ${mintArg}`); }
   const { connection, label, genesis } = await connect(mode);
@@ -75,7 +79,7 @@ main(async () => {
     return after();
   }
 
-  const check = await validateMint(conns, mint, mode.rehearsal ? { expectName: strArg(args, "expect-name"), expectSymbol: strArg(args, "expect-symbol") } : {});
+  const check = await validateMint(conns, mint, { expectName: strArg(args, "expect-name"), expectSymbol: strArg(args, "expect-symbol"), expectCreator });
   console.log(`${ms(t0)} mint ${mint.toBase58()}\n  name "${check.name}", symbol "${check.symbol}", supply ${check.supply}, token program ${check.tokenProgram?.toBase58()}\n  curve ${check.curve.toBase58()}, complete ${check.complete}\n  creator ${check.creator ?? "?"}\n  pool after graduation ${check.pool.toBase58()}`);
   for (const n of check.notes) console.log(`  note: ${n}`);
   if (!check.ok) { for (const e of check.errors) console.error(`  INVALID: ${e}`); die("mint validation failed: nothing was sent"); }

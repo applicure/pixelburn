@@ -10,14 +10,14 @@ import { existsSync, readFileSync, statSync } from "node:fs";
 import { resolve } from "node:path";
 import {
   DEVNET_PROGRAM_ID, LAUNCH_BUDGET_LAMPORTS, MAINNET_ROLES, TOKEN_INITIAL_SUPPLY, chainDir, connect, declaredMainnetId, ensureKey, hasCommand, launchBudget, loadKey, main,
-  parseArgs, programDataAddress, parseProgramData, programId, readState, repoDir, roles, runMode, sol,
+  parseArgs, programDataAddress, parseProgramData, programId, readState, redact, repoDir, roles, runMode, sol,
 } from "./mainnet-lib.ts";
 
 const problems: string[] = [];
 const warnings: string[] = [];
-const ok = (m: string) => console.log(`  ok    ${m}`);
-const bad = (m: string) => { problems.push(m); console.log(`  FAIL  ${m}`); };
-const warn = (m: string) => { warnings.push(m); console.log(`  warn  ${m}`); };
+const ok = (m: string) => console.log(`  ok    ${redact(m)}`);
+const bad = (m: string) => { problems.push(m); console.log(`  FAIL  ${redact(m)}`); };
+const warn = (m: string) => { warnings.push(m); console.log(`  warn  ${redact(m)}`); };
 const docker = () => { try { execSync("docker info", { stdio: "ignore", timeout: 15_000 }); return true; } catch { return false; } };
 
 main(async () => {

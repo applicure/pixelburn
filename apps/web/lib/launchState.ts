@@ -27,10 +27,13 @@ async function poll() {
   const sdk = await import("@mpb/sdk");
   const { Connection } = await import("@solana/web3.js");
   const conn = new Connection(rpcEndpoint(), { commitment: "confirmed", disableRetryOnRateLimit: true });
-  const config = sdk.configPda(sdk.programIdForCluster(CLUSTER));
+  const programId = sdk.programIdForCluster(CLUSTER);
+  const config = sdk.configPda(programId);
   while (!isLive()) {
     try {
-      set((await conn.getAccountInfo(config)) ? "live" : "soon");
+      // Owner check: anyone can send lamports to the PDA, which makes an account exist without the program having initialised it.
+      const info = await conn.getAccountInfo(config);
+      set(info?.owner.equals(programId) ? "live" : "soon");
     } catch {
       /* keep the last known state; the next poll decides */
     }

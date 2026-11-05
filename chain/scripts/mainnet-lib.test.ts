@@ -74,6 +74,11 @@ test("init requires the mint", () => {
   assert.equal(r.status, 1);
   assert.match(r.stderr, /--mint/);
 });
+test("failover URLs are redacted", () => {
+  process.env.MAINNET_RPC_URL_2 = "https://second.example/secretpath";
+  assert.ok(!redact("x https://second.example/secretpath y").includes("secretpath"));
+  delete process.env.MAINNET_RPC_URL_2;
+});
 test("no script loads the treasury or creator key or reads the owner export", () => {
   for (const f of readdirSync(".").filter((x) => /^mainnet-.*\.ts$/.test(x) && !x.endsWith(".test.ts") && x !== "mainnet-lib.ts")) {
     const src = readFileSync(f, "utf8");

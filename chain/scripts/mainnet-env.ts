@@ -4,10 +4,10 @@
  *   node mainnet-env.ts --write-secrets <dir>   writes keeper-secret.json and api-secret.json (mode 600) for `coolify.py PATCH`; printed nowhere.
  * Full runbook: docs/mainnet-cutover.md
  */
-import { mkdirSync, writeFileSync } from "node:fs";
-import { resolve } from "node:path";
+import { chmodSync, mkdirSync, realpathSync, writeFileSync } from "node:fs";
+import { relative, resolve } from "node:path";
 import bs58 from "bs58";
-import { TOKEN_INITIAL_SUPPLY, connect, loadKey, main, markStep, parseArgs, programId, readState, roles, runMode, strArg } from "./mainnet-lib.ts";
+import { TOKEN_INITIAL_SUPPLY, connect, die, loadKey, main, markStep, parseArgs, programId, readState, repoDir, roles, runMode, strArg } from "./mainnet-lib.ts";
 
 main(async () => {
   const args = parseArgs();
@@ -36,9 +36,16 @@ main(async () => {
   const dir = strArg(args, "write-secrets");
   if (dir) {
     mkdirSync(resolve(dir), { recursive: true });
+    const real = realpathSync(resolve(dir));
+    if (!relative(realpathSync(repoDir), real).startsWith("..")) die(`--write-secrets must be outside the repo: ${real}`);
     const b = (k: string, value: string) => ({ key: k, value, is_preview: false, is_literal: true });
-    writeFileSync(resolve(dir, "keeper-secret.json"), JSON.stringify(b("KEEPER_KEYPAIR", bs58.encode(loadKey(mode, "keeper").secretKey))), { mode: 0o600 });
-    writeFileSync(resolve(dir, "api-secret.json"), JSON.stringify(b("IRYS_KEY", bs58.encode(loadKey(mode, "uploader").secretKey))), { mode: 0o600 });
+    const put = (name: string, body: unknown) => {
+      const f = resolve(real, name);
+      writeFileSync(f, JSON.stringify(body), { mode: 0o600 });
+      chmodSync(f, 0o600); // `mode` above is ignored when the file already exists
+    };
+    put("keeper-secret.json", b("KEEPER_KEYPAIR", bs58.encode(loadKey(mode, "keeper").secretKey)));
+    put("api-secret.json", b("IRYS_KEY", bs58.encode(loadKey(mode, "uploader").secretKey)));
     console.log(`\nwrote ${dir}/keeper-secret.json and api-secret.json (mode 600). Delete them after use.`);
   }
   if (mode.execute) markStep(mode, "env");
