@@ -57,7 +57,7 @@ const EnvSchema = z.object({
   DRAINER_LIST_URL: optStr,
   AUTO_APPROVE: bool,
   /** Hosts the moderation worker/composer may fetch ad images from (SSRF guard). PUBLIC_BASE_URL's host is always allowed. */
-  IMAGE_HOSTS: z.string().default("arweave.net,gateway.irys.xyz,devnet.irys.xyz,node1.irys.xyz,node2.irys.xyz"),
+  IMAGE_HOSTS: z.string().default("arweave.net,gateway.irys.xyz,datasprite-cdn.com,devnet.irys.xyz,node1.irys.xyz,node2.irys.xyz"),
 
   // Pricing
   HERMES_URL: z.string().default("https://hermes.pyth.network"),

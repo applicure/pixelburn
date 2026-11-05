@@ -13,8 +13,8 @@ const apiOrigin = (() => {
     return "";
   }
 })();
-// ad images: services' resolved URLs (API origin) or Arweave/Irys gateways
-const imageHosts = ["https://arweave.net", "https://*.arweave.net", "https://gateway.irys.xyz", "https://*.irys.xyz"];
+// ad images: services' resolved URLs (API origin) or Arweave/Irys gateways; gateway.irys.xyz redirects to datasprite-cdn, and CSP checks redirects
+const imageHosts = ["https://arweave.net", "https://*.arweave.net", "https://gateway.irys.xyz", "https://*.irys.xyz", "https://*.datasprite-cdn.com"];
 
 const csp = [
   "default-src 'self'",
