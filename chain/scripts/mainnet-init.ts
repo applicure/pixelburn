@@ -11,6 +11,7 @@
  * The mint is permanent once initialized, so validation refuses anything that isn't exactly the coin we expect (mainnet-mint.ts).
  * Seed: the median of the samples. A wild first minute doesn't abort: dispersion is reported, and if spot has left the band the seed uses the latest
  * reads, because the mismatch only ever delays token payments. If the curve already completed: seeds 0 and hands over to mainnet-graduation.ts.
+ * PUMP-paired coin: no sampling, seeds 0 (token pricing off), and SOL purchases open as soon as initialize lands. Pricing waits for the program upgrade.
  */
 import { PublicKey, type Connection } from "@solana/web3.js";
 import { SOL_USD_FEED_ID, buybackVaultPda, canvasPda, configPda, fetchConfig, initializeIx, parseBondingCurve, spotPriceQ } from "@mpb/sdk";
@@ -63,6 +64,7 @@ main(async () => {
     console.log(`${ms(t0)} SOL purchases are open. Seed guard running; Ctrl-C is safe, mainnet-guard.ts resumes it.`);
     const result = await runSeedGuard(mode, conns);
     console.log(`${ms(t0)} guard: ${result}`);
+    if (result === "parked") { console.log("nothing else to do until the program upgrade: docs/mainnet-cutover.md"); return; }
     if (result === "graduation") {
       if (watcherAlive(mode)) { console.log("the graduation watcher is running and takes it from here"); return; }
       console.log("no graduation watcher is running: starting one in this terminal, with auto-execute");
@@ -92,7 +94,8 @@ main(async () => {
 
   const secs = Math.min(SAMPLE_MAX_SECS, Number(strArg(args, "sample-secs") ?? SAMPLE_MAX_SECS));
   let seed = 0n, medianQ = 0n, ratio = 1, count = 0;
-  if (!check.complete) {
+  if (check.quote === "pump") console.log(`${ms(t0)} PUMP-paired coin: no sampling, seeding 0. Token payments and buybacks stay off until the program upgrade.`);
+  else if (!check.complete) {
     console.log(`${ms(t0)} sampling spot for ${mode.execute ? secs : Math.min(secs, 6)} s`);
     const { xs, complete } = await sampleSpot(conns, check.curve, mode.execute ? secs : Math.min(secs, 6), t0);
     count = xs.length;
@@ -107,7 +110,7 @@ main(async () => {
       console.log(`${ms(t0)} ${xs.length} samples, median ${medianQ}, max/min ${ratio.toFixed(4)}, latest ${tail} (${(off * 100).toFixed(1)}% from the median); seed ${seed}${seed === tail && seed !== medianQ ? " (latest reads: the market left the median)" : ""}`);
     }
   }
-  if (check.complete) { seed = 0n; console.log(`${ms(t0)} curve is complete: seeding 0 (token payments off); the graduation flow seeds from the pool. SOL purchases still open now.`); }
+  if (check.complete && check.quote !== "pump") { seed = 0n; console.log(`${ms(t0)} curve is complete: seeding 0 (token payments off); the graduation flow seeds from the pool. SOL purchases still open now.`); }
 
   const ix = initializeIx({
     admin: r.launch, tokenMint: mint, tokenProgram: check.tokenProgram!, treasury: r.treasury, keeper: r.keeper, pythFeedIdHex: SOL_USD_FEED_ID, priceSource: { kind: "bondingCurve", curve: check.curve },
@@ -120,7 +123,7 @@ main(async () => {
   const sim = await firstAnswer(conns, (c) => simulate(c, tx));
   console.log(`${ms(t0)} simulate ${sim.ok ? `ok, ${sim.units} CU` : `ERR ${JSON.stringify(sim.err)}`}`);
   if (!sim.ok) { console.log(sim.logs.slice(-6).join("\n")); throw new Error("initialize simulation failed"); }
-  if (!mode.execute) { console.log("DRY RUN: nothing sent"); return; }
+  if (!mode.execute) { console.log(sim.logs.join("\n")); console.log("DRY RUN: nothing sent"); return; }
 
   const s = readState(mode);
   s.mint = mint.toBase58(); s.curve = check.curve.toBase58();

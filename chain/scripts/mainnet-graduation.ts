@@ -11,11 +11,12 @@
  *   reseed [--execute --mainnet-i-understand]   re-seeds the CURRENT source from a fresh 60 s median, for EmaSeedMismatch or a stale seed.
  *
  * The launch key is also the upgrade authority: it must never be put on a server. See "Graduation" in chain/NOTES.md.
+ * A PUMP-quoted coin is parked until the program upgrade: watch idles and reports it, and nothing else here sends. SOL payments never depend on this.
  * The transaction can do one thing: set_price_source to the pool derived from the on-chain mint, with a seed the samples agree on.
  */
 import { PublicKey, type Connection, type TransactionInstruction } from "@solana/web3.js";
 import { canonicalPumpPoolPda } from "@pump-fun/pump-sdk";
-import { PUMP_PROGRAM_ID, TOKEN_PROGRAM_ID, WSOL_MINT, associatedTokenAddress, fetchConfig, parseBondingCurve, poolSpotPriceQ, readSpotPriceQ, setPriceSourceIx, type ConfigAccount, type PriceSource } from "@mpb/sdk";
+import { PUMP_PROGRAM_ID, TOKEN_PROGRAM_ID, WSOL_MINT, associatedTokenAddress, curveQuoteMint, fetchConfig, parseBondingCurve, poolSpotPriceQ, readSpotPriceQ, setPriceSourceIx, type ConfigAccount, type PriceSource } from "@mpb/sdk";
 import { existsSync, readFileSync, utimesSync, writeFileSync } from "node:fs";
 import {
   GRAD_MAX_DISPERSION, GRAD_MEDIAN_WINDOW_SECS, buildTx, connect, die, dispersionFromMedian, explorer, loadKey, main, markStep, medianBig, parseArgs, priorityMicroLamports, programId, proposalPath, readState, redact, roles,
@@ -34,6 +35,12 @@ interface Proposal {
 
 const pidOf = (mode: RunMode) => programId(mode);
 const curveOf = (mint: PublicKey) => PublicKey.findProgramAddressSync([Buffer.from("bonding-curve"), mint.toBuffer()], PUMP_PROGRAM_ID)[0];
+/** A curve not quoted in SOL: the deployed program can't price it or its pool. */
+const parkedQuote = (curve: { data: Uint8Array } | null): string | null => {
+  if (!curve) return null;
+  const q = curveQuoteMint(curve.data);
+  return q.equals(WSOL_MINT) ? null : q.toBase58();
+};
 
 function poolFor(cfg: ConfigAccount): Extract<PriceSource, { kind: "pool" }> {
   const pool = canonicalPumpPoolPda(cfg.tokenMint);
@@ -97,6 +104,8 @@ async function executeProposal(mode: RunMode, c: Connection, p: Proposal): Promi
   if (!cfg.admin.equals(roles(mode).launch)) die("config.admin is not the launch wallet");
   if (cfg.priceSource.kind === "pool") { console.log("already on the pool: nothing to do"); return true; }
   if (cfg.tokenMint.toBase58() !== p.mint) die("proposal mint differs from config");
+  const q = parkedQuote(await c.getAccountInfo(curveOf(cfg.tokenMint)));
+  if (q) die(`the coin is quoted in ${q}: no switch before the program upgrade`);
   const ps = poolFor(cfg);
   if (ps.pool.toBase58() !== p.pool || ps.baseVault.toBase58() !== p.baseVault || ps.quoteVault.toBase58() !== p.quoteVault) die("proposal pool isn't the canonical one");
   const curveAcc = await c.getAccountInfo(curveOf(cfg.tokenMint));
@@ -133,6 +142,11 @@ main(async () => {
     if (!st.mint && !cfg) { console.log("no coin and no config yet"); return; }
     const mint = cfg?.tokenMint ?? new PublicKey(st.mint!);
     const curveAcc = await c.getAccountInfo(curveOf(mint));
+    const parked = parkedQuote(curveAcc);
+    if (parked) {
+      console.log(stringifyBig({ mint, curve: curveOf(mint), quote: parked, state: "parked until the program upgrade: token pricing and buybacks are off, SOL payments work", configSource: cfg?.priceSource.kind ?? "no config yet", watcherAlive: existsSync(watcherHeartbeatPath(mode)) }));
+      return;
+    }
     const pool = canonicalPumpPoolPda(mint);
     console.log(stringifyBig({
       mint, curve: curveOf(mint), curveComplete: curveAcc ? parseBondingCurve(curveAcc.data).complete : null, pool, poolExists: !!(await c.getAccountInfo(pool)),
@@ -150,6 +164,8 @@ main(async () => {
 
   if (cmd === "reseed") {
     const cfg = await fetchConfig(c, pid);
+    const q = parkedQuote(await c.getAccountInfo(curveOf(cfg.tokenMint)));
+    if (q) die(`the coin is quoted in ${q}: nothing to re-seed before the program upgrade`);
     console.log(`re-seeding the current source (${cfg.priceSource.kind}), current EMA ${cfg.tokenEmaPriceSol}`);
     const m = await medianOver(c, cfg.priceSource, GRAD_MEDIAN_WINDOW_SECS);
     console.log(`median ${m.median} of ${m.n}, dispersion ${(m.dispersion * 100).toFixed(2)}%`);
@@ -178,6 +194,8 @@ main(async () => {
       if (!mintStr) { say("waiting for the coin"); if (once) return; await sleep(POLL_MS); continue; }
       const mint = new PublicKey(mintStr);
       const curveAcc = await c.getAccountInfo(curveOf(mint));
+      const parked = parkedQuote(curveAcc);
+      if (parked) { say(`parked: the coin is quoted in ${parked}. No price-source switch until the program upgrade; SOL payments are unaffected.`); if (once) return; await sleep(POLL_MS * 6); continue; }
       const complete = curveAcc ? parseBondingCurve(curveAcc.data).complete : false;
       if (!complete) { say(`watching curve ${curveOf(mint).toBase58()}`); if (once) return; await sleep(POLL_MS); continue; }
       say("curve COMPLETE");

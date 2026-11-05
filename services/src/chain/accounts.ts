@@ -10,8 +10,12 @@ import {
   decodeAd,
   decodeAuction,
   decodeConfig,
+  NonSolQuoteError,
+  buybackPhase,
+  priceSourceQuoteMint,
   readSpotPriceQ,
   tokenPricingStatus,
+  type BuybackPhase,
   type ConfigAccount,
 } from "@mpb/sdk";
 
@@ -75,6 +79,8 @@ export interface ChainReader {
    */
   fetchTokenPrice(blocks?: number): Promise<OnchainTokenPrice | null>;
   fetchBuybackVaultLamports(): Promise<bigint | null>;
+  /** The flag behind "buybacks and token payments come later". See buybackPhase in @mpb/sdk. */
+  fetchBuybackPhase?(cluster: string): Promise<BuybackPhase>;
   /** Blocks of the final-auction lot (Auction.lot_bitmap); null if no auction. */
   fetchAuctionLotBlocks?(): Promise<number[] | null>;
   /** Lamports release_buyback would currently allow (token bucket); null if unknown. */
@@ -133,12 +139,25 @@ export class RpcChainReader implements ChainReader {
     const ema = cfg.tokenEmaPriceSol;
     const slow = cfg.tokenSlowEmaPriceSol && cfg.tokenSlowEmaPriceSol > 0n ? cfg.tokenSlowEmaPriceSol : ema;
     // Live reserves: curve virtual reserves, or pool vault + virtual_quote_reserves (SDK parsers).
-    const spot = await readSpotPriceQ(this.conn, cfg.priceSource);
+    let spot: bigint;
+    try {
+      spot = await readSpotPriceQ(this.conn, cfg.priceSource);
+    } catch (e) {
+      // A PUMP-paired coin: its reserves aren't lamports, and the deployed program refuses to price it. A state, not a failure.
+      if (e instanceof NonSolQuoteError) return { spot: 0n, ema: 0n, slow: 0n, unavailable: { reason: "upgradePending", detail: "Token payments are coming soon" } };
+      throw e;
+    }
     // Same gate the program applies in buy_with_token: seeded, warm-up, staleness, one-sided
     // deviation, and (with `blocks`) the hourly token-paid block cap.
     const st = tokenPricingStatus(cfg, spot, Math.floor(Date.now() / 1000), blocks);
     if (!st.ok) return { spot, ema, slow, unavailable: { reason: st.reason, detail: st.detail } };
     return { spot, ema, slow, pricedBy: st.pricedBy, blocksAvailable: st.blocksAvailable };
+  }
+
+  async fetchBuybackPhase(cluster: string): Promise<BuybackPhase> {
+    const cfg = await this.fetchConfig();
+    const quoteMint = cfg ? await priceSourceQuoteMint(this.conn, cfg.priceSource) : null;
+    return buybackPhase({ cluster, hasConfig: !!cfg, quoteMint });
   }
 
   async fetchBuybackVaultLamports() {

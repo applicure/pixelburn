@@ -114,6 +114,8 @@ export async function buildContext(cfg: Config, o: Overrides = {}) {
         : { get: async () => { throw new Error("token price unavailable: PROGRAM_ID not configured"); } });
   const quotes = new QuoteService(sol, token, cfg.TOKEN_DECIMALS);
   const tokenSupply = cached(async () => (chain ? chain.fetchTokenSupply() : null), 60_000);
+  const buybackPhase = cached(async () => (chain?.fetchBuybackPhase ? chain.fetchBuybackPhase(cfg.SOLANA_CLUSTER) : null), 15_000);
+  const buybackVaultLamports = cached(async () => (chain ? chain.fetchBuybackVaultLamports() : null), 15_000);
 
   return {
     cfg,
@@ -130,7 +132,7 @@ export async function buildContext(cfg: Config, o: Overrides = {}) {
     moderation,
     quotes,
     bus: new EventEmitter().setMaxListeners(10_000),
-    stats: { sol, token, decimals: cfg.TOKEN_DECIMALS, tokenSupply, staticInitialSupply: BigInt(cfg.TOKEN_INITIAL_SUPPLY ?? cfg.TOKEN_SUPPLY_STATIC ?? "1000000000000000") },
+    stats: { sol, token, decimals: cfg.TOKEN_DECIMALS, tokenSupply, buybackPhase, buybackVaultLamports, cluster: cfg.SOLANA_CLUSTER, staticInitialSupply: BigInt(cfg.TOKEN_INITIAL_SUPPLY ?? cfg.TOKEN_SUPPLY_STATIC ?? "1000000000000000") },
   };
 }
 

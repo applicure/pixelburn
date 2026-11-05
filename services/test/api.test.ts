@@ -27,7 +27,7 @@ const AuctionSchema = z.strictObject({
 const StatsSchema = z.strictObject({
   soldBlocks: z.number().int(), totalBlocks: z.literal(10_000), adsCount: z.number().int(), usdRaised: z.number(),
   lamportsRaised: u64, lamportsToTreasury: u64, lamportsToBuyback: u64, lamportsSpentBuyback: u64,
-  tokensBurned: u64, tokensBurnedDirect: u64, tokensBurnedBuyback: u64, tokenSupply: u64, burnedPct: z.number(), tokensBurnedExternal: u64, supplyReduction: u64, supplyReductionPct: z.number(),
+  tokensBurned: u64, tokensBurnedDirect: u64, tokensBurnedBuyback: u64, tokenSupply: u64, buybackPhase: z.enum(["live", "later"]), buybackVaultLamports: u64.nullable(), burnedPct: z.number(), tokensBurnedExternal: u64, supplyReduction: u64, supplyReductionPct: z.number(),
   solPriceUsd: z.number().nullable(), tokenPriceUsd: z.number().nullable(), marketCapUsd: z.number().nullable(),
   auction: AuctionSchema.nullable(), updatedAt: unixSecs,
 });

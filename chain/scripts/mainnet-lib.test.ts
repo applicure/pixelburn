@@ -93,3 +93,40 @@ test("the lib refuses the treasury and creator keys at the source", () => {
     assert.match(out.stderr, /no script may read/);
   }
 });
+
+test("validateMint: SOL or exactly PUMP, mayhem still refused", async () => {
+  const { validateMint } = await import("./mainnet-mint.ts");
+  const { PublicKey } = await import("@solana/web3.js");
+  const { PUMP_PROGRAM_ID, PUMP_QUOTE_MINT, TOKEN_PROGRAM_ID } = await import("@mpb/sdk");
+  const mint = new PublicKey("69GLwTLVuwnaeNPjUixo6CSXKkEYeQ2WQrBVwmQKhT4C");
+  const creator = new PublicKey("FKKi6ooqW26YyGTTMdBR4zGsGXYSLSEPE9mLZZz6hWmq");
+  const mintData = Buffer.alloc(82);
+  mintData.writeBigUInt64LE(1_000_000_000_000_000n, 36);
+  mintData[44] = 6;
+  const check = async (quote: Uint8Array | null, mayhem = false) => {
+    const curve = Buffer.alloc(166);
+    Buffer.from([23, 183, 248, 55, 96, 216, 172, 96]).copy(curve);
+    curve.writeBigUInt64LE(1_073_000_000_000_000n, 8);
+    curve.writeBigUInt64LE(30_000_000_000n, 16);
+    curve.writeBigUInt64LE(1_000_000_000_000_000n, 40);
+    curve.set(creator.toBytes(), 49);
+    if (mayhem) curve[81] = 1;
+    if (quote) curve.set(quote, 83);
+    const conn = {
+      getMultipleAccountsInfo: async () => [{ owner: TOKEN_PROGRAM_ID, data: mintData }, { owner: PUMP_PROGRAM_ID, data: curve }],
+      getAccountInfo: async () => null,
+    };
+    return validateMint([conn as never], mint, { expectName: undefined, expectCreator: creator.toBase58() });
+  };
+  const has = (r: { errors: string[] }, t: string) => r.errors.some((e) => e.includes(t));
+  const pump = await check(PUMP_QUOTE_MINT.toBytes());
+  assert.equal(pump.quote, "pump");
+  assert.equal(pump.spot, null, "PUMP units are not a SOL price");
+  assert.ok(!has(pump, "quoted in"));
+  const sol = await check(null);
+  assert.equal(sol.quote, "sol");
+  assert.ok(sol.spot! > 0n);
+  const other = await check(new PublicKey("EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v").toBytes());
+  assert.ok(has(other, "only SOL or PUMP"));
+  assert.ok(has(await check(PUMP_QUOTE_MINT.toBytes(), true), "mayhem"));
+});

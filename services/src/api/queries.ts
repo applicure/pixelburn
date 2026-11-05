@@ -112,6 +112,9 @@ export interface StatsDeps {
   decimals: number;
   /** current on-chain supply (base units), or null when no mint is configured */
   tokenSupply: () => Promise<bigint | null>;
+  buybackPhase?: () => Promise<"live" | "later" | null>;
+  buybackVaultLamports?: () => Promise<bigint | null>;
+  cluster?: string;
   staticInitialSupply: bigint;
 }
 
@@ -158,6 +161,9 @@ export async function computeStats(d: StatsDeps): Promise<StatsDto> {
     // Same price token buyers are charged: min(spot, fast EMA, slow EMA).
     if (t && t.ema > 0n) tokenPriceUsd = tokenUsdPerToken(sdkBuyPriceQ(t.spot, t.ema, t.slow ?? t.ema), sol.price, d.decimals);
   }
+  // Never fails stats: an unreadable phase falls back to what the cluster implies, an unreadable vault to null.
+  const phase = (await d.buybackPhase?.().catch(() => null)) ?? (d.cluster === "mainnet-beta" ? "later" : "live");
+  const vault = (await d.buybackVaultLamports?.().catch(() => null)) ?? null;
   const marketCapUsd = tokenPriceUsd !== null ? (tokenPriceUsd * Number(supply)) / 10 ** d.decimals : null;
 
   return {
@@ -180,6 +186,8 @@ export async function computeStats(d: StatsDeps): Promise<StatsDto> {
     solPriceUsd: sol?.price ?? null,
     tokenPriceUsd,
     marketCapUsd,
+    buybackPhase: phase,
+    buybackVaultLamports: vault === null ? null : vault.toString(),
     auction: auc,
     updatedAt: Math.floor(Date.now() / 1000),
   };

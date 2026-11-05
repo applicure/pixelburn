@@ -4,17 +4,18 @@
  * lands: cranks itself at the earliest moment (the crank is permissionless; the launch wallet only pays the fee), and on EmaSeedMismatch re-seeds through
  * the existing set_price_source with the current spot, which restarts the 30 s clock. No program change. Token payments and buybacks stay gated by the
  * on-chain warm-up throughout. SOL payments don't read any of this.
+ * A PUMP-quoted coin can't be cranked or seeded until the program upgrade: the guard reports "parked" and stops, and sends nothing.
  *
  *   node mainnet-guard.ts [--execute --mainnet-i-understand] [--max-reseeds 40]     dry run reports what it would do once
  */
 import { type Connection, type Keypair, type PublicKey } from "@solana/web3.js";
-import { crankTokenPriceIx, fetchConfig, parseBondingCurve, readSpotPriceQ, setPriceSourceIx, type PriceSource } from "@mpb/sdk";
+import { WSOL_MINT, crankTokenPriceIx, fetchConfig, parseBondingCurve, priceSourceQuoteMint, readSpotPriceQ, setPriceSourceIx, type PriceSource } from "@mpb/sdk";
 import { fileURLToPath } from "node:url";
 import { EMA_MIN_INTERVAL_SECS, EMA_WARMUP_CRANKS, EMA_WARMUP_SECS, buildTx, connect, failoverConnections, firstAnswer, loadKey, main, markStep, medianBig, parseArgs, priorityMicroLamports, programId, redact, roles, runMode, sendRobust, sleep, strArg, type RunMode } from "./mainnet-lib.ts";
 
 const SPOT_READS = 3;
 
-export type GuardResult = "cranked" | "graduation" | "dry-run" | "gave-up";
+export type GuardResult = "cranked" | "graduation" | "dry-run" | "gave-up" | "parked";
 
 /** What the first crank would do right now: a simulation, so it costs nothing. */
 async function crankOutcome(conns: Connection[], payer: PublicKey, ps: PriceSource, pid: PublicKey): Promise<"ok" | "too-soon" | "seed-mismatch" | "curve-complete" | string> {
@@ -41,6 +42,8 @@ export async function runSeedGuard(mode: RunMode, conns: Connection[], o: { maxR
   for (;;) {
     try {
       const cfg = await firstAnswer(conns, (c) => fetchConfig(c, pid));
+      const quote = await firstAnswer(conns, (c) => priceSourceQuoteMint(c, cfg.priceSource));
+      if (quote && !quote.equals(WSOL_MINT)) { log(`guard: parked, the coin is quoted in ${quote.toBase58()}. Nothing to crank or re-seed until the program upgrade. SOL payments are unaffected.`); return "parked"; }
       if (cfg.emaWarmupCranks > 0) {
         log(`guard: first crank landed. ${cfg.emaWarmupCranks}/${EMA_WARMUP_CRANKS} cranks; token payments open ~${EMA_WARMUP_SECS} s after the first crank (at ${new Date((cfg.emaWarmupStartedAt + EMA_WARMUP_SECS) * 1000).toISOString()} at the earliest). ${reseeds} re-seed(s).`);
         return "cranked";

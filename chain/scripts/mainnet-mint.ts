@@ -7,17 +7,20 @@
  *   - mayhem mode: a separate agent trades the coin and the mint's supply can differ, so supply-based maths break. Refused.
  *   - cashback: deprecated, no new coins. Refused if ever seen (the creator fee goes to traders).
  *   - holder rewards / tokenized agent: fees go elsewhere, but layout, supply and price reads are unchanged. Allowed, reported.
- *   - custom quote (USDC or a pump coin instead of SOL): the program and SDK parser refuse a curve not quoted in SOL. Refused.
+ *   - custom quote: SOL or exactly PUMP (pumpCmXq...). Anything else (USDC, another pump coin) is refused. A PUMP curve's reserves are in PUMP units, so
+ *     the deployed program can't price it: SOL purchases work at once, and token payments and buybacks wait for the program upgrade. No spot here (r.spot stays null).
  */
 import { PublicKey, type Connection } from "@solana/web3.js";
 import { canonicalPumpPoolPda } from "@pump-fun/pump-sdk";
-import { PUMP_PROGRAM_ID, TOKEN_2022_PROGRAM_ID, TOKEN_PROGRAM_ID, WSOL_MINT, parseBondingCurve, spotPriceQ } from "@mpb/sdk";
+import { PUMP_PROGRAM_ID, PUMP_QUOTE_MINT, TOKEN_2022_PROGRAM_ID, TOKEN_PROGRAM_ID, WSOL_MINT, parseBondingCurveRaw, spotPriceQ } from "@mpb/sdk";
 import { COIN, TOKEN_INITIAL_SUPPLY, firstAnswer } from "./mainnet-lib.ts";
 
 export interface MintCheck {
   ok: boolean; errors: string[]; notes: string[];
   tokenProgram?: PublicKey; curve: PublicKey; pool: PublicKey; complete: boolean; spot: bigint | null;
   name?: string; symbol?: string; creator?: string; supply?: bigint;
+  /** What the curve is quoted in: "sol", or "pump" for exactly the PUMP mint. Nothing else passes validation. */
+  quote: "sol" | "pump" | "other";
 }
 
 const u64 = (d: Uint8Array, o: number) => new DataView(d.buffer, d.byteOffset, d.byteLength).getBigUint64(o, true);
@@ -53,7 +56,7 @@ export async function validateMint(conns: Connection[], mint: PublicKey, o: { ex
   const errors: string[] = [], notes: string[] = [];
   const curve = PublicKey.findProgramAddressSync([Buffer.from("bonding-curve"), mint.toBuffer()], PUMP_PROGRAM_ID)[0];
   const pool = canonicalPumpPoolPda(mint);
-  const r: MintCheck = { ok: false, errors, notes, curve, pool, complete: false, spot: null };
+  const r: MintCheck = { ok: false, errors, notes, curve, pool, complete: false, spot: null, quote: "other" };
   const [mintAcc, curveAcc] = await firstAnswer(conns, (c) => c.getMultipleAccountsInfo([mint, curve]));
   if (!mintAcc) { errors.push(`mint ${mint.toBase58()} doesn't exist on this cluster`); return r; }
   if (!mintAcc.owner.equals(TOKEN_PROGRAM_ID) && !mintAcc.owner.equals(TOKEN_2022_PROGRAM_ID)) { errors.push(`${mint.toBase58()} isn't a token mint (owner ${mintAcc.owner.toBase58()})`); return r; }
@@ -68,10 +71,13 @@ export async function validateMint(conns: Connection[], mint: PublicKey, o: { ex
   if (!curveAcc) { errors.push(`no pump.fun bonding curve at the canonical address ${curve.toBase58()}: this isn't a pump.fun coin`); return r; }
   if (!curveAcc.owner.equals(PUMP_PROGRAM_ID)) { errors.push(`curve account is owned by ${curveAcc.owner.toBase58()}`); return r; }
   let parsed;
-  try { parsed = parseBondingCurve(curveAcc.data); } catch (e) { errors.push(`${(e as Error).message} (custom-quote coins can't be used)`); return r; }
+  try { parsed = parseBondingCurveRaw(curveAcc.data); } catch (e) { errors.push((e as Error).message); return r; }
+  r.quote = parsed.quoteMint.equals(WSOL_MINT) ? "sol" : parsed.quoteMint.equals(PUMP_QUOTE_MINT) ? "pump" : "other";
+  if (r.quote === "other") errors.push(`curve is quoted in ${parsed.quoteMint.toBase58()}: only SOL or PUMP (${PUMP_QUOTE_MINT.toBase58()}) can be used`);
+  if (r.quote === "pump") notes.push("PUMP-paired coin: SOL purchases open at once. Token payments and buybacks stay off until the program upgrade.");
   const d = curveAcc.data;
   r.complete = parsed.complete;
-  if (!r.complete) r.spot = spotPriceQ(parsed.quoteLamports, parsed.baseUnits);
+  if (!r.complete && r.quote === "sol") r.spot = spotPriceQ(parsed.quoteReserve, parsed.baseUnits);
   const total = u64(d, 40);
   if (total.toString() !== TOKEN_INITIAL_SUPPLY) errors.push(`curve's token_total_supply is ${total}, expected ${TOKEN_INITIAL_SUPPLY}: TOKEN_INITIAL_SUPPLY and burnedPct assume it`);
   if (d.length >= 81) r.creator = new PublicKey(d.subarray(49, 81)).toBase58();
@@ -79,7 +85,6 @@ export async function validateMint(conns: Connection[], mint: PublicKey, o: { ex
   if (o.expectCreator && r.creator !== o.expectCreator) errors.push(`curve creator is ${r.creator ?? "absent"}, expected ${o.expectCreator}: not the owner's coin`);
   if (d.length > 81 && d[81] === 1) errors.push("this is a mayhem-mode coin: refused, its supply and fee flow differ");
   if (d.length > 82 && d[82] === 1) errors.push("this is a cashback coin: refused");
-  if (d.length >= 115 && d.subarray(83, 115).some((b) => b !== 0) && !new PublicKey(d.subarray(83, 115)).equals(WSOL_MINT)) errors.push("curve isn't quoted in SOL");
   if (d.length > 124 && d[124] === 1) notes.push("holder-rewards coin: creator fees go to holders. Pricing and burns are unaffected.");
   if (m.supply.toString() !== TOKEN_INITIAL_SUPPLY) {
     // pump's post-migration boost burns supply, so a graduated coin may legitimately be below.

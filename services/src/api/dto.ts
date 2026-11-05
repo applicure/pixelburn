@@ -125,6 +125,10 @@ export interface StatsDto {
   solPriceUsd: number | null;
   tokenPriceUsd: number | null;
   marketCapUsd: number | null;
+  /** "later": buybacks and token payments are coming soon; the buyback half of each SOL payment accumulates in the vault. */
+  buybackPhase: "live" | "later";
+  /** Live balance of the vault account, rent included; null when unreadable. */
+  buybackVaultLamports: string | null;
   auction: AuctionDto | null;
   updatedAt: number;
 }
