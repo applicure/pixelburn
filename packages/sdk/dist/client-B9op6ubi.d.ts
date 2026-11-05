@@ -316,7 +316,21 @@ interface PythPrice extends FixedPrice {
 /** Decode a Pyth PriceUpdateV2 account (owner must be the Pyth receiver). */
 declare function decodePriceUpdateV2(data: Uint8Array, owner?: PublicKey): PythPrice;
 declare function fetchSolUsd(connection: Connection, priceUpdate?: PublicKey): Promise<PythPrice>;
-/** pump.fun BondingCurve -> reserves (layout per pump IDL; see chain/NOTES.md). Throws on complete / non-SOL curves. */
+/** The coin trades against a token, not SOL: its reserves aren't lamports, so they must not be read as a SOL price. */
+declare class NonSolQuoteError extends Error {
+    readonly quoteMint: PublicKey;
+    constructor(quoteMint: PublicKey);
+}
+/** The quote mint stored on a curve. A short legacy account and the zero key both mean SOL, returned as WSOL. */
+declare function curveQuoteMint(data: Uint8Array): PublicKey;
+/** Reserves as stored, in whatever the curve is quoted in. Only the SOL path may turn these into a price: see `parseBondingCurve`. */
+declare function parseBondingCurveRaw(data: Uint8Array): {
+    quoteMint: PublicKey;
+    quoteReserve: bigint;
+    baseUnits: bigint;
+    complete: boolean;
+};
+/** pump.fun BondingCurve -> reserves (layout per pump IDL; see chain/NOTES.md). Throws on non-SOL curves (`NonSolQuoteError`). */
 declare function parseBondingCurve(data: Uint8Array): {
     quoteLamports: bigint;
     baseUnits: bigint;
@@ -334,6 +348,23 @@ declare function parsePumpPool(data: Uint8Array): {
 declare function poolSpotPriceQ(poolData: Uint8Array, baseVaultData: Uint8Array, quoteVaultData: Uint8Array): bigint;
 /** Reads reserves exactly like the program and returns spot priceQ (lamports/base unit * 1e18). */
 declare function readSpotPriceQ(connection: Connection, ps: PriceSource): Promise<bigint>;
+/**
+ * What the price source is quoted in; null when the account can't be read. Curves are the only source that can be non-SOL today:
+ * the deployed program's set_price_source only accepts the canonical WSOL pool.
+ */
+declare function priceSourceQuoteMint(connection: Connection, ps: PriceSource): Promise<PublicKey | null>;
+/**
+ * The one flag behind "buybacks and token payments come later".
+ *  - "later": the deployed program can't price this coin, so the buyback half of each SOL payment only accumulates in the vault, and token
+ *    payments are off. True for a coin quoted in anything but SOL, and on mainnet before a coin exists (the launch is PUMP-paired).
+ *  - "live": the program prices the coin, whatever warm-up or pause it is in at the moment.
+ */
+type BuybackPhase = "live" | "later";
+declare function buybackPhase(p: {
+    cluster: string;
+    hasConfig: boolean;
+    quoteMint: PublicKey | null;
+}): BuybackPhase;
 interface BuildOpts {
     /** default 100 bps (1%) for SOL, 300 bps for token */
     slippageBps?: number;
@@ -386,8 +417,8 @@ declare function plannedEma(config: ConfigAccount, nowSecs: number): {
 };
 /** Thrown by `buildBuyWithTokenIxs` when the program would reject token pricing right now. */
 declare class TokenPricingUnavailableError extends Error {
-    readonly reason: "notSeeded" | "warmingUp" | "stale" | "deviation" | "capExhausted" | "sourceUnavailable";
-    constructor(reason: "notSeeded" | "warmingUp" | "stale" | "deviation" | "capExhausted" | "sourceUnavailable", detail: string);
+    readonly reason: "notSeeded" | "warmingUp" | "stale" | "deviation" | "capExhausted" | "sourceUnavailable" | "upgradePending";
+    constructor(reason: "notSeeded" | "warmingUp" | "stale" | "deviation" | "capExhausted" | "sourceUnavailable" | "upgradePending", detail: string);
 }
 declare function buildBuyWithTokenIxs(connection: Connection, p: {
     buyer: PublicKey;
@@ -436,4 +467,4 @@ declare function buildSettleIxs(p: {
     programId?: PublicKey;
 }): TransactionInstruction[];
 
-export { priceSourceAccounts as $, type AdAccount as A, type BuildOpts as B, CU_LIMITS as C, crankTokenPriceIx as D, decodeAd as E, decodeAuction as F, decodeCanvas as G, decodeConfig as H, type InitializeArgs as I, decodePriceUpdateV2 as J, enumKind as K, estimatePriorityFee as L, fetchAd as M, fetchAdAt as N, fetchAllAds as O, type PythPrice as P, fetchAuction as Q, fetchCanvas as R, type SolQuote as S, TokenPricingUnavailableError as T, fetchConfig as U, fetchSolUsd as V, initializeIx as W, parseBondingCurve as X, parsePumpPool as Y, plannedEma as Z, poolSpotPriceQ as _, type PayMode as a, priorityFeeLamports as a0, proposeAdminIx as a1, readSpotPriceQ as a2, recordBuybackBurnIx as a3, releaseBuybackIx as a4, restartFinalAuctionIx as a5, setKeeperIx as a6, setParamsIx as a7, setPausedIx as a8, setPriceSourceIx as a9, setTreasuryIx as aa, settleFinalAuctionIx as ab, startFinalAuctionIx as ac, transferAdIx as ad, updateAdIx as ae, type AdContent as b, type AdKind as c, type AuctionAccount as d, type AuctionStatus as e, type BuyIxBase as f, type CanvasAccount as g, type ConfigAccount as h, type PriceSource as i, type PriorityFeeOpts as j, type TokenQuote as k, acceptAdminIx as l, accountDiscriminator as m, adAddress as n, bidFinalAuctionIx as o, big as p, buildBidIxs as q, buildBuyTx as r, buildBuyWithSolIxs as s, buildBuyWithTokenIxs as t, buildIx as u, buildSettleIxs as v, buyCuLimit as w, buyWithSolIx as x, buyWithTokenIx as y, computeBudgetIxs as z };
+export { parseBondingCurve as $, type AdAccount as A, type BuildOpts as B, CU_LIMITS as C, buybackPhase as D, computeBudgetIxs as E, crankTokenPriceIx as F, curveQuoteMint as G, decodeAd as H, type InitializeArgs as I, decodeAuction as J, decodeCanvas as K, decodeConfig as L, decodePriceUpdateV2 as M, NonSolQuoteError as N, enumKind as O, type PythPrice as P, estimatePriorityFee as Q, fetchAd as R, type SolQuote as S, TokenPricingUnavailableError as T, fetchAdAt as U, fetchAllAds as V, fetchAuction as W, fetchCanvas as X, fetchConfig as Y, fetchSolUsd as Z, initializeIx as _, type PayMode as a, parseBondingCurveRaw as a0, parsePumpPool as a1, plannedEma as a2, poolSpotPriceQ as a3, priceSourceAccounts as a4, priceSourceQuoteMint as a5, priorityFeeLamports as a6, proposeAdminIx as a7, readSpotPriceQ as a8, recordBuybackBurnIx as a9, releaseBuybackIx as aa, restartFinalAuctionIx as ab, setKeeperIx as ac, setParamsIx as ad, setPausedIx as ae, setPriceSourceIx as af, setTreasuryIx as ag, settleFinalAuctionIx as ah, startFinalAuctionIx as ai, transferAdIx as aj, updateAdIx as ak, type AdContent as b, type AdKind as c, type AuctionAccount as d, type AuctionStatus as e, type BuyIxBase as f, type BuybackPhase as g, type CanvasAccount as h, type ConfigAccount as i, type PriceSource as j, type PriorityFeeOpts as k, type TokenQuote as l, acceptAdminIx as m, accountDiscriminator as n, adAddress as o, bidFinalAuctionIx as p, big as q, buildBidIxs as r, buildBuyTx as s, buildBuyWithSolIxs as t, buildBuyWithTokenIxs as u, buildIx as v, buildSettleIxs as w, buyCuLimit as x, buyWithSolIx as y, buyWithTokenIx as z };

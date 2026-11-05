@@ -5,6 +5,7 @@ import {
   PROGRAM_IDS,
   PUMP_AMM_PROGRAM_ID,
   PUMP_PROGRAM_ID,
+  PUMP_QUOTE_MINT,
   PYTH_PUSH_ORACLE_PROGRAM_ID,
   PYTH_RECEIVER_PROGRAM_ID,
   SYSTEM_PROGRAM_ID,
@@ -13,7 +14,7 @@ import {
   WSOL_MINT,
   pixel_default,
   programIdForCluster
-} from "./chunk-A7Z6UCEA.js";
+} from "./chunk-EMP2Q7F4.js";
 import {
   applyTokenDiscount,
   assertU64,
@@ -686,14 +687,27 @@ var i128At = (d, off) => {
   const hi = new DataView(d.buffer, d.byteOffset).getBigInt64(off + 8, true);
   return (hi << 64n) + lo;
 };
-function parseBondingCurve(data) {
+var NonSolQuoteError = class extends Error {
+  constructor(quoteMint) {
+    super(`price source is quoted in ${quoteMint.toBase58()}, not SOL`);
+    this.quoteMint = quoteMint;
+    this.name = "NonSolQuoteError";
+  }
+  quoteMint;
+};
+function curveQuoteMint(data) {
+  if (data.length < 115 || data.subarray(83, 115).every((b) => b === 0)) return WSOL_MINT;
+  return new PublicKeyCtor(data.subarray(83, 115));
+}
+function parseBondingCurveRaw(data) {
   const disc = [23, 183, 248, 55, 96, 216, 172, 96];
   if (data.length < 49 || disc.some((b, i) => data[i] !== b)) throw new Error("not a pump.fun BondingCurve");
-  if (data.length >= 115 && data.subarray(83, 115).some((b) => b !== 0)) {
-    const wsol = WSOL_MINT.toBytes();
-    if (!data.subarray(83, 115).every((b, i) => b === wsol[i])) throw new Error("curve is not SOL-quoted");
-  }
-  return { quoteLamports: u64At(data, 16), baseUnits: u64At(data, 8), complete: data[48] !== 0 };
+  return { quoteMint: curveQuoteMint(data), quoteReserve: u64At(data, 16), baseUnits: u64At(data, 8), complete: data[48] !== 0 };
+}
+function parseBondingCurve(data) {
+  const c = parseBondingCurveRaw(data);
+  if (!c.quoteMint.equals(WSOL_MINT)) throw new NonSolQuoteError(c.quoteMint);
+  return { quoteLamports: c.quoteReserve, baseUnits: c.baseUnits, complete: c.complete };
 }
 function parsePumpPool(data) {
   const disc = [241, 154, 109, 4, 17, 177, 109, 188];
@@ -709,6 +723,7 @@ function parsePumpPool(data) {
 }
 function poolSpotPriceQ(poolData, baseVaultData, quoteVaultData) {
   const pool = parsePumpPool(poolData);
+  if (!pool.quoteMint.equals(WSOL_MINT)) throw new NonSolQuoteError(pool.quoteMint);
   return spotPriceQ(u64At(quoteVaultData, 64) + pool.virtualQuoteReserves, u64At(baseVaultData, 64));
 }
 async function readSpotPriceQ(connection, ps) {
@@ -722,6 +737,16 @@ async function readSpotPriceQ(connection, ps) {
   const [pool, base, quote] = await connection.getMultipleAccountsInfo([ps.pool, ps.baseVault, ps.quoteVault]);
   if (!pool || !base || !quote || !pool.owner.equals(PUMP_AMM_PROGRAM_ID)) throw new Error("pool accounts missing");
   return poolSpotPriceQ(pool.data, base.data, quote.data);
+}
+async function priceSourceQuoteMint(connection, ps) {
+  const a = await connection.getAccountInfo(ps.kind === "bondingCurve" ? ps.curve : ps.pool);
+  if (!a) return null;
+  return ps.kind === "bondingCurve" ? parseBondingCurveRaw(a.data).quoteMint : parsePumpPool(a.data).quoteMint;
+}
+function buybackPhase(p) {
+  if (!p.hasConfig) return p.cluster === "mainnet-beta" ? "later" : "live";
+  if (!p.quoteMint) return p.cluster === "mainnet-beta" ? "later" : "live";
+  return p.quoteMint.equals(WSOL_MINT) ? "live" : "later";
 }
 async function buildBuyWithSolIxs(connection, p) {
   const pid = p.programId ?? PROGRAM_ID;
@@ -766,6 +791,7 @@ async function buildBuyWithTokenIxs(connection, p) {
   try {
     spotQ = await readSpotPriceQ(connection, config.priceSource);
   } catch (e) {
+    if (e instanceof NonSolQuoteError) throw new TokenPricingUnavailableError("upgradePending", "token payments start after a program upgrade");
     throw new TokenPricingUnavailableError("sourceUnavailable", `token price source unavailable (${e.message}); likely migrating to PumpSwap`);
   }
   const now = Math.floor(Date.now() / 1e3);
@@ -896,6 +922,7 @@ export {
   MAX_LINK_LEN,
   MAX_TITLE_LEN,
   MAX_TOKEN_BLOCKS_CAP_PER_HOUR,
+  NonSolQuoteError,
   PRICE_PER_BLOCK_USD_MICRO,
   PRICE_SCALE,
   PROGRAM_ID,
@@ -903,6 +930,7 @@ export {
   PROJECT_NAME,
   PUMP_AMM_PROGRAM_ID,
   PUMP_PROGRAM_ID,
+  PUMP_QUOTE_MINT,
   PYTH_PUSH_ORACLE_PROGRAM_ID,
   PYTH_RECEIVER_PROGRAM_ID,
   SLOW_EMA_WINDOW_SECS,
@@ -942,6 +970,7 @@ export {
   buyPriceQ,
   buyWithSolIx,
   buyWithTokenIx,
+  buybackPhase,
   buybackVaultPda,
   bytesToBase64,
   bytesToHex,
@@ -952,6 +981,7 @@ export {
   configPda,
   countSet,
   crankTokenPriceIx,
+  curveQuoteMint,
   decodeAd,
   decodeAuction,
   decodeCanvas,
@@ -982,11 +1012,13 @@ export {
   minNextBid,
   normalizeEvent,
   parseBondingCurve,
+  parseBondingCurveRaw,
   parseEvents,
   parsePumpPool,
   plannedEma,
   poolSpotPriceQ,
   priceSourceAccounts,
+  priceSourceQuoteMint,
   priorityFeeLamports,
   programIdForCluster,
   proposeAdminIx,

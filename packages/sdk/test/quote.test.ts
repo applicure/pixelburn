@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  WSOL_MINT,
   applyTokenDiscount,
   buyPriceQ,
   emaUpdate,
@@ -89,6 +90,7 @@ describe("quote math (vectors shared with programs/pixel/src/math.rs + LiteSVM t
     expect(parseBondingCurve(curve)).toEqual({ quoteLamports: 30_000_000_000n, baseUnits: 1_073_000_000_000_000n, complete: false });
     const pool = new Uint8Array(301);
     pool.set([241, 154, 109, 4, 17, 177, 109, 188]);
+    pool.set(WSOL_MINT.toBytes(), 75);
     const pdv = new DataView(pool.buffer);
     pdv.setBigUint64(245, (1n << 64n) - 5_000_000_000n, true); // i128 = -5e9
     pdv.setBigInt64(253, -1n, true);

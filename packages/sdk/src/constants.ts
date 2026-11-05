@@ -36,3 +36,6 @@ export const TOKEN_2022_PROGRAM_ID = new PublicKey("TokenzQdBNbLqP5VEhdkAS6EPFLC
 export const ASSOCIATED_TOKEN_PROGRAM_ID = new PublicKey("ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL");
 export const SYSTEM_PROGRAM_ID = new PublicKey("11111111111111111111111111111111");
 export const COMPUTE_BUDGET_PROGRAM_ID = new PublicKey("ComputeBudget111111111111111111111111111111");
+
+/** The PUMP token. The only non-SOL quote a coin of ours may have (curve offset 83, pool offset 75). */
+export const PUMP_QUOTE_MINT = new PublicKey("pumpCmXqMfrsAkQ5r49WcJnRayYRqmXz6ae8H7H9Dfn");

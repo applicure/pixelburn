@@ -77,15 +77,32 @@ const i128At = (d: Uint8Array, off: number): bigint => {
   return (hi << 64n) + lo;
 };
 
-/** pump.fun BondingCurve -> reserves (layout per pump IDL; see chain/NOTES.md). Throws on complete / non-SOL curves. */
-export function parseBondingCurve(data: Uint8Array): { quoteLamports: bigint; baseUnits: bigint; complete: boolean } {
+/** The coin trades against a token, not SOL: its reserves aren't lamports, so they must not be read as a SOL price. */
+export class NonSolQuoteError extends Error {
+  constructor(public readonly quoteMint: PublicKey) {
+    super(`price source is quoted in ${quoteMint.toBase58()}, not SOL`);
+    this.name = "NonSolQuoteError";
+  }
+}
+
+/** The quote mint stored on a curve. A short legacy account and the zero key both mean SOL, returned as WSOL. */
+export function curveQuoteMint(data: Uint8Array): PublicKey {
+  if (data.length < 115 || data.subarray(83, 115).every((b) => b === 0)) return WSOL_MINT;
+  return new PublicKeyCtor(data.subarray(83, 115));
+}
+
+/** Reserves as stored, in whatever the curve is quoted in. Only the SOL path may turn these into a price: see `parseBondingCurve`. */
+export function parseBondingCurveRaw(data: Uint8Array): { quoteMint: PublicKey; quoteReserve: bigint; baseUnits: bigint; complete: boolean } {
   const disc = [23, 183, 248, 55, 96, 216, 172, 96];
   if (data.length < 49 || disc.some((b, i) => data[i] !== b)) throw new Error("not a pump.fun BondingCurve");
-  if (data.length >= 115 && data.subarray(83, 115).some((b) => b !== 0)) {
-    const wsol = WSOL_MINT.toBytes();
-    if (!data.subarray(83, 115).every((b, i) => b === wsol[i])) throw new Error("curve is not SOL-quoted");
-  }
-  return { quoteLamports: u64At(data, 16), baseUnits: u64At(data, 8), complete: data[48] !== 0 };
+  return { quoteMint: curveQuoteMint(data), quoteReserve: u64At(data, 16), baseUnits: u64At(data, 8), complete: data[48] !== 0 };
+}
+
+/** pump.fun BondingCurve -> reserves (layout per pump IDL; see chain/NOTES.md). Throws on non-SOL curves (`NonSolQuoteError`). */
+export function parseBondingCurve(data: Uint8Array): { quoteLamports: bigint; baseUnits: bigint; complete: boolean } {
+  const c = parseBondingCurveRaw(data);
+  if (!c.quoteMint.equals(WSOL_MINT)) throw new NonSolQuoteError(c.quoteMint);
+  return { quoteLamports: c.quoteReserve, baseUnits: c.baseUnits, complete: c.complete };
 }
 
 /** PumpSwap Pool account fields the program uses. `virtualQuoteReserves` may be negative (missing => 0). */
@@ -111,6 +128,7 @@ export function parsePumpPool(data: Uint8Array): {
 /** Spot priceQ from raw PumpSwap pool + vault token-account data (effective quote = vault + virtual). */
 export function poolSpotPriceQ(poolData: Uint8Array, baseVaultData: Uint8Array, quoteVaultData: Uint8Array): bigint {
   const pool = parsePumpPool(poolData);
+  if (!pool.quoteMint.equals(WSOL_MINT)) throw new NonSolQuoteError(pool.quoteMint);
   return spotPriceQ(u64At(quoteVaultData, 64) + pool.virtualQuoteReserves, u64At(baseVaultData, 64));
 }
 
@@ -126,6 +144,30 @@ export async function readSpotPriceQ(connection: Connection, ps: PriceSource): P
   const [pool, base, quote] = await connection.getMultipleAccountsInfo([ps.pool, ps.baseVault, ps.quoteVault]);
   if (!pool || !base || !quote || !pool.owner.equals(PUMP_AMM_PROGRAM_ID)) throw new Error("pool accounts missing");
   return poolSpotPriceQ(pool.data, base.data, quote.data);
+}
+
+/**
+ * What the price source is quoted in; null when the account can't be read. Curves are the only source that can be non-SOL today:
+ * the deployed program's set_price_source only accepts the canonical WSOL pool.
+ */
+export async function priceSourceQuoteMint(connection: Connection, ps: PriceSource): Promise<PublicKey | null> {
+  const a = await connection.getAccountInfo(ps.kind === "bondingCurve" ? ps.curve : ps.pool);
+  if (!a) return null;
+  return ps.kind === "bondingCurve" ? parseBondingCurveRaw(a.data).quoteMint : parsePumpPool(a.data).quoteMint;
+}
+
+/**
+ * The one flag behind "buybacks and token payments come later".
+ *  - "later": the deployed program can't price this coin, so the buyback half of each SOL payment only accumulates in the vault, and token
+ *    payments are off. True for a coin quoted in anything but SOL, and on mainnet before a coin exists (the launch is PUMP-paired).
+ *  - "live": the program prices the coin, whatever warm-up or pause it is in at the moment.
+ */
+export type BuybackPhase = "live" | "later";
+export function buybackPhase(p: { cluster: string; hasConfig: boolean; quoteMint: PublicKey | null }): BuybackPhase {
+  if (!p.hasConfig) return p.cluster === "mainnet-beta" ? "later" : "live";
+  // An unreadable source says nothing about the coin; "later" is the claim that can't be false.
+  if (!p.quoteMint) return p.cluster === "mainnet-beta" ? "later" : "live";
+  return p.quoteMint.equals(WSOL_MINT) ? "live" : "later";
 }
 
 export interface BuildOpts {
@@ -204,7 +246,7 @@ export function plannedEma(config: ConfigAccount, nowSecs: number): { emaQ: bigi
 /** Thrown by `buildBuyWithTokenIxs` when the program would reject token pricing right now. */
 export class TokenPricingUnavailableError extends Error {
   constructor(
-    public readonly reason: "notSeeded" | "warmingUp" | "stale" | "deviation" | "capExhausted" | "sourceUnavailable",
+    public readonly reason: "notSeeded" | "warmingUp" | "stale" | "deviation" | "capExhausted" | "sourceUnavailable" | "upgradePending",
     detail: string,
   ) {
     super(`token payments unavailable (${reason}): ${detail}`);
@@ -225,6 +267,7 @@ export async function buildBuyWithTokenIxs(
   try {
     spotQ = await readSpotPriceQ(connection, config.priceSource);
   } catch (e) {
+    if (e instanceof NonSolQuoteError) throw new TokenPricingUnavailableError("upgradePending", "token payments start after a program upgrade");
     throw new TokenPricingUnavailableError("sourceUnavailable", `token price source unavailable (${(e as Error).message}); likely migrating to PumpSwap`);
   }
   const now = Math.floor(Date.now() / 1000);
