@@ -498,8 +498,8 @@ Scripts: `chain/scripts/mainnet-*.ts`. Launch-day runbook with timings: `docs/ma
 - The commit to ship is pushed to the public repo and the auditor has signed off on it.
 - **Program id:** `C44yH6k1btWPyRhyE3ub855RnCrBFgZqfjB8waFq7yu9`, key at `keys/mainnet/program.json`. It sits behind cargo feature `mainnet`; the default build stays the devnet program.
   - **Don't run `anchor keys sync`:** it rewrites the first `declare_id!`, which is the devnet one. `scripts/mainnet-program-id.ts --sync` keeps lib.rs, Anchor.toml and the SDK map in step.
-  - **Don't use `anchor build -- --features mainnet`:** its key check compares `target/deploy/pixel-keypair.json` with the first `declare_id!`, not the feature's. `scripts/mainnet-build.ts` builds it, and checks the id in the binary.
-  - **No `sync-idl` is needed:** the two builds differ only in the id. The SDK's `PROGRAM_ID` stays the devnet id, and code that can run on mainnet uses `programIdForCluster(cluster)`.
+  - **Don't use `anchor build -- --features mainnet`:** it builds, but it prints a misleading key-mismatch advice to run `anchor keys sync`, overwrites `target/deploy/pixel.so`, and rewrites `target/idl/pixel.json` with the mainnet address. A `sync-idl` after that would switch the SDK's default id away from devnet (an SDK test catches it). `scripts/mainnet-build.ts` builds it, keeps the devnet `.so` in place, and checks the id in the binary.
+  - **No `sync-idl` is needed for mainnet:** the two builds differ only in the id. The SDK's `PROGRAM_ID` stays the devnet id, and code that can run on mainnet uses `programIdForCluster(cluster)`.
 
 ### 1. Sequence
 `mainnet-launch.ts`: preflight -> build -> fund -> keeper-alt -> deploy -> verify-deploy -> READY. Then the pre-launch switch of the services, the graduation watcher, the owner's coin launch on pump.fun, and `mainnet-init.ts --mint <mint>`.
