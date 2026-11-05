@@ -4,7 +4,7 @@
  *  - MockApi  → deterministic in-browser world with live fake events
  */
 import { API_URL, USE_MOCK } from "./config";
-import type { Ad, AuctionState, FeedItem, LeaderRow, Occupancy, PayMode, Quote, Stats, UploadResult } from "./types";
+import type { Ad, AdShare, AuctionState, FeedItem, LeaderRow, Occupancy, PayMode, Quote, Stats, UploadResult } from "./types";
 
 export type BuybackItem = Extract<FeedItem, { type: "buyback" }>;
 
@@ -19,6 +19,8 @@ export interface Api {
   getStats(): Promise<Stats>;
   getAds(): Promise<Ad[]>;
   getAd(id: number): Promise<Ad>;
+  /** GET /api/ads/:id/share: public facts of any indexed ad, whatever its moderation state. null until it is indexed. */
+  getAdShare(id: number): Promise<AdShare | null>;
   getOccupancy(): Promise<Occupancy>;
   /** URL of the composed 1000×1000 PNG; null in mock mode (painted client side). */
   canvasPngUrl(): string | null;
@@ -99,6 +101,12 @@ const HttpApi: Api = {
   getStats: () => getJson<Stats & { auction: RawAuction | null }>("/api/stats").then(normStats),
   getAds: () => getJson<Ad[]>("/api/ads").then((a) => a.map(normAd)),
   getAd: (id) => getJson<Ad>(`/api/ads/${id}`).then(normAd),
+  getAdShare: async (id) => {
+    const res = await fetch(`${API_URL}/api/ads/${id}/share`, { headers: { accept: "application/json" }, cache: "no-store" });
+    if (res.status === 404) return null;
+    if (!res.ok) throw new HttpError(res.status, `/api/ads/${id}/share answered ${res.status}`);
+    return (await res.json()) as AdShare;
+  },
   getOccupancy: () => getJson<Occupancy>("/api/occupancy"),
   canvasPngUrl: () => `${API_URL}/api/canvas.png`,
   getFeed: (limit = 50) => getJson<FeedItem[]>(`/api/feed?limit=${limit}`).then((f) => f.map(normFeed)),
@@ -167,6 +175,7 @@ const MockApi: Api = {
     if (!a) throw new HttpError(404, `Ad ${id} not found`);
     return delay(m.publicAd(a));
   },
+  getAdShare: async (id) => delay((await w()).adShare(id), 900),
   getOccupancy: async () => delay((await w()).occupancy()),
   canvasPngUrl: () => null,
   getFeed: async (limit = 50) => delay((await w()).feed(limit)),

@@ -57,6 +57,15 @@ export const IconShare = ({ size, ...p }: P) => (
 export const IconDownload = ({ size, ...p }: P) => (
   <svg {...base(size)} {...p}><path d="M12 3v12M7 10l5 5 5-5M5 20h14" /></svg>
 );
+export const IconLink = ({ size, ...p }: P) => (
+  <svg {...base(size)} {...p}><path d="M10 14l4-4M9 7l2-2a4.2 4.2 0 0 1 6 0l2 2a4.2 4.2 0 0 1 0 6l-2 2M15 17l-2 2a4.2 4.2 0 0 1-6 0l-2-2a4.2 4.2 0 0 1 0-6l2-2" /></svg>
+);
+/** The X logo: a filled glyph, used only on the button that posts there. */
+export const IconX = ({ size = 20, ...p }: P) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor" aria-hidden {...p}>
+    <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
+  </svg>
+);
 export const IconMenu = ({ size, ...p }: P) => (
   <svg {...base(size)} {...p}><path d="M4 8h16M4 16h16" /></svg>
 );

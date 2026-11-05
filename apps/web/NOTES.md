@@ -179,3 +179,11 @@ When nothing is sold (`soldBlocks === 0`), or the wall is under 2% sold (`< 200`
 - The impeccable finish-review and documenter subagent passes were not run (time/budget); the detector ran
   once (one finding, fixed) and two screenshot inspection rounds were done.
 - `next dev` writes `apps/web/AGENTS.md` automatically; it's harmless.
+
+## Sharing
+
+- `/ad/[id]` reads `/api/ads/:id/share` server-side on every request, and buyer content can only come from its `ad` field. Mock builds answer 404: no mock data on a public URL.
+- The success panel (`components/share/SharePanel.tsx`) gets the ad id by reading the confirmed Ad account back after the buy: ids are a counter, while the PDA is by position. The same read gives the exact tokens burned, since the quote is only an estimate of what the program charges.
+- It offers `/ad/<id>` only once the API has the ad with this purchase's signature. After 45 s it falls back to `/canvas` and keeps polling.
+- Approved share links carry `?v=<cardVersion>`, because X caches previews per page URL. The canonical stays `/ad/<id>`.
+- The download and native-share file come from the browser's card (`components/canvas/shareCard.ts`), which may show the buyer's unapproved image. Only the buyer has it.

@@ -20,6 +20,28 @@ export interface Ad {
   createdAt: number; // ms epoch
 }
 
+/** GET /api/ads/:id/share. `ad` is the only buyer content, and stays null until the ad is approved. */
+export interface AdShare {
+  id: number;
+  status: "approved" | "pending" | "rejected";
+  owner: string;
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+  blockCount: number;
+  payMode: AdPayMode;
+  usd: number;
+  lamports: string;
+  tokensBurned: string;
+  createdAt: number; // unix seconds, as the API sends it
+  signature: string;
+  finalized: boolean;
+  cluster: "devnet" | "mainnet-beta";
+  cardVersion: string;
+  ad: { title: string; link: string; imageUrl: string } | null;
+}
+
 export interface AuctionBid {
   bidder: string;
   lamports: string;

@@ -15,7 +15,7 @@ import {
   QUOTE_TTL_MS,
 } from "./config";
 import { bitGet, bitSet, bytesToBase64, isRectFree, quoteLamports, quoteTokens, quoteUsd, rectBlocks } from "./quote";
-import type { Ad, AuctionState, FeedItem, LeaderRow, Occupancy, PayMode, Quote, Rect, Stats, UploadResult } from "./types";
+import type { Ad, AdShare, AuctionState, FeedItem, LeaderRow, Occupancy, PayMode, Quote, Rect, Stats, UploadResult } from "./types";
 
 const SEED = 20260111;
 const B58 = "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz";
@@ -47,6 +47,7 @@ interface AdRec extends Ad {
 }
 
 class MockWorld {
+  userAds = new Set<number>();
   rand = mulberry32(SEED);
   ads: AdRec[] = [];
   bitmap = new Uint8Array(1250);
@@ -246,6 +247,19 @@ class MockWorld {
     return n;
   }
 
+  /** The buyer's own purchase reads as pending, like a fresh purchase on the real API. Demo builds only. */
+  adShare(id: number): AdShare | null {
+    const a = this.ads.find((x) => x.id === id);
+    if (!a) return null;
+    const mine = this.userAds.has(id);
+    return {
+      id: a.id, status: mine ? "pending" : "approved", owner: a.owner, x: a.x, y: a.y, w: a.w, h: a.h, blockCount: a.w * a.h,
+      payMode: a.payMode, usd: a.usd, lamports: a.lamports.toString(), tokensBurned: a.tokens.toString(),
+      createdAt: Math.floor(a.createdAt / 1000), signature: "", finalized: true, cluster: "devnet", cardVersion: "demo",
+      ad: mine ? null : { title: a.title, link: a.link, imageUrl: a.imageUrl },
+    };
+  }
+
   publicAd(a: AdRec): Ad {
     return {
       id: a.id, owner: a.owner, x: a.x, y: a.y, w: a.w, h: a.h, title: a.title,
@@ -415,6 +429,7 @@ class MockWorld {
       payMode: p.payMode, usd: p.rect.w * p.rect.h * PRICE_PER_BLOCK_USD, createdAt: Date.now(),
       lamports: p.lamports, tokens: p.tokens,
     };
+    this.userAds.add(ad.id);
     this.commit(ad);
     this.emitFeed(this.feedOf(ad));
     this.emitStats();

@@ -15,7 +15,7 @@ import { Minimap, type MinimapHandle } from "./Minimap";
 import { AdTooltip } from "./AdTooltip";
 import { LeaveConfirm } from "./LeaveConfirm";
 import { PurchaseSheet } from "./PurchaseSheet";
-import { WalletLayer } from "./Wallet";
+import { useWalletBridge, WalletLayer } from "./Wallet";
 import { IconHand, IconMap, IconMinus, IconPlus, IconSelect } from "@/components/ui/icons";
 
 function findFree(occ: Uint8Array, w: number, h: number): Rect | null {
@@ -104,6 +104,26 @@ function Inner() {
   const vp = useRef<ViewportHandle>(null);
   const mm = useRef<MinimapHandle>(null);
   const sizedFromUrl = useRef(false);
+  const wallet = useWalletBridge();
+  // /canvas?spot=x,y,w,h from an ad page: where that ad sits, approved or not
+  const spot = useMemo<Rect | null>(() => {
+    const m = /^(\d{1,3}),(\d{1,3}),(\d{1,3}),(\d{1,3})$/.exec(params.get("spot") ?? "");
+    if (!m) return null;
+    const [x, y, w, h] = m.slice(1).map(Number) as [number, number, number, number];
+    return w >= 1 && h >= 1 && x + w <= GRID && y + h <= GRID ? { x, y, w, h } : null;
+  }, [params]);
+  useEffect(() => {
+    if (!spot || !ready) return;
+    const t = setTimeout(() => {
+      const v = vp.current;
+      if (!v) return;
+      const { w, h } = v.size();
+      // big enough to find, without zooming a large ad past the screen
+      const s = Math.max(v.getView().s, Math.min(8, (0.35 * Math.min(w, h)) / (Math.max(spot.w, spot.h) * 10)));
+      v.centerOn(spot.x + spot.w / 2, spot.y + spot.h / 2, s);
+    }, 200);
+    return () => clearTimeout(t);
+  }, [spot, ready]);
 
   // ?w=&h= from the landing converter: preselect a free spot of that size
   useEffect(() => {
@@ -233,6 +253,7 @@ function Inner() {
         selection={sel}
         cursor={cursor}
         flash={flash}
+        spot={spot}
         onSelect={onSelect}
         onHover={onHover}
         onActivate={onActivate}
@@ -338,8 +359,8 @@ function Inner() {
         </p>
       )}
 
-      <AdTooltip ad={sheet || leaving ? null : hover.ad} x={hover.x} y={hover.y} />
-      <LeaveConfirm ad={leaving} onClose={closeLeave} />
+      <AdTooltip ad={sheet || leaving ? null : hover.ad} x={hover.x} y={hover.y} mine={!!wallet.address && hover.ad?.owner === wallet.address} />
+      <LeaveConfirm ad={leaving} onClose={closeLeave} mine={!!wallet.address && leaving?.owner === wallet.address} />
       <PurchaseSheet rect={sheetRect} open={sheet} onClose={closeSheet} onPurchased={onPurchased} />
     </div>
   );

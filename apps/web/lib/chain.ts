@@ -30,11 +30,14 @@ export interface BuyParams {
 
 export interface BuyResult {
   signature: string;
-  /** known immediately in mock mode; on-chain the ad is identified by its PDA */
+  /** Read back from the confirmed Ad account (its id is a counter, not derivable from the position). null if that read failed. */
   adId: number | null;
   adAddress?: string;
+  /** What the transaction burned, when `exact`. Otherwise the quote: the program prices the burn at execution. */
   tokensBurned: bigint;
   lamports: bigint;
+  /** True when the figures come from the chain rather than the quote. */
+  exact: boolean;
 }
 
 export type BuyStep = "building" | "signing" | "confirming" | "done";
@@ -78,7 +81,7 @@ const mockChain: ChainClient = {
     onStep?.("done");
     // In SOL mode the burn happens later via buyback; report the expected share at today's price.
     const tokensBurned = p.payMode === "token" ? tokens : w.tokensFor(lamports / 2n);
-    return { signature: `mock${ad.id}${Date.now().toString(36)}`, adId: ad.id, tokensBurned, lamports };
+    return { signature: `mock${ad.id}${Date.now().toString(36)}`, adId: ad.id, tokensBurned, lamports, exact: true };
   },
   async bid() {
     await sleep(1200);
@@ -156,12 +159,23 @@ const sdkChain: ChainClient = {
       throw new Error("The token price moved past your quote. Review the new amount and buy again.");
     const signature = await simulateSendConfirm(built.transaction, built.lastValidBlockHeight, wallet, connection, onStep);
     onStep?.("done");
+    // The purchase is final here, so this read must never fail it. The share panel copes with a null id.
+    let onchain: Awaited<ReturnType<typeof sdk.fetchAd>> = null;
+    for (let i = 0; i < 3 && !onchain; i++) {
+      try {
+        onchain = await sdk.fetchAd(connection, q.ad);
+      } catch {
+        /* retry */
+      }
+      if (!onchain && i < 2) await sleepMs(1000);
+    }
     return {
       signature,
-      adId: null,
+      adId: onchain ? onchain.id : null,
       adAddress: q.ad.toBase58(),
-      tokensBurned: "tokens" in q ? q.tokens : 0n,
-      lamports: "lamports" in q ? q.lamports : 0n,
+      tokensBurned: onchain ? onchain.paidTokens : "tokens" in q ? q.tokens : 0n,
+      lamports: onchain ? onchain.paidLamports : "lamports" in q ? q.lamports : 0n,
+      exact: !!onchain,
     };
   },
   async bid(lamports, wallet, connection) {

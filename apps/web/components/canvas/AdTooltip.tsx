@@ -4,7 +4,7 @@ import { fmtUsd, linkHost, shortAddr } from "@/lib/format";
 import { BRAND } from "@/lib/config";
 import type { Ad } from "@/lib/types";
 
-export function AdTooltip({ ad, x, y }: { ad: Ad | null; x: number; y: number }) {
+export function AdTooltip({ ad, x, y, mine = false }: { ad: Ad | null; x: number; y: number; mine?: boolean }) {
   const flipX = typeof window !== "undefined" && x > window.innerWidth - 300;
   const flipY = typeof window !== "undefined" && y > window.innerHeight - 160;
   return (
@@ -33,7 +33,7 @@ export function AdTooltip({ ad, x, y }: { ad: Ad | null; x: number; y: number })
               {fmtUsd(ad.usd)} in {ad.payMode === "token" ? `${BRAND.ticker}, burned` : "SOL"}
             </dd>
           </dl>
-          <p className="mt-2 text-[0.75rem] text-ash">Click to visit</p>
+          <p className="mt-2 text-[0.75rem] text-ash">{mine ? "Your ad. Click to visit or share" : "Click to visit"}</p>
         </motion.div>
       )}
     </AnimatePresence>

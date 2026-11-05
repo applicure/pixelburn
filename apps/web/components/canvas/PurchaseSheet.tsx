@@ -9,13 +9,15 @@ import { normTokenStatus, SLOW_EMA_HINT, tokenStatusCopy } from "@/lib/tokenStat
 import { BRAND, QUOTE_TTL_MS, USE_MOCK } from "@/lib/config";
 import { useLaunchState } from "@/lib/launchState";
 import { fmtInt, fmtSol, fmtTokens, fmtUsd, fmt2, explorerTx, tokensToWhole, fmtCompact } from "@/lib/format";
+import type { ShareFacts } from "@/lib/share";
 import type { PayMode, Rect } from "@/lib/types";
 import { useQuote } from "@/lib/useQuote";
 import { ImageCropper } from "./ImageCropper";
 import { WalletChip, useWalletBridge } from "./Wallet";
 import { renderShareCard } from "./shareCard";
 import { Odometer } from "@/components/ui/Odometer";
-import { IconCheck, IconClose, IconDownload, IconShare } from "@/components/ui/icons";
+import { SharePanel } from "@/components/share/SharePanel";
+import { IconCheck, IconClose } from "@/components/ui/icons";
 
 type Phase = "form" | "working" | "success";
 const STEP_LABEL: Record<BuyStep | "upload", string> = {
@@ -164,6 +166,7 @@ export function PurchaseSheet({ rect, open, onClose, onPurchased }: { rect: Rect
 function SheetBody({ rect, onClose, onPurchased }: { rect: Rect; onClose(): void; onPurchased(r: Rect): void }) {
   const wallet = useWalletBridge();
   const launching = useLaunchState() === "soon";
+  const reduceMotion = useReducedMotion();
   const [chosen, setMode] = useState<PayMode>("sol");
   const [blob, setBlob] = useState<Blob | null>(null);
   const [dataUrl, setDataUrl] = useState<string | null>(null);
@@ -173,7 +176,8 @@ function SheetBody({ rect, onClose, onPurchased }: { rect: Rect; onClose(): void
   const [phase, setPhase] = useState<Phase>("form");
   const [step, setStep] = useState<BuyStep | "upload">("upload");
   const [error, setError] = useState<string | null>(null);
-  const [result, setResult] = useState<{ sig: string; burned: bigint; card: string | null } | null>(null);
+  const [result, setResult] = useState<{ sig: string; adId: number | null; facts: ShareFacts } | null>(null);
+  const [card, setCard] = useState<string | null>(null);
   // the SOL quote always runs: it carries the $PXL payment status for this exact size
   const solQ = useQuote(rect.w, rect.h, "sol", phase === "form");
   const tokenStatus = normTokenStatus(solQ.quote?.tokenPaymentStatus);
@@ -213,17 +217,19 @@ function SheetBody({ rect, onClose, onPurchased }: { rect: Rect; onClose(): void
         wallet.connection,
         setStep,
       );
-      // SOL buys burn later via buyback: estimate half the payment at the quoted token price
-      const burned = res.tokensBurned || (mode === "sol" ? BigInt(Math.round((usd / 2 / Math.max(1e-12, quote.tokenPriceUsd)) * 1e6)) : 0n);
-      const card = await renderShareCard({
-        image: dataUrl,
-        burned: fmtCompact(tokensToWhole(burned)),
+      const facts: ShareFacts = {
         ...rect,
-        title: title.trim(),
-        tokenMode: mode === "token",
-      });
-      setResult({ sig: res.signature, burned, card });
+        blockCount: rect.w * rect.h,
+        payMode: mode,
+        usd: mode === "token" ? usd * 0.9 : usd,
+        lamports: res.lamports.toString(),
+        tokens: res.tokensBurned.toString(),
+        exact: res.exact,
+      };
+      setResult({ sig: res.signature, adId: res.adId, facts });
       setPhase("success");
+      // The money has moved. Nothing after this line may read as a failed purchase, so the card draws on its own time.
+      renderShareCard({ image: dataUrl, title: title.trim(), facts }).then(setCard, () => {});
       onPurchased(rect);
     } catch (e) {
       if (e instanceof TokenPaymentUnavailable) setMode("sol");
@@ -233,56 +239,45 @@ function SheetBody({ rect, onClose, onPurchased }: { rect: Rect; onClose(): void
   };
 
   if (phase === "success" && result) {
-    const shareText = `My ad on ${BRAND.name} burned ${fmtCompact(tokensToWhole(result.burned))} ${BRAND.ticker}.`;
+    const { facts } = result;
     return (
-      <div className="relative flex-1 overflow-y-auto px-5 pb-8 pt-4 sm:px-7" data-lenis-prevent>
-        <Embers />
-        <div className="flex justify-end">
+      <SharePanel
+        pinned
+        adId={result.adId}
+        signature={USE_MOCK ? undefined : result.sig}
+        facts={facts}
+        localCard={card}
+        fileStem={`pixel-frame-${rect.x}-${rect.y}`}
+      >
+        {!reduceMotion && <Embers />}
+        <div className="flex items-start justify-between gap-3">
+          <span className="grid h-10 w-10 place-items-center bg-cone text-soot" aria-hidden>
+            <IconCheck size={22} />
+          </span>
           <button className="grid h-10 w-10 place-items-center text-ash hover:text-heat" onClick={onClose} aria-label="Close">
             <IconClose />
           </button>
         </div>
-        <span className="grid h-12 w-12 place-items-center bg-cone text-soot" aria-hidden>
-          <IconCheck size={26} />
-        </span>
-        <h2 id="sheet-title" className="mt-5 font-display text-[2.6rem] font-black leading-[0.9] [font-variation-settings:'wdth'_120]" data-autofocus tabIndex={-1}>
+        <h2 id="sheet-title" className="mt-4 font-display text-[clamp(1.65rem,8.4vw,2.6rem)] font-black leading-[0.95] [font-variation-settings:'wdth'_120]" data-autofocus tabIndex={-1}>
           You&apos;re on the billboard.
         </h2>
         <p className="mt-3 text-heat/85">
           {mode === "token" ? (
             <>
-              Your payment burned <span className="num text-cone">{fmtTokens(result.burned)}</span> {BRAND.ticker} in the same transaction.
+              Your payment burned {facts.exact ? "" : "about "}
+              <span className="num text-cone">{fmtTokens(facts.tokens)}</span> {BRAND.ticker} in the same transaction.
             </>
           ) : (
             <>
-              Half your SOL is in the buyback vault. At today&apos;s price it will burn about{" "}
-              <span className="num text-cone">{fmtTokens(result.burned)}</span> {BRAND.ticker}.
+              Half of your <span className="num text-cone">{fmtSol(facts.lamports, 3)}</span> SOL is in the buyback vault, where it buys and burns {BRAND.ticker} over time.
             </>
           )}{" "}
           Your ad shows once it passes moderation.
         </p>
-        <p className="mt-6 text-[clamp(2.4rem,9vw,3.4rem)] leading-none text-cone">
-          <Odometer value={fmtInt(Math.round(tokensToWhole(result.burned)))} />
-        </p>
-        <p className="mt-1 text-[0.85rem] text-ash">{BRAND.ticker} {mode === "token" ? "burned" : "to be burned"}</p>
-        {result.card && (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img src={result.card} alt={shareText} className="mt-7 w-full ring-1 ring-char" />
-        )}
-        <div className="mt-4 grid grid-cols-2 gap-2">
-          <a className="btn-fire justify-center" href={`https://x.com/intent/post?text=${encodeURIComponent(shareText)}`} target="_blank" rel="noreferrer">
-            <IconShare size={18} /> Share on X
-          </a>
-          {result.card && (
-            <a className="btn-line justify-center" href={result.card} download={`pixel-frame-${rect.x}-${rect.y}.png`}>
-              <IconDownload size={18} /> Save card
-            </a>
-          )}
-        </div>
-        <p className="mt-5 text-[0.82rem] text-ash">
+        <p className="mt-2 text-[0.82rem] text-ash">
           {USE_MOCK ? "Demo purchase, nothing was sent on-chain." : <a className="link-cobalt" href={explorerTx(result.sig)} target="_blank" rel="noreferrer">View the transaction</a>}
         </p>
-      </div>
+      </SharePanel>
     );
   }
 

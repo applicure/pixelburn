@@ -33,6 +33,8 @@ interface Props {
   selection: Rect | null;
   cursor: { x: number; y: number } | null;
   flash: Rect | null;
+  /** Stays marked: the spot an /ad/<id> link pointed at, which may be sold but not yet showing. */
+  spot?: Rect | null;
   onSelect(r: Rect | null, done: boolean): void;
   onHover(ad: Ad | null, sx: number, sy: number, block: { x: number; y: number } | null): void;
   onActivate(ad: Ad): void;
@@ -90,6 +92,10 @@ export const Viewport = forwardRef<ViewportHandle, Props>(function Viewport(p, r
   useEffect(() => {
     if (p.flash) flashT.current = performance.now();
   }, [p.flash]);
+
+  useEffect(() => {
+    dirty.current = true;
+  }, [p.spot]);
 
   const bounds = useCallback((s: number) => {
     const { w, h } = size.current;
@@ -274,6 +280,16 @@ export const Viewport = forwardRef<ViewportHandle, Props>(function Viewport(p, r
         ctx.fillRect(x + r.x * bs, y + r.y * bs, r.w * bs, r.h * bs);
         ctx.strokeStyle = `rgba(255,245,220,${k})`;
         ctx.lineWidth = 2;
+        ctx.strokeRect(x + r.x * bs - 2, y + r.y * bs - 2, r.w * bs + 4, r.h * bs + 4);
+      }
+
+      if (P.spot) {
+        const r = P.spot;
+        ctx.strokeStyle = "#000";
+        ctx.lineWidth = 5;
+        ctx.strokeRect(x + r.x * bs - 2, y + r.y * bs - 2, r.w * bs + 4, r.h * bs + 4);
+        ctx.strokeStyle = "#ff6400";
+        ctx.lineWidth = 3;
         ctx.strokeRect(x + r.x * bs - 2, y + r.y * bs - 2, r.w * bs + 4, r.h * bs + 4);
       }
 
