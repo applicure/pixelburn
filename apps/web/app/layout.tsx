@@ -6,22 +6,28 @@ import { LaunchBanner } from "@/components/ui/LaunchBanner";
 import { SmoothScroll } from "@/components/ui/SmoothScroll";
 import { SkewGuard } from "@/components/ui/SkewGuard";
 import { BRAND, CLUSTER, SITE_URL, USE_MOCK } from "@/lib/config";
+import { getBuybacksLive, PHASE_LINE, socialLine } from "@/lib/phase";
 
 const anybody = Anybody({ subsets: ["latin"], axes: ["wdth"], variable: "--font-anybody", display: "swap" });
 // body face: "optional" so a slow first load keeps the metric-matched fallback instead of reflowing the hero (CLS)
 const schibsted = Schibsted_Grotesk({ subsets: ["latin"], variable: "--font-schibsted", display: "optional" });
 const martian = Martian_Mono({ subsets: ["latin"], variable: "--font-martian", display: "swap", preload: false });
 
-export const metadata: Metadata = {
+export async function generateMetadata(): Promise<Metadata> {
+  const live = await getBuybacksLive();
+  const line = socialLine(live);
+  return {
   title: { default: `${BRAND.name}: a million pixels, half of every dollar burns`, template: `%s · ${BRAND.shortName}` },
-  description:
-    "The 2005 Million Dollar Homepage, rebuilt on Solana. $1 per pixel. Pay in SOL and half buys back and burns " +
-    `${BRAND.ticker}; pay in ${BRAND.ticker} at 10% off and every token you pay burns. Images live on Arweave forever.`,
+  description: live
+    ? "The 2005 Million Dollar Homepage, rebuilt on Solana. $1 per pixel. Pay in SOL and half buys back and burns " +
+      `${BRAND.ticker}; pay in ${BRAND.ticker} at 10% off and every token you pay burns. Images live on Arweave forever.`
+    : `The 2005 Million Dollar Homepage, rebuilt on Solana. $1 per pixel, paid in SOL. ${PHASE_LINE} Images live on Arweave forever.`,
   metadataBase: new URL(SITE_URL),
   applicationName: BRAND.name,
-  openGraph: { title: BRAND.name, description: "A million pixels. Half of every dollar burns.", type: "website", siteName: BRAND.name, url: "/" },
-  twitter: { card: "summary_large_image", title: BRAND.name, description: "A million pixels. Half of every dollar burns." },
-};
+  openGraph: { title: BRAND.name, description: line, type: "website", siteName: BRAND.name, url: "/" },
+  twitter: { card: "summary_large_image", site: BRAND.xHandle, creator: BRAND.xHandle, title: BRAND.name, description: line },
+  };
+}
 
 export const viewport: Viewport = {
   themeColor: "#000000",

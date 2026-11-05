@@ -1,5 +1,6 @@
 "use client";
 /** Live final-auction view. Loaded on demand so the wallet stack (web3.js) only ships when bidding is possible. */
+import { useBuybacksLive } from "@/lib/usePhase";
 import { useEffect, useState } from "react";
 import { BRAND, CLUSTER, LAMPORTS_PER_SOL, USE_MOCK } from "@/lib/config";
 import { explorerTx, fmtInt, fmtSol, shortAddr, timeAgo } from "@/lib/format";
@@ -20,6 +21,7 @@ function useNow(ms = 1000) {
 }
 
 function Live({ a }: { a: AuctionState }) {
+  const live = useBuybacksLive();
   const now = useNow();
   const left = Math.max(0, (a.endsAt ?? now) - now);
   const hh = Math.floor(left / 3.6e6), mm = Math.floor((left % 3.6e6) / 6e4), ss = Math.floor((left % 6e4) / 1000);
@@ -41,7 +43,7 @@ function Live({ a }: { a: AuctionState }) {
             The final firing is live.
           </h1>
           <p className="mt-4 max-w-[50ch] text-heat/85">
-            {fmtInt(a.blocks)} blocks, one lot. The highest bid when the clock hits zero wins, and all of it goes to buying back and burning {BRAND.ticker}.
+            {fmtInt(a.blocks)} blocks, one lot. The highest bid when the clock hits zero wins, and {live ? <>all of it goes to buying back and burning {BRAND.ticker}.</> : "all of it goes to the buyback vault. Buybacks are coming soon."}
           </p>
           <div className="mt-10 grid gap-10 lg:grid-cols-12">
             <div className="lg:col-span-7">

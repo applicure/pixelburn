@@ -3,6 +3,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { BRAND, GRID } from "@/lib/config";
+import { useBuybacksLive } from "@/lib/usePhase";
 import { useLaunchState } from "@/lib/launchState";
 import { fmtCompact, fmtInt, fmtSol, fmtUsd, tokensToWhole } from "@/lib/format";
 import { bitGet, isRectFree } from "@/lib/quote";
@@ -27,10 +28,11 @@ function findFree(occ: Uint8Array, w: number, h: number): Rect | null {
 }
 
 function SelectionBar({ sel, onBuy, onClear }: { sel: Rect; onBuy(): void; onClear(): void }) {
+  const live = useBuybacksLive();
   const occ = useLive((s) => s.occupancy);
   const free = isRectFree(occ, sel);
   const sol = useQuote(sel.w, sel.h, "sol", free);
-  const tokenOk = normTokenStatus(sol.quote?.tokenPaymentStatus) === "ok";
+  const tokenOk = live && normTokenStatus(sol.quote?.tokenPaymentStatus) === "ok";
   const tok = useQuote(sel.w, sel.h, "token", free && tokenOk);
   const usd = sel.w * sel.h * 100;
   const launching = useLaunchState() === "soon";
@@ -45,7 +47,7 @@ function SelectionBar({ sel, onBuy, onClear }: { sel: Rect; onBuy(): void; onCle
         </p>
       </div>
       {free ? (
-        <dl className="num grid grid-cols-3 gap-x-5 text-[0.95rem]">
+        <dl className={`num grid gap-x-5 text-[0.95rem] ${live ? "grid-cols-3" : "grid-cols-2"}`}>
           <div>
             <dt className="text-[0.66rem] text-ash">USD</dt>
             <dd>{fmtUsd(usd)}</dd>
@@ -54,12 +56,14 @@ function SelectionBar({ sel, onBuy, onClear }: { sel: Rect; onBuy(): void; onCle
             <dt className="text-[0.66rem] text-cobalt-hi">SOL</dt>
             <dd>{sol.quote?.lamports ? fmtSol(sol.quote.lamports, 3) : "…"}</dd>
           </div>
-          <div>
-            <dt className="text-[0.66rem] text-flame">{BRAND.ticker} −10%</dt>
-            <dd className={tokenOk ? "text-cone" : "text-ash"}>
-              {!tokenOk ? (sol.quote ? "SOL only now" : "…") : tok.quote?.tokens ? fmtCompact(tokensToWhole(tok.quote.tokens)) : "…"}
-            </dd>
-          </div>
+          {live && (
+            <div>
+              <dt className="text-[0.66rem] text-flame">{BRAND.ticker} −10%</dt>
+              <dd className={tokenOk ? "text-cone" : "text-ash"}>
+                {!tokenOk ? (sol.quote ? "SOL only now" : "…") : tok.quote?.tokens ? fmtCompact(tokensToWhole(tok.quote.tokens)) : "…"}
+              </dd>
+            </div>
+          )}
         </dl>
       ) : (
         <p className="text-[0.92rem] text-flame" role="alert">

@@ -8,12 +8,12 @@ import { CLUSTER, GRID } from "@/lib/config";
 import { MARK_GRID, MARK_PATH, MARK_PIXEL, WORDMARK_GRID, WORDMARK_PATH } from "@/lib/brandPaths";
 import { bitGet } from "@/lib/quote";
 import { fmtUsd } from "@/lib/format";
+import { TAGLINE } from "@/lib/phase";
 import { adBox, burnHeadline, type ShareFacts } from "@/lib/share";
 import type { Occupancy } from "@/lib/types";
 
 const W = 1200, H = 630, MARGIN = 40, FRAME = 6, ZONE_H = 340, MAP = 200;
 const FLAME = "#FF6400", CREAM = "#FFF5DC", BLACK = "#000000";
-const TAGLINE = "A million pixels. Half of every dollar burns.";
 
 const loadImage = (src: string, cors = false) =>
   new Promise<HTMLImageElement | null>((resolve) => {
@@ -106,7 +106,7 @@ function wrap(ctx: CanvasRenderingContext2D, text: string, width: number, maxLin
   });
 }
 
-export async function renderShareCard(opts: { image: string | null; title: string; facts: ShareFacts }): Promise<string> {
+export async function renderShareCard(opts: { image: string | null; title: string; facts: ShareFacts; live: boolean }): Promise<string> {
   const { facts: f } = opts;
   const c = document.createElement("canvas");
   c.width = W;
@@ -173,7 +173,7 @@ export async function renderShareCard(opts: { image: string | null; title: strin
   const zoneW = W - zoneX, padX = zoneX + 32, figW = zoneW - 64 - MAP - 24;
   ctx.fillStyle = FLAME;
   ctx.fillRect(zoneX, top, zoneW, ZONE_H);
-  const b = burnHeadline(f);
+  const b = burnHeadline(f, opts.live);
   ctx.fillStyle = BLACK;
   ctx.textBaseline = "alphabetic";
   fit("text", b.label, figW, 34, 20);

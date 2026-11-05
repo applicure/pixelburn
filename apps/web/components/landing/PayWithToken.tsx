@@ -5,6 +5,7 @@ import { useInView } from "motion/react";
 import { useQuote } from "@/lib/useQuote";
 import { normTokenStatus, SLOW_EMA_HINT, tokenStatusCopy } from "@/lib/tokenStatus";
 import { BRAND } from "@/lib/config";
+import { useBuybacksLive } from "@/lib/usePhase";
 import { quoteLamports, quoteTokens, quoteUsd } from "@/lib/quote";
 import { useLive } from "@/lib/store";
 import { fmtInt, fmtSol, fmtTokens, fmtUsd, fmt2 } from "@/lib/format";
@@ -44,6 +45,7 @@ function Stepper({ label, value, set }: { label: string; value: number; set: (n:
 }
 
 export function PayWithToken() {
+  const live = useBuybacksLive();
   const [w, setW] = useState(3);
   const [h, setH] = useState(2);
   // live estimate from the prices in the stats stream; the binding quote is taken at checkout
@@ -56,9 +58,9 @@ export function PayWithToken() {
   // one SOL quote per size (no auto-refresh) tells us whether $PXL can pay for this size right now
   const box = useRef<HTMLDivElement>(null);
   const inView = useInView(box, { margin: "200px" });
-  const gate = useQuote(w, h, "sol", inView, false);
+  const gate = useQuote(w, h, "sol", live && inView, false);
   const status = normTokenStatus(gate.quote?.tokenPaymentStatus);
-  const note = tokenStatusCopy(status, w * h, gate.quote?.tokenBlocksAvailable ?? null);
+  const note = !live ? null : tokenStatusCopy(status, w * h, gate.quote?.tokenBlocksAvailable ?? null);
   const slowEma = status === "ok" && gate.quote?.tokenPricedBy === "slow_ema";
 
   return (
@@ -66,8 +68,10 @@ export function PayWithToken() {
       <div className="relative z-10 mx-auto grid max-w-[1400px] gap-12 px-4 py-24 sm:px-6 sm:py-32 lg:grid-cols-12">
         <div className="lg:col-span-5">
           <h2 id="token-title" className="font-black text-[clamp(2.6rem,7vw,6rem)] [font-variation-settings:'wdth'_130]">
-            Pay in {BRAND.ticker}. Save 10%. Burn all of it.
+            {live ? <>Pay in {BRAND.ticker}. Save 10%. Burn all of it.</> : <>Pay with {BRAND.ticker}: coming soon.</>}
           </h2>
+          {live ? (
+            <>
           <p className="mt-6 max-w-[42ch] text-[1.08rem] leading-relaxed">
             Choose {BRAND.ticker} at checkout and the price drops by 10%. Every token you pay is burned in the same
             transaction: none of it goes to the treasury.
@@ -77,6 +81,15 @@ export function PayWithToken() {
             one), so pumping the price never lowers the number of tokens you owe. Token payments pause briefly after a
             sharp spike and are capped at 1,000 blocks an hour; SOL always works.
           </p>
+            </>
+          ) : (
+            <>
+              <p className="mt-6 max-w-[42ch] text-[1.08rem] leading-relaxed">
+                {BRAND.ticker} is launching on pump.fun. Paying for pixels with it comes together with buybacks, in a later program upgrade that will be announced as a new feature.
+              </p>
+              <p className="mt-4 max-w-[42ch] text-[0.95rem] leading-relaxed text-soot/80">For now every block is paid in SOL.</p>
+            </>
+          )}
         </div>
 
         <div className="lg:col-span-7">
@@ -119,13 +132,22 @@ export function PayWithToken() {
                 </p>
               </div>
               <div className="relative bg-soot pb-2 pt-4 sm:pl-6">
-                <p className="text-[0.9rem] text-flame">Pay in {BRAND.ticker}, 10% off</p>
-                <p className={`mt-2 text-[2.1rem] leading-none sm:text-[2.6rem] ${note ? "text-ash/60 line-through decoration-2" : "text-cone"}`}>
-                  <Odometer value={tokens ? fmtTokens(tokens) : "0"} />
-                </p>
-                <p className="num mt-2 text-[0.8rem] text-ash">
-                  {fmtUsd(usd * 0.9)} at ${tokUsd.toFixed(5)}, you save {fmtUsd(usd * 0.1)}
-                </p>
+                {live ? (
+                  <>
+                    <p className="text-[0.9rem] text-flame">Pay in {BRAND.ticker}, 10% off</p>
+                    <p className={`mt-2 text-[2.1rem] leading-none sm:text-[2.6rem] ${note ? "text-ash/60 line-through decoration-2" : "text-cone"}`}>
+                      <Odometer value={tokens ? fmtTokens(tokens) : "0"} />
+                    </p>
+                    <p className="num mt-2 text-[0.8rem] text-ash">
+                      {fmtUsd(usd * 0.9)} at ${tokUsd.toFixed(5)}, you save {fmtUsd(usd * 0.1)}
+                    </p>
+                  </>
+                ) : (
+                  <>
+                    <p className="text-[0.9rem] text-ash">Pay with {BRAND.ticker}</p>
+                    <p className="mt-2 text-[2.1rem] leading-none text-ash sm:text-[2.6rem]">Coming soon</p>
+                  </>
+                )}
               </div>
             </div>
 

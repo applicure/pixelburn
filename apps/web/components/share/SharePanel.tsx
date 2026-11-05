@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { BRAND, SITE_URL, USE_MOCK } from "@/lib/config";
+import { useBuybacksLive } from "@/lib/usePhase";
 import { adPageUrl, cardImageUrl, factsFromShare, shareBody, VARIANT_COUNT, X_LIMIT, xIntentUrl, xLength, type ShareFacts } from "@/lib/share";
 import { useAdShare } from "@/lib/useAdShare";
 import { IconCheck, IconCopy, IconDownload, IconLink, IconShare, IconX } from "@/components/ui/icons";
@@ -40,9 +41,10 @@ export function SharePanel({
 }) {
   const { share, gaveUp } = useAdShare(adId, signature);
   const facts = share ? factsFromShare(share) : given ?? null;
+  const live = useBuybacksLive();
   const [variant, setVariant] = useState(0);
   const [edited, setEdited] = useState<string | null>(null);
-  const body = edited ?? (facts ? shareBody(facts, variant, share?.cluster) : "");
+  const body = edited ?? (facts ? shareBody(facts, variant, share?.cluster, live) : "");
   // Never the ad's own URL before the API confirms it exists: until then /ad/<id> is a 404, and people would post a dead link.
   const link = share ? adPageUrl(share) : gaveUp ? `${SITE_URL}/canvas` : null;
   const canPost = !!body && !!link;

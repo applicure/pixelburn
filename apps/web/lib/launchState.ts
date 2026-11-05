@@ -46,6 +46,7 @@ export function useLaunchState(): LaunchState {
   const [s, setS] = useState<LaunchState>(state);
   useEffect(() => {
     listeners.add(setS);
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setS(state);
     void poll();
     return () => {

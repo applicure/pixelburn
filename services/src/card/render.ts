@@ -158,8 +158,9 @@ function solAmount(lamports: string) {
 /** The honest headline for each way of paying. Nothing here claims a burn that has not happened. */
 export function burnFigure(f: Pick<CardFacts, "payMode" | "usd" | "lamports" | "tokens" | "decimals">) {
   if (f.payMode === "token") return { label: "$PXL BURNED", figure: compactTokens(f.tokens, f.decimals), sub: "every token paid, destroyed in the purchase" };
-  if (f.payMode === "auction") return { label: "TO $PXL BUYBACK AND BURN", figure: `${solAmount(f.lamports)} SOL`, sub: "all of the winning bid" };
-  return { label: "TO $PXL BUYBACK AND BURN", figure: `$${group(Math.round(f.usd / 2))}`, sub: `half of ${solAmount(f.lamports)} SOL paid, buys and burns later` };
+  // Launch phase: wording shared with apps/web/lib/share.ts. Buybacks are coming soon, so only the vault is claimed.
+  if (f.payMode === "auction") return { label: "TO THE BUYBACK VAULT", figure: `${solAmount(f.lamports)} SOL`, sub: "all of the winning bid, buybacks coming soon" };
+  return { label: "TO THE BUYBACK VAULT", figure: `$${group(Math.round(f.usd / 2))}`, sub: `half of ${solAmount(f.lamports)} SOL paid, buybacks coming soon` };
 }
 
 function sizeLine(f: CardFacts) {

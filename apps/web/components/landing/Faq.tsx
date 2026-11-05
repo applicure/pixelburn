@@ -2,21 +2,30 @@
 import { useId, useState } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { BRAND } from "@/lib/config";
+import { useBuybacksLive } from "@/lib/usePhase";
 import { IconPlus } from "@/components/ui/icons";
 
-const QA: { q: string; a: string }[] = [
+const qa = (live: boolean): { q: string; a: string }[] => [
   {
     q: "What do I actually get?",
     a: "A rectangle of whole 10×10 blocks on the billboard, showing your image and linking where you choose. The record is on Solana under your wallet, and you can update the image and link or transfer the ad later.",
   },
   {
     q: "How much does it cost?",
-    a: `$1 per pixel, so $100 per block. Paying in SOL uses the live SOL/USD oracle price. Paying in ${BRAND.ticker} takes 10% off and converts at the lowest of the pool price and two on-chain averages, so a pump never makes your ad cheaper. ${BRAND.ticker} payments pause briefly after a sharp price spike and are capped at 1,000 blocks an hour; SOL always works.`,
+    a: !live ? `$1 per pixel, so $100 per block, paid in SOL at the live SOL/USD oracle price. Paying with ${BRAND.ticker} is coming soon.` : `$1 per pixel, so $100 per block. Paying in SOL uses the live SOL/USD oracle price. Paying in ${BRAND.ticker} takes 10% off and converts at the lowest of the pool price and two on-chain averages, so a pump never makes your ad cheaper. ${BRAND.ticker} payments pause briefly after a sharp price spike and are capped at 1,000 blocks an hour; SOL always works.`,
   },
   {
     q: "Where does the money go?",
-    a: `SOL payments split in the purchase transaction: 50% to the treasury, 50% to a buyback vault that the program spends only on buying ${BRAND.ticker} and burning it. ${BRAND.ticker} payments are burned in full, in the same transaction.`,
+    a: !live ? `SOL payments split in the purchase transaction: 50% to the treasury, 50% to the buyback vault, where it builds up for now. You can follow the balance on the buyback page. Buybacks are coming soon.` : `SOL payments split in the purchase transaction: 50% to the treasury, 50% to a buyback vault that the program spends only on buying ${BRAND.ticker} and burning it. ${BRAND.ticker} payments are burned in full, in the same transaction.`,
   },
+  ...(live
+    ? []
+    : [
+        {
+          q: "What is coming soon?",
+          a: `Buyback-and-burn and paying with ${BRAND.ticker}. They come together with a later program upgrade, which will be announced as a new feature. ${BRAND.ticker} itself is launching on pump.fun.`,
+        },
+      ]),
   {
     q: "Can the team change the program?",
     a: "Yes. The program is upgradeable, and one team-held key controls upgrades and settings. There is no multisig or timelock, so those rules hold unless that key changes them. Every upgrade is public on-chain.",
@@ -31,11 +40,11 @@ const QA: { q: string; a: string }[] = [
   },
   {
     q: "What happens at 99%?",
-    a: "Fixed-price sales stop and every remaining free block becomes a single lot in a 72-hour SOL auction. Outbid bidders are refunded automatically. The winning bid goes 100% to buyback and burn.",
+    a: "Fixed-price sales stop and every remaining free block becomes a single lot in a 72-hour SOL auction. Outbid bidders are refunded automatically. The winning bid goes 100% to " + (live ? "buyback and burn." : "the buyback vault."),
   },
   {
     q: `Is ${BRAND.ticker} an investment?`,
-    a: "No. It is the token this billboard burns. Nothing here is financial advice, prices can go to zero, and you should only spend what you are happy to spend on an ad.",
+    a: (live ? "No. It is the token this billboard burns." : "No. It is the token launching on pump.fun for this billboard's coming buybacks.") + " Nothing here is financial advice, prices can go to zero, and you should only spend what you are happy to spend on an ad.",
   },
 ];
 
@@ -80,6 +89,7 @@ function Item({ q, a, open, onToggle }: { q: string; a: string; open: boolean; o
 
 export function Faq() {
   const [open, setOpen] = useState<number | null>(0);
+  const QA = qa(useBuybacksLive());
   return (
     <section className="py-24 sm:py-32" aria-labelledby="faq-title">
       <div className="mx-auto grid max-w-[1400px] gap-10 px-4 sm:px-6 lg:grid-cols-12">

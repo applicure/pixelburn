@@ -168,6 +168,7 @@ When nothing is sold (`soldBlocks === 0`), or the wall is under 2% sold (`< 200`
   Getting the simulated number under 2.5 s would need smaller font files (static, non-variable cut of Anybody).
 - Copy policy: the site never claims "every pixel burns". SOL purchases: half to treasury, half to buyback-and-burn.
   $PXL purchases: every token paid is burned. Hero, share card, footer, metadata and auction copy follow this.
+- Launch phase: buybacks and $PXL payments are "coming soon", until a later program upgrade. `BUYBACK_PHASE` in `lib/phase.ts` switches all of that copy. The services card holds its own wording, `services/src/card/render.ts`, which changes by hand.
 - Landing scroll story uses `position: sticky` + motion `useScroll`, not GSAP (GSAP was dropped to save weight).
 - The WebGL hero has no explicit context-loss handling; it falls back to the 2D canvas only when WebGL2 is
   missing at mount.

@@ -7,6 +7,8 @@ export const BRAND = {
   shortName: "Pixel Frame",
   ticker: "$PXL",
   tickerBare: "PXL",
+  x: "https://x.com/PixelFrameSol",
+  xHandle: "@PixelFrameSol",
 } as const;
 
 export const SECURITY_CONTACT = "team@pixelframe.tech";

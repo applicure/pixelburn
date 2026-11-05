@@ -3,9 +3,11 @@ import Link from "next/link";
 import { useRef } from "react";
 import { motion, useReducedMotion, useScroll, useTransform } from "motion/react";
 import { BRAND, HISTORY_2005, USE_MOCK } from "@/lib/config";
-import { Mark } from "./icons";
+import { useBuybacksLive } from "@/lib/usePhase";
+import { IconX, Mark } from "./icons";
 
 export function Footer() {
+  const live = useBuybacksLive();
   const ref = useRef<HTMLElement>(null);
   const reduce = useReducedMotion();
   const { scrollYProgress } = useScroll({ target: ref, offset: ["start end", "end end"] });
@@ -25,9 +27,12 @@ export function Footer() {
           <nav aria-label="Footer" className="grid content-start gap-2 text-[0.95rem]">
             <Link className="hover:text-flame" href="/canvas">Canvas</Link>
             <Link className="hover:text-flame" href="/canvas?select=1">Buy pixels</Link>
-            <Link className="hover:text-flame" href="/burns">Burns and treasury</Link>
+            <Link className="hover:text-flame" href="/burns">{live ? "Burns" : "Buyback"} and treasury</Link>
             <Link className="hover:text-flame" href="/auction">Final auction</Link>
             <Link className="hover:text-flame" href="/security">Security</Link>
+            <a className="flex items-center gap-2 hover:text-flame" href={BRAND.x} target="_blank" rel="noopener noreferrer" aria-label={`${BRAND.name} on X`}>
+              <IconX size={16} /> {BRAND.xHandle}
+            </a>
           </nav>
           <div className="text-[0.85rem] text-ash sm:col-span-2">
             <p>
@@ -36,7 +41,7 @@ export function Footer() {
             </p>
             {USE_MOCK && (
               <p className="mt-3 border border-char p-3 text-heat/80">
-                Demo data: no API is connected, so every ad, owner, price and burn on this page is generated locally.
+                Demo data: no API is connected, so every ad, owner, price{live ? " and burn" : " and figure"} on this page is generated locally.
               </p>
             )}
           </div>

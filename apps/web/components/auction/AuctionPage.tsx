@@ -1,4 +1,5 @@
 "use client";
+import { useBuybacksLive } from "@/lib/usePhase";
 import Link from "next/link";
 import dynamic from "next/dynamic";
 import { useSearchParams } from "next/navigation";
@@ -15,6 +16,7 @@ import { LotMap } from "./LotMap";
 const LiveAuction = dynamic(() => import("./LiveAuction"), { ssr: false, loading: () => <div className="min-h-[80svh]" /> });
 
 function Pending() {
+  const live = useBuybacksLive();
   const stats = useLive((s) => s.stats);
   const sold = stats?.soldBlocks ?? 0;
   const pct = (sold / 100);
@@ -79,7 +81,9 @@ function Pending() {
               {[
                 ["Sales stop at 9,900 blocks", "The program refuses new fixed-price purchases and anyone can start the auction."],
                 ["72 hours of SOL bids", "Each bid must beat the last. The previous high bidder is refunded in the same transaction."],
-                ["The whole bid burns", `The winning SOL goes 100% to the buyback vault and comes out the other side as burned ${BRAND.ticker}.`],
+                live
+                  ? ["The whole bid burns", `The winning SOL goes 100% to the buyback vault and comes out the other side as burned ${BRAND.ticker}.`]
+                  : ["The whole bid goes to the vault", "The winning SOL goes 100% to the buyback vault. Buybacks are coming soon."],
                 ["The winner fills the gaps", "One ad covers every remaining block, wherever they are on the wall."],
               ].map(([h, p], i) => (
                 <li key={h} className="grid grid-cols-[2.5rem_1fr] gap-3">
@@ -93,7 +97,7 @@ function Pending() {
             </ol>
             <p className="mt-10 border-l-2 border-cone pl-4 text-[0.95rem] text-heat/80">
               In January 2006 the original sold its last 1,000 pixels on eBay for {fmtUsd(HISTORY_2005.ebayUsd)}. This time
-              the money doesn&apos;t go to anyone. It goes into the fire.
+              the money doesn&apos;t go to anyone. {live ? "It goes into the fire." : "It goes to the buyback vault."}
             </p>
           </div>
           <figure className="lg:col-span-6 lg:col-start-7">

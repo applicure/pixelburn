@@ -65,6 +65,8 @@ export interface Stats {
   usdRaised: number;
   lamportsRaised: string;
   lamportsToTreasury: string;
+  /** "later": buybacks and $PXL payments are coming soon. Absent on older APIs, which reads as "later". */
+  buybackPhase?: "live" | "later";
   lamportsToBuyback: string;
   lamportsSpentBuyback: string;
   tokensBurned: string;

@@ -4,6 +4,9 @@ import { motion, useReducedMotion } from "motion/react";
 import { api, type BuybackItem } from "@/lib/api";
 import { BRAND, CLUSTER, TOKEN_DECIMALS, USE_MOCK, rpcEndpoint } from "@/lib/config";
 import { explorerAddr, explorerTx, fmtCompact, fmtInt, fmtSol, fmtUsd, lamportsToSol, shortAddr, timeAgo, tokensToWhole } from "@/lib/format";
+import { useLaunchState } from "@/lib/launchState";
+import { COMING_SOON } from "@/lib/phase";
+import { useBuybacksLive } from "@/lib/usePhase";
 import { useLive } from "@/lib/store";
 import { useAsync } from "@/lib/useAsync";
 import { Odometer } from "@/components/ui/Odometer";
@@ -11,36 +14,36 @@ import { KineticHeading } from "@/components/ui/KineticHeading";
 import { BurnChart } from "./BurnChart";
 
 type Addr = { label: string; value: string | null; note: string };
-const ADDR_NOTES: Addr[] = [
+const addrNotes = (live: boolean): Addr[] => [
   { label: "Program", value: null, note: "The billboard program. Holds the canvas bitmap and every ad record." },
   { label: "Treasury", value: null, note: "Receives 50% of SOL purchases." },
-  { label: "Buyback vault", value: null, note: `A program account. The program spends its SOL only on buying ${BRAND.ticker} and burning it.` },
-  { label: `${BRAND.ticker} mint`, value: null, note: "Supply shrinks with every burn." },
+  { label: "Buyback vault", value: null, note: live ? `A program account. The program spends its SOL only on buying ${BRAND.ticker} and burning it.` : "A program account. Receives 50% of SOL purchases. Buybacks are coming soon." },
+  { label: `${BRAND.ticker} mint`, value: null, note: live ? "Supply shrinks with every burn." : "The token, launching on pump.fun." },
 ];
 
 /** Program + PDAs come from @mpb/sdk; treasury and mint are read from the config account via /api/rpc. */
-function useAddresses() {
-  const [addrs, setAddrs] = useState<Addr[]>(ADDR_NOTES);
+function useAddresses(live: boolean) {
+  const [values, setValues] = useState<(string | null)[]>([null, null, null, null]);
   useEffect(() => {
-    let live = true;
+    let mounted = true;
     (async () => {
       const sdk = await import("@mpb/sdk");
       const programId = sdk.programIdForCluster(CLUSTER);
       const base = [programId.toBase58(), null, sdk.buybackVaultPda(programId).toBase58(), null];
-      if (live) setAddrs(ADDR_NOTES.map((a, i) => ({ ...a, value: base[i] })));
+      if (mounted) setValues(base);
       try {
         const { Connection } = await import("@solana/web3.js");
         const cfg = await sdk.fetchConfig(new Connection(rpcEndpoint(), { commitment: "confirmed", disableRetryOnRateLimit: true }), programId);
-        if (live) setAddrs(ADDR_NOTES.map((a, i) => ({ ...a, value: [base[0], cfg.treasury.toBase58(), base[2], cfg.tokenMint.toBase58()][i] })));
+        if (mounted) setValues([base[0], cfg.treasury.toBase58(), base[2], cfg.tokenMint.toBase58()]);
       } catch {
         // RPC not configured or program not deployed on this cluster: keep the derived ones
       }
     })();
     return () => {
-      live = false;
+      mounted = false;
     };
   }, []);
-  return addrs;
+  return addrNotes(live).map((a, i) => ({ ...a, value: values[i] }));
 }
 
 function Bar({ parts }: { parts: { v: number; c: string; label: string }[] }) {
@@ -68,7 +71,9 @@ export function BurnsPage() {
   const liveFeed = useLive((s) => s.feed);
   const history = useAsync(() => api.getFeed(500), []);
   const board = useAsync(() => api.getLeaderboard(), []);
-  const addrs = useAddresses();
+  const live = useBuybacksLive();
+  const addrs = useAddresses(live);
+  const preLaunch = useLaunchState() !== "live";
   const [now, setNow] = useState(() => Date.now());
   useEffect(() => {
     const t = setInterval(() => setNow(Date.now()), 15_000);
@@ -85,13 +90,13 @@ export function BurnsPage() {
   // buyback table: paged from /api/buybacks, with anything that streamed in since on top
   const [pages, setPages] = useState<{ items: BuybackItem[]; next: string | null; loading: boolean }>({ items: [], next: null, loading: true });
   useEffect(() => {
-    let live = true;
+    let mounted = true;
     api.getBuybacks(null, 25).then(
-      (r) => live && setPages({ items: r.items, next: r.nextCursor, loading: false }),
-      () => live && setPages((p) => ({ ...p, loading: false })),
+      (r) => mounted && setPages({ items: r.items, next: r.nextCursor, loading: false }),
+      () => mounted && setPages((p) => ({ ...p, loading: false })),
     );
     return () => {
-      live = false;
+      mounted = false;
     };
   }, []);
   const loadMore = async () => {
@@ -119,12 +124,32 @@ export function BurnsPage() {
       <section className="relative overflow-hidden pb-16 pt-16 sm:pt-24" aria-labelledby="burns-title">
         <div aria-hidden className="pointer-events-none absolute inset-x-0 top-0 -z-10 h-[120%] bg-[radial-gradient(70%_60%_at_20%_0%,rgba(255,100,0,.22),transparent_70%)]" />
         <div className="mx-auto max-w-[1400px] px-4 sm:px-6">
-          <KineticHeading as="h1" lines={["Burned,", "on the record."]} className="font-black text-[clamp(2.4rem,9.4vw,8.5rem)] leading-[0.92]" rest={96} />
+          <KineticHeading as="h1" lines={live ? ["Burned,", "on the record."] : ["The buyback", "vault."]} className="font-black text-[clamp(2.4rem,9.4vw,8.5rem)] leading-[0.92]" rest={96} />
           <p className="mt-6 max-w-[52ch] text-heat/85">
-            Every token below is gone for good. Two ways in: buyers who pay in {BRAND.ticker} burn it directly, and the
-            buyback vault spends half of every SOL purchase on {BRAND.ticker} and burns that too.
+            {live ? (
+              <>
+                Every token below is gone for good. Two ways in: buyers who pay in {BRAND.ticker} burn it directly, and the
+                buyback vault spends half of every SOL purchase on {BRAND.ticker} and burns that too.
+              </>
+            ) : (
+              <>Half of every SOL purchase goes to this vault and builds up here. {COMING_SOON} They come together with a later program upgrade, announced as a new feature.</>
+            )}
           </p>
-          {stats && burned === 0 ? (
+          {!live ? (
+            <div className="mt-12 grid gap-px bg-char sm:grid-cols-2">
+              <div className="bg-soot py-5 pr-6">
+                <p className="text-[clamp(2.2rem,4.2vw,3.9rem)] font-medium leading-none text-cone">
+                  <Odometer value={fmtSol(waiting, 2)} />
+                  <span className="num ml-2 text-[0.45em] text-ash">SOL</span>
+                </p>
+                <p className="mt-3 text-[0.9rem] text-ash">in the buyback vault</p>
+              </div>
+              <div className="bg-soot py-5 pr-6 sm:pl-6">
+                <p className="font-display text-[clamp(2rem,3.8vw,3.4rem)] font-black leading-none [font-variation-settings:'wdth'_90]">Coming soon</p>
+                <p className="mt-3 text-[0.9rem] text-ash">Buyback-and-burn</p>
+              </div>
+            </div>
+          ) : stats && burned === 0 ? (
             <div className="mt-12 border-y border-char py-8">
               <p className="font-display text-[clamp(2rem,5vw,3.6rem)] font-black leading-none [font-variation-settings:'wdth'_70]">
                 Nothing burned yet.
@@ -158,7 +183,7 @@ export function BurnsPage() {
             </div>
           </div>
           )}
-          <div className="mt-6">
+          {live && <div className="mt-6">
             <Bar
               parts={[
                 { v: stats ? tokensToWhole(stats.tokensBurnedBuyback) : 0, c: "#ff6400", label: "burned via buyback" },
@@ -202,12 +227,12 @@ export function BurnsPage() {
                 fills the buyback vault for the next buyback. Every one will be listed here with its transaction.
               </p>
             )}
-          </div>
+          </div>}
         </div>
       </section>
 
       {/* firing curve */}
-      <section className="border-t border-char py-16 sm:py-24" aria-labelledby="curve-title">
+      {live && <section className="border-t border-char py-16 sm:py-24" aria-labelledby="curve-title">
         <div className="mx-auto max-w-[1400px] px-4 sm:px-6">
           <h2 id="curve-title" className="font-black text-[clamp(2rem,5vw,3.8rem)] [font-variation-settings:'wdth'_96]">
             The firing curve
@@ -221,7 +246,7 @@ export function BurnsPage() {
             <BurnChart feed={merged} stats={stats} now={now} />
           )}
         </div>
-      </section>
+      </section>}
 
       {/* treasury */}
       <section className="border-t border-char py-16 sm:py-24" aria-labelledby="treasury-title">
@@ -236,8 +261,8 @@ export function BurnsPage() {
             <Bar
               parts={[
                 { v: lamportsToSol(toT), c: "#2b47e8", label: "treasury" },
-                { v: lamportsToSol(spent), c: "#ff6400", label: "spent on buyback" },
-                { v: lamportsToSol(waiting), c: "#b3200e", label: "waiting in the buyback vault" },
+                ...(live ? [{ v: lamportsToSol(spent), c: "#ff6400", label: "spent on buyback" }] : []),
+                { v: lamportsToSol(waiting), c: live ? "#b3200e" : "#ff6400", label: live ? "waiting in the buyback vault" : "in the buyback vault" },
               ]}
             />
             <dl className="mt-6 divide-y divide-char border-y border-char">
@@ -245,9 +270,13 @@ export function BurnsPage() {
                 ["SOL raised from purchases", fmtSol(raised, 2), "text-heat"],
                 ["Sent to the treasury, 50%", fmtSol(toT, 2), "text-cobalt-hi"],
                 ["Sent to the buyback vault, 50%", fmtSol(toB, 2), "text-heat"],
-                ["Spent on buybacks so far", fmtSol(spent, 2), "text-flame"],
-                ["Waiting in the vault for the next buyback", fmtSol(waiting, 2), "text-[#ff8a6a]"],
-                ["Dollars raised, all payment types", fmtUsd(stats?.usdRaised ?? 0), "text-heat"],
+                ...(live
+                  ? [
+                      ["Spent on buybacks so far", fmtSol(spent, 2), "text-flame"],
+                      ["Waiting in the vault for the next buyback", fmtSol(waiting, 2), "text-[#ff8a6a]"],
+                    ]
+                  : []),
+                [live ? "Dollars raised, all payment types" : "Dollars raised", fmtUsd(stats?.usdRaised ?? 0), "text-heat"],
               ].map(([k, v, c]) => (
                 <div key={k} className="flex items-baseline justify-between gap-4 py-3">
                   <dt className="text-[0.95rem] text-heat/85">{k}</dt>
@@ -282,7 +311,15 @@ export function BurnsPage() {
             <h2 id="bb-title" className="font-black text-[clamp(2rem,4.4vw,3.4rem)] [font-variation-settings:'wdth'_96]">
               Buybacks
             </h2>
-            <table className="mt-6 w-full text-left text-[0.9rem]">
+            {!live && (
+              <div className="mt-6 border-y border-char py-8">
+                <p className="text-heat/85">Coming soon.</p>
+                <p className="mt-1 max-w-[52ch] text-[0.88rem] text-ash">
+                  Half of every SOL purchase lands in the buyback vault. Buybacks come with a later program upgrade, announced as a new feature, and each one will be listed here with its transaction.
+                </p>
+              </div>
+            )}
+            {live && <table className="mt-6 w-full text-left text-[0.9rem]">
               <caption className="sr-only">Buyback and burn transactions, newest first</caption>
               <thead className="text-[0.78rem] text-ash">
                 <tr className="border-b border-char">
@@ -312,8 +349,8 @@ export function BurnsPage() {
                   ) : null,
                 )}
               </tbody>
-            </table>
-            {!pages.loading && buybacks.length === 0 && (
+            </table>}
+            {live && !pages.loading && buybacks.length === 0 && (
               <div className="border-b border-char py-8">
                 <p className="text-heat/85">No buybacks yet.</p>
                 <p className="mt-1 max-w-[52ch] text-[0.88rem] text-ash">
@@ -322,7 +359,7 @@ export function BurnsPage() {
                 </p>
               </div>
             )}
-            {pages.next && (
+            {live && pages.next && (
               <button className="btn-line mt-5" onClick={loadMore} disabled={pages.loading}>
                 {pages.loading ? "Loading…" : "Load older buybacks"}
               </button>
@@ -340,7 +377,7 @@ export function BurnsPage() {
                   <span className="num text-cone">1</span> The top spot is open.
                 </p>
                 <p className="mt-1 max-w-[46ch] text-[0.88rem] text-ash">Nobody holds any of the wall yet. Whoever buys first leads this list.</p>
-                <a href="/canvas?select=1&w=1&h=1" className="btn-line mt-5">Claim the first block</a>
+                <a href={preLaunch ? "/canvas" : "/canvas?select=1&w=1&h=1"} className="btn-line mt-5">{preLaunch ? "See the canvas" : "Claim the first block"}</a>
               </div>
             )}
             <ol className="mt-6 divide-y divide-char border-y border-char">
@@ -359,13 +396,13 @@ export function BurnsPage() {
                     </div>
                     <div className="num text-right text-[0.78rem]">
                       <p>{fmtInt(r.blocks)} blocks</p>
-                      <p className="text-ash">{fmtCompact(tokensToWhole(r.tokensBurned))} burned</p>
+                      {live && <p className="text-ash">{fmtCompact(tokensToWhole(r.tokensBurned))} burned</p>}
                     </div>
                   </li>
                 );
               })}
             </ol>
-            {USE_MOCK && <p className="mt-4 text-[0.8rem] text-ash">Demo data. Burn attribution includes each buyer&apos;s share of buybacks their SOL funded, at today&apos;s price.</p>}
+            {USE_MOCK && <p className="mt-4 text-[0.8rem] text-ash">Demo data.{live && " Burn attribution includes each buyer\u2019s share of buybacks their SOL funded, at today\u2019s price."}</p>}
           </div>
         </div>
       </section>

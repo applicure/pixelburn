@@ -177,11 +177,18 @@ describe("cost", () => {
 
 describe("figures", () => {
   const base = { usd: 1200, lamports: "7812345678", tokens: "0", decimals: 6 };
-  it("SOL: half goes to buyback, and nothing says burned", () => {
+  it("SOL: half goes to the buyback vault, and nothing says burn", () => {
     const b = burnFigure({ ...base, payMode: "sol" });
     expect(b.figure).toBe("$600");
     expect(`${b.label} ${b.sub}`).toMatch(/half of 7\.81 SOL/);
-    expect(b.label).not.toMatch(/\bBURNED\b/i);
+    expect(b.label).toBe("TO THE BUYBACK VAULT");
+    expect(`${b.label} ${b.sub}`).toMatch(/buybacks coming soon/);
+    expect(`${b.label} ${b.sub}`).not.toMatch(/burn/i);
+  });
+  it("auction: the whole bid goes to the vault, and nothing says burn", () => {
+    const b = burnFigure({ ...base, payMode: "auction" });
+    expect(b).toMatchObject({ label: "TO THE BUYBACK VAULT", figure: "7.81 SOL" });
+    expect(`${b.label} ${b.sub}`).not.toMatch(/burn/i);
   });
   it("token: the amount from the transaction", () => {
     expect(burnFigure({ ...base, payMode: "token", tokens: "12345678901234" })).toMatchObject({ label: "$PXL BURNED", figure: "12.35M" });

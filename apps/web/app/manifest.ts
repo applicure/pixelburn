@@ -5,7 +5,7 @@ export default function manifest(): MetadataRoute.Manifest {
   return {
     name: BRAND.name,
     short_name: BRAND.shortName,
-    description: "A million pixels. Half of every dollar burns.",
+    description: "A million pixels on Solana. $1 a pixel.",
     start_url: "/",
     display: "standalone",
     background_color: "#000000",

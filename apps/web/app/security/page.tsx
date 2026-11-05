@@ -9,9 +9,9 @@ export const metadata: Metadata = {
 };
 
 const IN_SCOPE = [
-  "The on-chain program (`pixel`) and its buyback vault. Addresses are on the burns page.",
+  "The on-chain program (`pixel`) and its buyback vault. Addresses are on the buyback page.",
   "This website and its same-origin RPC proxy.",
-  "The API, indexer and buyback keeper behind this site.",
+  "The API, indexer and keeper behind this site.",
 ];
 
 const OUT_OF_SCOPE = [
@@ -37,7 +37,7 @@ export default function Page() {
       <main id="main" className="mx-auto max-w-[68ch] px-4 pb-24 pt-32 sm:px-6">
         <h1 className="font-black text-[clamp(2.6rem,9vw,5rem)] leading-none [font-variation-settings:'wdth'_120]">Security</h1>
         <p className="mt-6 text-heat/80">
-          Found a way to take funds, bypass a payment or burn, or harm people using this site? Tell us before you tell anyone else.
+          Found a way to take funds, bypass a payment, or harm people using this site? Tell us before you tell anyone else.
         </p>
 
         <h2 className="mt-14 text-[1.5rem] font-bold">How to report</h2>
@@ -69,7 +69,7 @@ export default function Page() {
         </ul>
 
         <p className="mt-14 text-[0.9rem] text-ash">
-          See the <Link className="link-cobalt" href="/burns">burns page</Link> for the program, vault, treasury and mint addresses.
+          See the <Link className="link-cobalt" href="/burns">buyback page</Link> for the program, vault, treasury and mint addresses.
         </p>
       </main>
       <Footer />

@@ -3,17 +3,19 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
-import { IconClose, IconMenu, Mark, Wordmark } from "./icons";
+import { IconClose, IconMenu, IconX, Mark, Wordmark } from "./icons";
 import { useLive } from "@/lib/store";
 import { BRAND } from "@/lib/config";
+import { useBuybacksLive } from "@/lib/usePhase";
 
-const LINKS = [
+const links = (live: boolean) => [
   { href: "/canvas", label: "Canvas" },
-  { href: "/burns", label: "Burns" },
+  { href: "/burns", label: live ? "Burns" : "Buyback" },
   { href: "/auction", label: "Auction" },
 ];
 
 export function SiteNav() {
+  const LINKS = links(useBuybacksLive());
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
   const reduce = useReducedMotion();
@@ -72,6 +74,9 @@ export function SiteNav() {
               </Link>
             );
           })}
+          <a href={BRAND.x} target="_blank" rel="noopener noreferrer" aria-label={`${BRAND.name} on X`} className="grid h-10 w-10 place-items-center text-ash transition-colors hover:text-heat">
+            <IconX size={18} />
+          </a>
           <Link href="/canvas?select=1" className="btn-fire ml-3 !py-2.5 text-[0.95rem]">
             Buy pixels
           </Link>
@@ -112,7 +117,10 @@ export function SiteNav() {
                 </Link>
               </motion.div>
             ))}
-            <Link href="/canvas?select=1" className="btn-fire mt-auto justify-center text-xl">
+            <a href={BRAND.x} target="_blank" rel="noopener noreferrer" aria-label={`${BRAND.name} on X`} className="mt-auto flex items-center gap-3 py-4 text-heat/85 hover:text-heat">
+              <IconX size={22} /> <span className="num text-[0.95rem]">{BRAND.xHandle}</span>
+            </a>
+            <Link href="/canvas?select=1" className="btn-fire justify-center text-xl">
               Buy pixels
             </Link>
           </motion.nav>

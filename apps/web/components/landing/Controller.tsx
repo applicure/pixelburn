@@ -3,12 +3,16 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { BRAND } from "@/lib/config";
+import { useLaunchState } from "@/lib/launchState";
+import { vaultLamports } from "@/lib/phase";
+import { useBuybacksLive } from "@/lib/usePhase";
 import { fmtInt, fmtSol, tokensToWhole } from "@/lib/format";
 import { useLive } from "@/lib/store";
 import { Odometer } from "@/components/ui/Odometer";
 import { FeedRow } from "@/components/ui/FeedRow";
 
 export function Controller() {
+  const live = useBuybacksLive();
   const stats = useLive((s) => s.stats);
   const feed = useLive((s) => s.feed);
   const connection = useLive((s) => s.connection);
@@ -24,7 +28,9 @@ export function Controller() {
     { label: "of the billboard sold", value: pct.toFixed(2), unit: "%", tone: "text-heat" },
     { label: "raised in dollars", value: stats ? fmtInt(stats.usdRaised) : "0", unit: "$", pre: true, tone: "text-heat" },
     { label: "raised in SOL", value: stats ? fmtSol(stats.lamportsRaised, 1) : "0.0", unit: "SOL", tone: "text-heat" },
-    { label: `${BRAND.ticker} burned, forever`, value: stats ? fmtInt(Math.round(tokensToWhole(stats.tokensBurned))) : "0", unit: "", tone: "text-cone" },
+    live
+      ? { label: `${BRAND.ticker} burned, forever`, value: stats ? fmtInt(Math.round(tokensToWhole(stats.tokensBurned))) : "0", unit: "", tone: "text-cone" }
+      : { label: "in the buyback vault", value: stats ? fmtSol(vaultLamports(stats), 1) : "0.0", unit: "SOL", tone: "text-cone" },
   ];
 
   return (
@@ -36,7 +42,7 @@ export function Controller() {
           </h2>
           <p className="flex items-center gap-2 text-[0.85rem] text-ash">
             <span className={`inline-block h-2 w-2 ${connection === "open" ? "animate-[flicker_2s_infinite] bg-flame" : "bg-ash"}`} aria-hidden />
-            {connection === "open" ? "Streaming purchases and burns as they land" : "Reconnecting to the live stream"}
+            {connection === "open" ? live ? "Streaming purchases and burns as they land" : "Streaming purchases as they land" : "Reconnecting to the live stream"}
           </p>
         </div>
 
@@ -84,7 +90,7 @@ export function Controller() {
                     <span className="inline-block h-2 w-2 animate-[flicker_2s_infinite] bg-flame" aria-hidden />
                     Waiting for the first purchase.
                   </p>
-                  <p className="mt-1 text-[0.85rem] text-ash">It shows up here the moment it confirms on-chain, and so does every burn after it.</p>
+                  <p className="mt-1 text-[0.85rem] text-ash">It shows up here the moment it confirms on-chain{live ? ", and so does every burn after it" : ""}.</p>
                   <div className="mt-6 space-y-3" aria-hidden>
                     {[0.5, 0.32, 0.18].map((o) => (
                       <div key={o} className="flex items-center gap-3" style={{ opacity: o }}>
@@ -123,20 +129,28 @@ export function Controller() {
 
 /** Launch day: instead of four zeros, say what's true and what happens next. */
 function ColdKiln() {
+  const live = useBuybacksLive();
+  const preLaunch = useLaunchState() !== "live";
   return (
     <div className="relative self-start overflow-hidden bg-soot ring-1 ring-char lg:col-span-7">
       <div aria-hidden className="pointer-events-none absolute inset-x-0 bottom-0 h-2/3 bg-[radial-gradient(60%_80%_at_30%_100%,rgba(179,32,14,.28),transparent_70%)]" />
       <div className="relative p-6 sm:p-10">
         <p className="font-display text-[clamp(2rem,4.4vw,3.6rem)] font-black leading-[0.95] [font-variation-settings:'wdth'_70]">The kiln is cold.</p>
         <p className="mt-4 max-w-[46ch] text-heat/85">
-          Nothing has been bought or burned yet. These counters start moving with the first block: dollars and SOL raised,
-          share of the wall sold, and {BRAND.ticker} burned for good.
+          {live ? (
+            <>
+              Nothing has been bought or burned yet. These counters start moving with the first block: dollars and SOL raised,
+              share of the wall sold, and {BRAND.ticker} burned for good.
+            </>
+          ) : (
+            "Nothing has been bought yet. These counters start moving with the first block: dollars and SOL raised, share of the wall sold, and SOL in the buyback vault."
+          )}
         </p>
         <dl className="mt-8 grid gap-px bg-char sm:grid-cols-3">
           {[
             ["The first block", "$100 for 10×10 px, anywhere on the wall"],
             ["Half of the SOL", "goes straight to the buyback vault"],
-            [`Paid in ${BRAND.ticker}`, "burned in the same transaction"],
+            live ? [`Paid in ${BRAND.ticker}`, "burned in the same transaction"] : [`Buybacks and ${BRAND.ticker} payments`, "coming soon"],
           ].map(([t, d]) => (
             <div key={t} className="bg-soot py-4 pr-4">
               <dt className="font-display text-[1.15rem] font-extrabold [font-variation-settings:'wdth'_110]">{t}</dt>
@@ -144,8 +158,8 @@ function ColdKiln() {
             </div>
           ))}
         </dl>
-        <Link href="/canvas?select=1&w=1&h=1" className="btn-fire mt-8">
-          Light it: claim the first block
+        <Link href={preLaunch ? "/canvas" : "/canvas?select=1&w=1&h=1"} className="btn-fire mt-8">
+          {preLaunch ? "See the canvas" : "Light it: claim the first block"}
         </Link>
       </div>
     </div>

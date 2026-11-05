@@ -1,4 +1,5 @@
 "use client";
+import { useLaunchState } from "@/lib/launchState";
 import { useLive } from "@/lib/store";
 import { BRAND } from "@/lib/config";
 import { fmtCompact, fmtSol, tokensToWhole } from "@/lib/format";
@@ -17,13 +18,14 @@ export function Ticker() {
   const feed = useLive((s) => s.feed);
   const items = feed.slice(0, 14);
   const stats = useLive((s) => s.stats);
+  const preLaunch = useLaunchState() !== "live";
   if (!items.length)
     return (
       <div className="flex h-11 items-center justify-center gap-3 border-y border-char px-4 text-[0.85rem]">
         {stats ? (
           <>
             <span className="inline-block h-2 w-2 animate-[flicker_2s_infinite] bg-flame" aria-hidden />
-            <span className="text-heat/85">No purchases yet. Every one of the 10,000 blocks is open, from $100.</span>
+            <span className="text-heat/85">{preLaunch ? "Launching soon. All 10,000 blocks open at launch, from $100." : "No purchases yet. Every one of the 10,000 blocks is open, from $100."}</span>
           </>
         ) : null}
       </div>

@@ -13,6 +13,7 @@ export type TokenStatus =
   | "deviation"
   | "hourly_cap"
   | "source_unavailable"
+  | "upgrade_pending"
   | "unknown"
   | (string & {});
 
@@ -23,6 +24,7 @@ const CAMEL: Record<string, TokenStatus> = {
   deviation: "deviation",
   capExhausted: "hourly_cap",
   sourceUnavailable: "source_unavailable",
+  upgradePending: "upgrade_pending",
 };
 export const normTokenStatus = (s: string | null | undefined): TokenStatus => (!s ? "ok" : CAMEL[s] ?? s);
 
@@ -31,6 +33,8 @@ export function tokenStatusCopy(status: TokenStatus, blocks: number, blocksAvail
   switch (status) {
     case "ok":
       return null;
+    case "upgrade_pending":
+      return { title: `${T} payments are coming soon`, body: `They come with a later program upgrade. Pay in SOL for now.` };
     case "not_seeded":
       return { title: `${T} payments aren't open yet`, body: `The token price feed hasn't been seeded. Pay in SOL for now.` };
     case "warming_up":

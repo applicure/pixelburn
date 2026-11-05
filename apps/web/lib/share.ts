@@ -55,22 +55,28 @@ const sizeWords = (f: ShareFacts) => (f.blockCount === 1 ? "a block" : `${f.w}×
 type Variant = (f: ShareFacts) => string;
 
 /** Index 0 is the default. No price talk, no predictions, nothing "guaranteed": only what this transaction did. */
-const SOL_VARIANTS: Variant[] = [
-  (f) => `I just put ${sizeWords(f)} on ${BRAND.name} for ${fmtUsd(f.usd)}. Half goes to the ${BRAND.ticker} buyback, which buys and burns over time.`,
+const solShare = (f: ShareFacts) => lamportsToSol(BigInt(f.lamports) / 2n).toLocaleString("en-US", { maximumFractionDigits: 3 });
+const SOL_VARIANTS_LATER: Variant[] = [
+  (f) => `I just put ${sizeWords(f)} on ${BRAND.name} ${BRAND.xHandle} for ${fmtUsd(f.usd)}. Half goes to the buyback vault, buybacks coming soon.`,
+  (f) => `${fmtUsd(f.usd)} for ${sizeWords(f)} of a million-pixel wall on Solana. Half funds the ${BRAND.name} treasury, half goes to the buyback vault. Buybacks coming soon.`,
+  (f) => `Half of what I paid for my ${BRAND.name} blocks is now in the buyback vault, ${solShare(f)} SOL of it. Buybacks coming soon.`,
+];
+const SOL_VARIANTS_LIVE: Variant[] = [
+  (f) => `I just put ${sizeWords(f)} on ${BRAND.name} ${BRAND.xHandle} for ${fmtUsd(f.usd)}. Half goes to the ${BRAND.ticker} buyback, which buys and burns over time.`,
   (f) => `${fmtUsd(f.usd)} for ${sizeWords(f)} of a million-pixel wall on Solana. Half funds the ${BRAND.name} treasury, half goes to ${BRAND.ticker} buyback and burn.`,
-  (f) => `Half of what I paid for my ${BRAND.name} blocks is now in the ${BRAND.ticker} buyback vault, waiting to burn. ${lamportsToSol(BigInt(f.lamports) / 2n).toLocaleString("en-US", { maximumFractionDigits: 3 })} SOL of it.`,
+  (f) => `Half of what I paid for my ${BRAND.name} blocks is now in the ${BRAND.ticker} buyback vault, waiting to burn. ${solShare(f)} SOL of it.`,
 ];
 const TOKEN_VARIANTS: Variant[] = [
-  (f) => `I just burned ${amount(f)} ${BRAND.ticker} to put ${sizeWords(f)} on ${BRAND.name}. Gone in the same transaction.`,
+  (f) => `I just burned ${amount(f)} ${BRAND.ticker} to put ${sizeWords(f)} on ${BRAND.name} ${BRAND.xHandle}. Gone in the same transaction.`,
   (f) => `${amount(f)} ${BRAND.ticker} destroyed. That was the price of my ${sizeWords(f).replace(/^a /, "")} on ${BRAND.name}, a million-pixel wall on Solana.`,
   (f) => `My ad on ${BRAND.name} cost ${amount(f)} ${BRAND.ticker}, and every token of it burned in the purchase.`,
 ];
 const amount = (f: ShareFacts) => `${f.exact ? "" : "about "}${f.exact ? exactTokens(f.tokens) : fmtInt(Math.round(Number(BigInt(f.tokens)) / 10 ** TOKEN_DECIMALS))}`;
 
-export const VARIANT_COUNT = SOL_VARIANTS.length;
+export const VARIANT_COUNT = SOL_VARIANTS_LATER.length;
 
-export function shareBody(f: ShareFacts, variant = 0, cluster: string = CLUSTER) {
-  const list = f.payMode === "token" ? TOKEN_VARIANTS : SOL_VARIANTS;
+export function shareBody(f: ShareFacts, variant = 0, cluster: string = CLUSTER, live = false) {
+  const list = f.payMode === "token" ? TOKEN_VARIANTS : live ? SOL_VARIANTS_LIVE : SOL_VARIANTS_LATER;
   const text = list[variant % list.length]!(f);
   return cluster === "mainnet-beta" ? text : `${text} (Test network, no real money.)`;
 }
@@ -83,10 +89,12 @@ export const xIntentUrl = (body: string, link: string | null) =>
   `https://x.com/intent/post?text=${encodeURIComponent(body)}${link ? `&url=${encodeURIComponent(link)}` : ""}`;
 
 /** The same headline the card carries. Nothing here claims a burn that has not happened. */
-export function burnHeadline(f: Pick<ShareFacts, "payMode" | "usd" | "lamports" | "tokens">) {
+export function burnHeadline(f: Pick<ShareFacts, "payMode" | "usd" | "lamports" | "tokens">, live = false) {
   const sol = lamportsToSol(f.lamports);
   const solText = sol.toLocaleString("en-US", { minimumFractionDigits: sol >= 100 ? 1 : sol >= 1 ? 2 : 3, maximumFractionDigits: sol >= 100 ? 1 : sol >= 1 ? 2 : 3 });
   if (f.payMode === "token") return { label: `${BRAND.ticker} BURNED`, figure: compactTokens(f.tokens), sub: "every token paid, destroyed in the purchase" };
+  if (!live && f.payMode === "auction") return { label: "TO THE BUYBACK VAULT", figure: `${solText} SOL`, sub: "all of the winning bid, buybacks coming soon" };
+  if (!live) return { label: "TO THE BUYBACK VAULT", figure: fmtUsd(Math.round(f.usd / 2)), sub: `half of ${solText} SOL paid, buybacks coming soon` };
   if (f.payMode === "auction") return { label: `TO ${BRAND.ticker} BUYBACK AND BURN`, figure: `${solText} SOL`, sub: "all of the winning bid" };
   return { label: `TO ${BRAND.ticker} BUYBACK AND BURN`, figure: fmtUsd(Math.round(f.usd / 2)), sub: `half of ${solText} SOL paid, buys and burns later` };
 }

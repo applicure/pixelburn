@@ -2,6 +2,7 @@
  * Deterministic mock of the Services API (used when NEXT_PUBLIC_API_URL is unset).
  * All brands, owners and amounts below are synthetic demo data.
  */
+import { BUYBACKS_LIVE } from "./phase";
 import { mulberry32 } from "./adArt";
 import {
   AUCTION_THRESHOLD_BLOCKS,
@@ -64,6 +65,7 @@ class MockWorld {
   /** Mock-only launch-day override: `?empty=1` starts with nothing sold; add `&live=1` to watch the first buys land. */
   empty = false;
   liveWhenEmpty = false;
+  live = BUYBACKS_LIVE;
 
   constructor() {
     const r = this.rand;
@@ -73,7 +75,7 @@ class MockWorld {
     this.liveWhenEmpty = q?.get("live") === "1";
     if (this.empty) return;
     this.seedAds();
-    this.seedBuybacks();
+    if (this.live) this.seedBuybacks();
   }
 
   pickOwner() {
@@ -119,7 +121,7 @@ class MockWorld {
   makeAd(rect: Rect, ts: number, payMode?: PayMode): AdRec {
     const title = this.title();
     const id = this.ads.length + 1;
-    const mode: PayMode = payMode ?? (this.rand() < 0.34 ? "token" : "sol");
+    const mode: PayMode = payMode ?? (this.live && this.rand() < 0.34 ? "token" : "sol");
     const usdMicro = quoteUsd(rect.w, rect.h);
     const solUsd = this.solUsd * (0.92 + this.rand() * 0.16);
     const tokUsd = this.tokenUsd * (0.7 + this.rand() * 0.5);
@@ -208,10 +210,11 @@ class MockWorld {
     }
     const burned = burnedDirect + burnedBuyback;
     // like devnet after graduation: pump.fun's own buy-and-burn reduced supply too. Not ours, never added to `burned`.
-    const pumpBurn = this.empty ? 0n : 35_470_000n * 10n ** BigInt(TOKEN_DECIMALS);
+    const pumpBurn = this.empty || !this.live ? 0n : 35_470_000n * 10n ** BigInt(TOKEN_DECIMALS);
     const reduction = burned + pumpBurn;
     const circ = TOKEN_SUPPLY - reduction;
     return {
+      buybackPhase: this.live ? ("live" as const) : ("later" as const),
       soldBlocks: sold,
       totalBlocks: TOTAL_BLOCKS,
       adsCount: this.ads.length,
@@ -403,7 +406,7 @@ class MockWorld {
       this.timers.push(setTimeout(() => { this.simulateBuyback(); loopB(); }, 11000 + this.rand() * 9000));
     };
     loopP();
-    this.timers.push(setTimeout(() => { this.simulateBuyback(); loopB(); }, 5200));
+    if (this.live) this.timers.push(setTimeout(() => { this.simulateBuyback(); loopB(); }, 5200));
   }
 
   stop() {

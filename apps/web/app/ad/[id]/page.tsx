@@ -6,12 +6,12 @@ import { IconExternal } from "@/components/ui/icons";
 import { getAdShareServer } from "@/lib/adServer";
 import { API_URL, BRAND } from "@/lib/config";
 import { explorerAddr, explorerTx, fmtInt, fmtSol, fmtUsd, linkHost, shortAddr } from "@/lib/format";
+import { getBuybacksLive, PHASE_LINE, socialLine, TAGLINE } from "@/lib/phase";
 import { adBox, burnHeadline, cardImageUrl, exactTokens, factsFromShare } from "@/lib/share";
 import type { AdShare } from "@/lib/types";
 
 type Props = { params: Promise<{ id: string }> };
 
-const TAGLINE = "A million pixels. Half of every dollar burns.";
 
 function sizeText(a: AdShare) {
   return a.payMode === "auction" ? `${fmtInt(a.blockCount)} blocks` : `${a.w}×${a.h} block${a.blockCount === 1 ? "" : "s"}`;
@@ -21,12 +21,13 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { id } = await params;
   const a = await getAdShareServer(id);
   if (!a) notFound();
+  const line = socialLine(await getBuybacksLive());
   const where = a.payMode === "auction" ? "the final lot" : `${a.x},${a.y}`;
   // Moderation: buyer content only ever comes from a.ad, which the API leaves null until approval.
   const title = a.ad ? a.ad.title : a.status === "rejected" ? `Ad #${a.id}, not on display` : `Ad #${a.id}, in review`;
   const description = a.ad
-    ? `${sizeText(a)} at ${where} on ${BRAND.name}. ${TAGLINE}`
-    : `${sizeText(a)} at ${where} on ${BRAND.name}, ${a.status === "rejected" ? "not on display" : "waiting for approval"}. ${TAGLINE}`;
+    ? `${sizeText(a)} at ${where} on ${BRAND.name}. ${line}`
+    : `${sizeText(a)} at ${where} on ${BRAND.name}, ${a.status === "rejected" ? "not on display" : "waiting for approval"}. ${line}`;
   const image = { url: cardImageUrl(a.id, a.cardVersion), width: 1200, height: 630, alt: `${BRAND.name} card for ad ${a.id}: ${sizeText(a)} at ${where}` };
   const canonical = `/ad/${a.id}`;
   return {
@@ -35,7 +36,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     alternates: { canonical },
     robots: a.ad ? undefined : { index: false },
     openGraph: { type: "website", siteName: BRAND.name, url: canonical, title: `${title} · ${BRAND.name}`, description, images: [image] },
-    twitter: { card: "summary_large_image", title: `${title} · ${BRAND.name}`, description, images: [image] },
+    twitter: { card: "summary_large_image", site: BRAND.xHandle, creator: BRAND.xHandle, title: `${title} · ${BRAND.name}`, description, images: [image] },
   };
 }
 
@@ -72,7 +73,8 @@ export default async function AdPage({ params }: Props) {
   const a = await getAdShareServer(id);
   if (!a) notFound();
   const facts = factsFromShare(a);
-  const head = burnHeadline(facts);
+  const live = await getBuybacksLive();
+  const head = burnHeadline(facts, live);
   const box = adBox(a.w, a.h);
   const canvasHref = a.payMode === "auction" ? "/canvas" : `/canvas?spot=${a.x},${a.y},${a.w},${a.h}`;
   const when = new Date(a.createdAt * 1000).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" });
@@ -171,7 +173,7 @@ export default async function AdPage({ params }: Props) {
                 See it on the wall
               </Link>
             </div>
-            <p className="mt-5 text-[0.9rem] text-ash">{TAGLINE}</p>
+            <p className="mt-5 text-[0.9rem] text-ash">{TAGLINE}{!live && ` ${PHASE_LINE}`}</p>
 
             {a.ad && <WhereItSits a={a} className="mt-8 lg:hidden" />}
           </div>

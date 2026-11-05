@@ -1,11 +1,13 @@
 "use client";
 import Link from "next/link";
 import { BRAND, HISTORY_2005 } from "@/lib/config";
+import { useBuybacksLive } from "@/lib/usePhase";
 import { fmtInt, fmtUsd } from "@/lib/format";
 import { useLive } from "@/lib/store";
 import { WitnessCones } from "@/components/ui/WitnessCones";
 
 export function AuctionTeaser() {
+  const live = useBuybacksLive();
   const stats = useLive((s) => s.stats);
   const pct = stats ? (stats.soldBlocks / stats.totalBlocks) * 100 : 0;
   const toGo = stats ? Math.max(0, 9900 - stats.soldBlocks) : null;
@@ -18,7 +20,7 @@ export function AuctionTeaser() {
           </h2>
           <p className="mt-6 max-w-[46ch] text-heat/85">
             When 9,900 blocks are sold, fixed prices stop. Every block still free becomes one lot, auctioned for 72 hours
-            in SOL. The whole winning bid goes to buyback, so all of it ends up as burned {BRAND.ticker}.
+            in SOL. {live ? <>The whole winning bid goes to buyback, so all of it ends up as burned {BRAND.ticker}.</> : "The whole winning bid goes to the buyback vault. Buybacks are coming soon."}
           </p>
           <p className="mt-4 max-w-[46ch] text-[0.95rem] text-ash">
             In January 2006 the last 1,000 pixels of the original went to an eBay auction for {fmtUsd(HISTORY_2005.ebayUsd)}.

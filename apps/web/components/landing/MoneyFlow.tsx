@@ -2,6 +2,7 @@
 import { useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { BRAND } from "@/lib/config";
+import { useBuybacksLive } from "@/lib/usePhase";
 import { fmtCompact, fmtSol, lamportsToSol, tokensToWhole } from "@/lib/format";
 import { onLiveEvent, useLive } from "@/lib/store";
 import { Odometer } from "@/components/ui/Odometer";
@@ -240,6 +241,7 @@ export function MoneyFlow() {
     };
   }, [reduce]);
 
+  const live = useBuybacksLive();
   const treasury = stats ? fmtSol(stats.lamportsToTreasury, 1) : "0.0";
   const vault = stats ? fmtSol(stats.lamportsToBuyback, 1) : "0.0";
   const burned = stats ? fmtCompact(tokensToWhole(stats.tokensBurnedBuyback)) : "0";
@@ -253,7 +255,8 @@ export function MoneyFlow() {
           </h2>
           <p className="mt-6 max-w-[44ch] text-heat/85">
             Every SOL purchase splits in the same transaction. Half lands in the treasury. The other half goes to the
-            buyback vault. The program spends it on one thing: buying {BRAND.ticker} on the market and burning it.
+            buyback vault.{" "}
+            {live ? <>The program spends it on one thing: buying {BRAND.ticker} on the market and burning it.</> : "It builds up there for now. Buybacks are coming soon."}
           </p>
           {stats && BigInt(stats.lamportsRaised) === 0n ? (
             <FirstBlockSplit solUsd={stats.solPriceUsd} tokenUsd={stats.tokenPriceUsd} />
@@ -266,15 +269,15 @@ export function MoneyFlow() {
               </dd>
             </div>
             <div className="bg-soot py-4 pr-4">
-              <dt className="text-[0.85rem] text-flame">Buyback and burn, 50%</dt>
+              <dt className="text-[0.85rem] text-flame">{live ? "Buyback and burn, 50%" : "Buyback vault, 50%"}</dt>
               <dd className="mt-2 text-[1.9rem] font-medium">
                 <Odometer value={vault} /> <span className="text-[0.95rem] text-ash">SOL</span>
               </dd>
             </div>
             <div className="bg-soot py-4 pr-4 sm:col-span-2">
-              <dt className="text-[0.85rem] text-ash">{BRAND.ticker} bought back and burned so far</dt>
+              <dt className="text-[0.85rem] text-ash">{live ? `${BRAND.ticker} bought back and burned so far` : "Buybacks"}</dt>
               <dd className="mt-2 text-[1.9rem] font-medium text-cone">
-                <Odometer value={burned} />
+                {live ? <Odometer value={burned} /> : "Coming soon"}
               </dd>
             </div>
           </dl>
@@ -289,7 +292,7 @@ export function MoneyFlow() {
               Treasury
               <span className="num block text-[0.7rem] text-ash">{fillReal === 0 ? "empty for now" : fillReal < 0.01 ? "under 1% of sell-out" : `${Math.round(fillReal * 100)}% of sell-out`}</span>
             </span>
-            <span className="absolute left-[80%] top-[88%] -translate-x-1/2 whitespace-nowrap text-[0.85rem] text-flame">Buyback, then burn</span>
+            <span className="absolute left-[80%] top-[88%] -translate-x-1/2 whitespace-nowrap text-[0.85rem] text-flame">{live ? "Buyback, then burn" : "Buyback vault"}</span>
             <AnimatePresence>
               {flare && (
                 <motion.div
@@ -317,12 +320,13 @@ export function MoneyFlow() {
 
 /** Nothing raised yet: instead of three zeros, show what the first $100 block does at today's prices. */
 function FirstBlockSplit({ solUsd, tokenUsd }: { solUsd: number; tokenUsd: number }) {
+  const live = useBuybacksLive();
   const sol = solUsd > 0 ? 100 / solUsd : 0;
   const tokens = tokenUsd > 0 ? 50 / tokenUsd : 0;
   return (
     <div className="mt-10">
       <p className="text-[0.95rem] text-heat/85">Nothing raised yet. Here is what the first $100 block paid in SOL does, at today&apos;s prices:</p>
-      <dl className="mt-4 grid grid-cols-1 gap-px bg-char sm:grid-cols-3">
+      <dl className={`mt-4 grid grid-cols-1 gap-px bg-char ${live ? "sm:grid-cols-3" : "sm:grid-cols-2"}`}>
         <div className="bg-soot py-4 pr-4">
           <dt className="text-[0.85rem] text-cobalt-hi">To the treasury</dt>
           <dd className="num mt-1 text-[1.5rem]">{solUsd > 0 ? (sol / 2).toFixed(3) : "…"} <span className="text-[0.8rem] text-ash">SOL</span></dd>
@@ -331,12 +335,14 @@ function FirstBlockSplit({ solUsd, tokenUsd }: { solUsd: number; tokenUsd: numbe
           <dt className="text-[0.85rem] text-flame">To the buyback vault</dt>
           <dd className="num mt-1 text-[1.5rem]">{solUsd > 0 ? (sol / 2).toFixed(3) : "…"} <span className="text-[0.8rem] text-ash">SOL</span></dd>
         </div>
-        <div className="bg-soot py-4 pr-4">
-          <dt className="text-[0.85rem] text-ash">Then burned, estimated</dt>
-          <dd className="num mt-1 text-[1.5rem] text-cone">{tokenUsd > 0 ? fmtCompact(tokens) : "…"} <span className="text-[0.8rem] text-ash">{BRAND.ticker}</span></dd>
-        </div>
+        {live && (
+          <div className="bg-soot py-4 pr-4">
+            <dt className="text-[0.85rem] text-ash">Then burned, estimated</dt>
+            <dd className="num mt-1 text-[1.5rem] text-cone">{tokenUsd > 0 ? fmtCompact(tokens) : "…"} <span className="text-[0.8rem] text-ash">{BRAND.ticker}</span></dd>
+          </div>
+        )}
       </dl>
-      <p className="mt-3 text-[0.78rem] text-ash">The burn is an estimate: the vault buys later, at the price of the day.</p>
+      <p className="mt-3 text-[0.78rem] text-ash">{live ? "The burn is an estimate: the vault buys later, at the price of the day." : "Buybacks are coming soon."}</p>
     </div>
   );
 }

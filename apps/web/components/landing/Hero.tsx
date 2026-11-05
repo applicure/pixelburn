@@ -6,7 +6,10 @@ import { useReducedMotion } from "motion/react";
 import { KineticHeading } from "@/components/ui/KineticHeading";
 import { LiveCanvas } from "@/components/ui/LiveCanvas";
 import { BRAND, TOTAL_BLOCKS } from "@/lib/config";
-import { fmtCompact, fmtInt, tokensToWhole } from "@/lib/format";
+import { fmtCompact, fmtInt, fmtSol, tokensToWhole } from "@/lib/format";
+import { useLaunchState } from "@/lib/launchState";
+import { PHASE_LINE, vaultLamports } from "@/lib/phase";
+import { useBuybacksLive } from "@/lib/usePhase";
 import { useLive } from "@/lib/store";
 
 const EARLY_BLOCKS = 200;
@@ -52,6 +55,7 @@ function supportsWebGL2() {
 }
 
 export function Hero() {
+  const live = useBuybacksLive();
   const reduce = useReducedMotion();
   const [gl, setGl] = useState<boolean | null>(null);
   const [sceneOn, setSceneOn] = useState(false);
@@ -61,7 +65,10 @@ export function Hero() {
   const sold = stats?.soldBlocks ?? null;
   const launch = sold === 0;
   const early = sold !== null && sold < EARLY_BLOCKS;
-  const claim = useMemo(() => (early ? nearestFree(occupancy) : null), [early, occupancy]);
+  // before the on-chain Config exists nothing can be bought, so nothing here offers a purchase
+  const preLaunch = useLaunchState() !== "live";
+  const claim = useMemo(() => (early && !preLaunch ? nearestFree(occupancy) : null), [early, preLaunch, occupancy]);
+  const vault = stats ? `${fmtSol(vaultLamports(stats), 2)} SOL` : "—";
   // small screens: the 2D poster paints first; WebGL hydrates after idle, already assembled
   const [poster, setPoster] = useState(true);
   useEffect(() => {
@@ -114,7 +121,7 @@ export function Hero() {
             style={{ opacity: sceneOn || poster ? 1 : 0, transition: "opacity .6s" }}
           >
             <span className="inline-block h-2 w-2 animate-[flicker_2.4s_infinite] bg-flame" aria-hidden />
-            Live, 1000 × 1000 px. Open the canvas
+            {preLaunch ? "" : "Live, "}1000 × 1000 px. Open the canvas
           </Link>
         </div>
 
@@ -127,28 +134,43 @@ export function Hero() {
             delay={0.25}
           />
           <div className="rise" style={{ ["--d" as string]: "0.55s" }}>
-            <p className="mt-5 max-w-[34ch] text-[1.02rem] leading-[1.5] text-heat/85 sm:mt-7 sm:text-[1.13rem] sm:leading-[1.55]">
-              The 2005 Million Dollar Homepage, rebuilt on Solana. $1 a pixel. Pay in SOL and half of it buys back and
-              burns {BRAND.ticker}. Pay in {BRAND.ticker} instead and every token you pay is burned.
+            {!live && <p className="mt-4 max-w-[40ch] text-[1.02rem] font-semibold leading-[1.4] text-cone sm:mt-5 sm:text-[1.13rem]">{PHASE_LINE}</p>}
+            <p className={`max-w-[38ch] text-[1.02rem] leading-[1.5] text-heat/85 sm:text-[1.13rem] sm:leading-[1.55] ${live ? "mt-5 sm:mt-7" : "mt-3 sm:mt-4"}`}>
+              {live ? (
+                <>
+                  The 2005 Million Dollar Homepage, rebuilt on Solana. $1 a pixel. Pay in SOL and half of it buys back and
+                  burns {BRAND.ticker}. Pay in {BRAND.ticker} instead and every token you pay is burned.
+                </>
+              ) : (
+                <>The 2005 Million Dollar Homepage, rebuilt on Solana. $1 a pixel, paid in SOL. The other half goes to the treasury.</>
+              )}
             </p>
             <div className="mt-6 flex flex-wrap items-center gap-3 sm:mt-8">
-              <Link href={launch ? `/canvas?select=1&w=1&h=1` : "/canvas?select=1"} className="btn-fire text-lg">
-                {launch ? "Claim the first block" : "Buy pixels"}
-              </Link>
-              <Link href="/canvas" className="btn-line">
-                Explore the canvas
-              </Link>
+              {preLaunch ? (
+                <Link href="/canvas" className="btn-fire text-lg">
+                  See the canvas
+                </Link>
+              ) : (
+                <>
+                  <Link href={launch ? `/canvas?select=1&w=1&h=1` : "/canvas?select=1"} className="btn-fire text-lg">
+                    {launch ? "Claim the first block" : "Buy pixels"}
+                  </Link>
+                  <Link href="/canvas" className="btn-line">
+                    Explore the canvas
+                  </Link>
+                </>
+              )}
             </div>
             <dl className="mt-6 grid max-w-md grid-cols-2 gap-x-6 border-t border-char pt-3 text-[0.82rem] sm:mt-10 sm:pt-4">
               {launch ? (
                 <>
                   <div>
-                    <dt className="text-ash">Open blocks</dt>
+                    <dt className="text-ash">{preLaunch ? "Blocks at launch" : "Open blocks"}</dt>
                     <dd className="mt-1 text-[1.1rem] font-semibold text-heat">All 10,000</dd>
                   </div>
                   <div>
-                    <dt className="text-ash">Burned so far</dt>
-                    <dd className="mt-1 text-[1.1rem] font-semibold text-cone">Starts with the first buy</dd>
+                    <dt className="text-ash">{live ? "Burned so far" : "In the buyback vault"}</dt>
+                    <dd className="mt-1 text-[1.1rem] font-semibold tabular-nums text-cone">{live ? "Starts with the first buy" : vault}</dd>
                   </div>
                 </>
               ) : (
@@ -161,8 +183,8 @@ export function Hero() {
                     </dd>
                   </div>
                   <div>
-                    <dt className="text-ash">{BRAND.ticker} burned</dt>
-                    <dd className="mt-1 text-[1.1rem] font-semibold tabular-nums text-cone">{stats ? fmtCompact(tokensToWhole(stats.tokensBurned)) : "—"}</dd>
+                    <dt className="text-ash">{live ? `${BRAND.ticker} burned` : "In the buyback vault"}</dt>
+                    <dd className="mt-1 text-[1.1rem] font-semibold tabular-nums text-cone">{!live ? vault : stats ? fmtCompact(tokensToWhole(stats.tokensBurned)) : "—"}</dd>
                   </div>
                 </>
               )}

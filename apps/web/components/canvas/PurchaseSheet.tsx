@@ -8,6 +8,7 @@ import { isChunkLoadError, SKEW_MESSAGE } from "@/lib/skew";
 import { normTokenStatus, SLOW_EMA_HINT, tokenStatusCopy } from "@/lib/tokenStatus";
 import { BRAND, QUOTE_TTL_MS, USE_MOCK } from "@/lib/config";
 import { useLaunchState } from "@/lib/launchState";
+import { useBuybacksLive } from "@/lib/usePhase";
 import { fmtInt, fmtSol, fmtTokens, fmtUsd, fmt2, explorerTx, tokensToWhole, fmtCompact } from "@/lib/format";
 import type { ShareFacts } from "@/lib/share";
 import type { PayMode, Rect } from "@/lib/types";
@@ -164,6 +165,7 @@ export function PurchaseSheet({ rect, open, onClose, onPurchased }: { rect: Rect
 }
 
 function SheetBody({ rect, onClose, onPurchased }: { rect: Rect; onClose(): void; onPurchased(r: Rect): void }) {
+  const live = useBuybacksLive();
   const wallet = useWalletBridge();
   const launching = useLaunchState() === "soon";
   const reduceMotion = useReducedMotion();
@@ -181,11 +183,11 @@ function SheetBody({ rect, onClose, onPurchased }: { rect: Rect; onClose(): void
   // the SOL quote always runs: it carries the $PXL payment status for this exact size
   const solQ = useQuote(rect.w, rect.h, "sol", phase === "form");
   const tokenStatus = normTokenStatus(solQ.quote?.tokenPaymentStatus);
-  const tokenOk = tokenStatus === "ok";
+  const tokenOk = live && tokenStatus === "ok";
   const mode: PayMode = chosen === "token" && tokenOk ? "token" : "sol";
   const tokQ = useQuote(rect.w, rect.h, "token", phase === "form" && tokenOk && chosen === "token");
   const { quote, msLeft, error: quoteErr } = mode === "sol" ? solQ : tokQ;
-  const tokenNote = tokenStatusCopy(tokenStatus, rect.w * rect.h, solQ.quote?.tokenBlocksAvailable ?? null);
+  const tokenNote = !live ? null : tokenStatusCopy(tokenStatus, rect.w * rect.h, solQ.quote?.tokenBlocksAvailable ?? null);
   const slowEma = mode === "token" && (tokQ.quote?.tokenPricedBy ?? solQ.quote?.tokenPricedBy) === "slow_ema";
   const usd = rect.w * rect.h * 100;
   const linkErr = validLink(link === "https://" ? "" : link);
@@ -229,7 +231,7 @@ function SheetBody({ rect, onClose, onPurchased }: { rect: Rect; onClose(): void
       setResult({ sig: res.signature, adId: res.adId, facts });
       setPhase("success");
       // The money has moved. Nothing after this line may read as a failed purchase, so the card draws on its own time.
-      renderShareCard({ image: dataUrl, title: title.trim(), facts }).then(setCard, () => {});
+      renderShareCard({ image: dataUrl, title: title.trim(), facts, live }).then(setCard, () => {});
       onPurchased(rect);
     } catch (e) {
       if (e instanceof TokenPaymentUnavailable) setMode("sol");
@@ -269,7 +271,8 @@ function SheetBody({ rect, onClose, onPurchased }: { rect: Rect; onClose(): void
             </>
           ) : (
             <>
-              Half of your <span className="num text-cone">{fmtSol(facts.lamports, 3)}</span> SOL is in the buyback vault, where it buys and burns {BRAND.ticker} over time.
+              Half of your <span className="num text-cone">{fmtSol(facts.lamports, 3)}</span> SOL is in the buyback vault
+              {live ? <>, where it buys and burns {BRAND.ticker} over time.</> : ". Buybacks are coming soon."}
             </>
           )}{" "}
           Your ad shows once it passes moderation.
@@ -372,7 +375,9 @@ function SheetBody({ rect, onClose, onPurchased }: { rect: Rect; onClose(): void
             </dl>
             <p className="mt-3 text-[0.82rem] text-heat/80">
               {mode === "sol"
-                ? "Half goes to the treasury. Half goes to the buyback vault, which buys and burns."
+                ? live
+                  ? "Half goes to the treasury. Half goes to the buyback vault, which buys and burns."
+                  : "Half goes to the treasury. Half goes to the buyback vault. Buybacks are coming soon."
                 : `Every ${BRAND.ticker} you pay is burned in this transaction.`}
             </p>
           </details>
@@ -406,10 +411,10 @@ function SheetBody({ rect, onClose, onPurchased }: { rect: Rect; onClose(): void
                   disabled={m === "token" && !tokenOk}
                   aria-describedby={m === "token" && tokenNote ? "token-note" : undefined}
                   onClick={() => setMode(m)}
-                  className={`relative z-10 py-2 text-[0.9rem] font-semibold transition-colors disabled:cursor-not-allowed disabled:text-ash/50 disabled:line-through disabled:decoration-1 ${mode === m ? "text-soot" : "text-ash hover:text-heat"}`}
+                  className={`relative z-10 py-2 text-[0.9rem] font-semibold transition-colors disabled:cursor-not-allowed disabled:text-ash/50 ${live ? "disabled:line-through disabled:decoration-1" : ""} ${mode === m ? "text-soot" : "text-ash hover:text-heat"}`}
                 >
                   {mode === m && <motion.span layoutId="paymode" className="absolute inset-0 -z-10 bg-flame" transition={{ type: "spring", bounce: 0.15, duration: 0.4 }} />}
-                  {m === "sol" ? "Pay in SOL" : `${BRAND.ticker}, 10% off`}
+                  {m === "sol" ? "Pay in SOL" : live ? `${BRAND.ticker}, 10% off` : `${BRAND.ticker}: coming soon`}
                 </button>
               ))}
             </div>

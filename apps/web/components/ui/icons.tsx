@@ -15,6 +15,7 @@ const base = (size = 20): SVGProps<SVGSVGElement> => ({
   "aria-hidden": true,
 });
 
+
 export const IconArrow = ({ size, ...p }: P) => (
   <svg {...base(size)} {...p}><path d="M4 12h15M13 6l6 6-6 6" /></svg>
 );
@@ -60,7 +61,7 @@ export const IconDownload = ({ size, ...p }: P) => (
 export const IconLink = ({ size, ...p }: P) => (
   <svg {...base(size)} {...p}><path d="M10 14l4-4M9 7l2-2a4.2 4.2 0 0 1 6 0l2 2a4.2 4.2 0 0 1 0 6l-2 2M15 17l-2 2a4.2 4.2 0 0 1-6 0l-2-2a4.2 4.2 0 0 1 0-6l2-2" /></svg>
 );
-/** The X logo: a filled glyph, used only on the button that posts there. */
+/** The X logo: a filled glyph. */
 export const IconX = ({ size = 20, ...p }: P) => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor" aria-hidden {...p}>
     <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />

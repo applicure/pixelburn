@@ -2,6 +2,8 @@
 import { useEffect, useRef, useState } from "react";
 import { motion, useMotionValueEvent, useReducedMotion, useScroll, useTransform, type MotionValue } from "motion/react";
 import { paint2005 } from "./paint2005";
+import { COMING_SOON } from "@/lib/phase";
+import { useBuybacksLive } from "@/lib/usePhase";
 import { BRAND, HISTORY_2005 } from "@/lib/config";
 import { fmtUsd } from "@/lib/format";
 
@@ -152,16 +154,18 @@ function StaticWindow() {
   return <canvas ref={ref} className="h-full w-full" aria-hidden />;
 }
 
-const RULES = [
+const rules = (live: boolean) => [
   ["$1 a pixel, still.", "100×100 blocks of 10×10 px. You buy a rectangle, it shows your image and link, on-chain, on Solana."],
-  ["Your payment is fuel.", `Half of every SOL goes to the treasury, half buys back ${BRAND.ticker} and burns it. Pay in ${BRAND.ticker} at 10% off and every token you pay is burned.`],
+  live
+    ? ["Your payment is fuel.", `Half of every SOL goes to the treasury, half buys back ${BRAND.ticker} and burns it. Pay in ${BRAND.ticker} at 10% off and every token you pay is burned.`]
+    : ["Half goes to the vault.", `Half of every SOL goes to the treasury, half to the buyback vault. ${COMING_SOON}`],
   ["Nothing link-rots.", "Images are stored on Arweave and the ad record lives on-chain. No server to switch off this time."],
 ] as const;
 
 function Rules({ className = "" }: { className?: string }) {
   return (
     <div className={`space-y-5 text-[1rem] leading-relaxed text-heat/85 ${className}`}>
-      {RULES.map(([h, p]) => (
+      {rules(useBuybacksLive()).map(([h, p]) => (
         <p key={h}>
           <strong className="block font-display text-[1.3rem] font-extrabold text-heat [font-variation-settings:'wdth'_110]">{h}</strong>
           {p}
@@ -173,15 +177,16 @@ function Rules({ className = "" }: { className?: string }) {
 
 /** Lives inside the 2005 window's own frame, so it is only ever seen through burned holes. */
 function Reveal2026() {
+  const live = useBuybacksLive();
   return (
     <div className="@container absolute inset-0 flex flex-col justify-center bg-soot px-[6%]">
       <p className="num text-[clamp(0.75rem,1.6cqw,1rem)] text-cone">2026</p>
       <h2 className="mt-2 font-black leading-[0.9] [font-size:clamp(2.2rem,10.5cqw,7.5rem)] [font-variation-settings:'wdth'_118]">
         Same billboard.
         <br />
-        Now it buys
+        {live ? "Now it buys" : "Now it lives"}
         <br />
-        and burns.
+        {live ? "and burns." : "on Solana."}
       </h2>
     </div>
   );
