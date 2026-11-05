@@ -1,4 +1,5 @@
 "use client";
+import { ContractAddress } from "./ContractAddress";
 import Link from "next/link";
 import { useRef } from "react";
 import { motion, useReducedMotion, useScroll, useTransform } from "motion/react";
@@ -35,6 +36,7 @@ export function Footer() {
             </a>
           </nav>
           <div className="text-[0.85rem] text-ash sm:col-span-2">
+            <ContractAddress className="mb-4 max-w-md" />
             <p>
               Nothing on this site is financial advice. Purchases are permanent
               on-chain; this site only displays moderated ads.

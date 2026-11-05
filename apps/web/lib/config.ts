@@ -9,6 +9,7 @@ export const BRAND = {
   tickerBare: "PXL",
   x: "https://x.com/PixelFrameSol",
   xHandle: "@PixelFrameSol",
+  ca: "AtdDZmDYXUML7enbwEtVHuwVG6NHgdgBNctKfDLJpump",
 } as const;
 
 export const SECURITY_CONTACT = "team@pixelframe.tech";

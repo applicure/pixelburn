@@ -1,4 +1,5 @@
 "use client";
+import { ContractAddress } from "@/components/ui/ContractAddress";
 import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
@@ -161,6 +162,7 @@ export function Hero() {
                 </>
               )}
             </div>
+            <ContractAddress className="mt-5 max-w-md" />
             <dl className="mt-6 grid max-w-md grid-cols-2 gap-x-6 border-t border-char pt-3 text-[0.82rem] sm:mt-10 sm:pt-4">
               {launch ? (
                 <>
