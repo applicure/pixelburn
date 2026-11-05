@@ -14,10 +14,14 @@ pub use constants::*;
 pub use instructions::*;
 pub use state::*;
 
+// One program, two deployments. The default build is the live devnet program; `--features mainnet` is the only way to get
+// the mainnet id, and the launch scripts check the built .so for it. Sync the mainnet id with scripts/mainnet-program-id.ts.
+#[cfg(not(feature = "mainnet"))]
 declare_id!("A4uaXC9sU3UrbqcPZL4ZJMd2aKzmo5Rq4yDvRm8gpTS");
+#[cfg(feature = "mainnet")]
+declare_id!("C44yH6k1btWPyRhyE3ub855RnCrBFgZqfjB8waFq7yu9");
 
-// Embedded security contact (https://github.com/neodyme-labs/solana-security-txt). Contact, project and policy are the
-// owner's. PLACEHOLDER: source_code, confirm it before the verified mainnet build (docs/domain-cutover.md).
+// Embedded security contact (https://github.com/neodyme-labs/solana-security-txt).
 #[cfg(not(feature = "no-entrypoint"))]
 solana_security_txt::security_txt! {
     name: "Pixel Frame (pixel)",

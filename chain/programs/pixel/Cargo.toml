@@ -11,6 +11,8 @@ name = "pixel"
 
 [features]
 default = []
+# Builds with the mainnet program id. See declare_id! in src/lib.rs.
+mainnet = []
 cpi = ["no-entrypoint"]
 no-entrypoint = []
 no-log-ix-name = []

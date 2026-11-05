@@ -11,3 +11,7 @@ scripts/node_modules
 keys/
 .devnet-plan.json
 .devnet-ids
+.mainnet-state.json
+.mainnet-state.json.tmp
+.mainnet-graduation-*
+.rehearsal/

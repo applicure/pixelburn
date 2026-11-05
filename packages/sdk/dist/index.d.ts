@@ -6,8 +6,18 @@ import { Idl, BorshCoder } from '@anchor-lang/core';
 export { AD_AUCTION_SEED, AD_SEED, AUCTION_DURATION_SECS, AUCTION_EXTENSION_SECS, AUCTION_MIN_INCREMENT_BPS, AUCTION_MIN_INCREMENT_LAMPORTS, AUCTION_MIN_OPENING_BID_LAMPORTS, AUCTION_SEED, AUCTION_THRESHOLD_BLOCKS, BITMAP_BYTES, BLOCK_PX, BPS_DENOMINATOR, BUYBACK_MAX_POST_SPOT_BPS, BUYBACK_VAULT_SEED, BUYBACK_WINDOW_SECS, CANVAS_PX, CANVAS_SEED, CONFIG_SEED, DEFAULT_HERMES_URL, DEFAULT_MAX_PRICE_AGE_SECS, DEFAULT_TOKEN_BLOCKS_CAP_PER_HOUR, EMA_ALPHA_BPS, EMA_MAX_DEVIATION_BPS, EMA_MIN_INTERVAL_SECS, EMA_SEED_BAND_BPS, EMA_SPOT_CLAMP_BPS, EMA_WARMUP_CRANKS, EMA_WARMUP_SECS, EMA_WINDOW_SECS, GRID, LAMPORTS_PER_SOL_BI, MAX_BUYBACK_CAP_LAMPORTS_PER_HOUR, MAX_CONF_BPS, MAX_EMA_AGE_SECS, MAX_EMA_STEP_BPS, MAX_IMAGE_URI_LEN, MAX_LINK_LEN, MAX_TITLE_LEN, MAX_TOKEN_BLOCKS_CAP_PER_HOUR, PRICE_PER_BLOCK_USD_MICRO, PRICE_SCALE, PROJECT_NAME, SLOW_EMA_WINDOW_SECS, SOL_USD_FEED_ID, TOKEN_DISCOUNT_BPS, TOKEN_SYMBOL, TOTAL_BLOCKS, TREASURY_BPS, USD_MICRO, base64ToBytes, bytesToBase64, bytesToHex, ceilDiv, hexToBytes } from './quote.js';
 import 'bn.js';
 
-/** Program id baked into the IDL. Override per call (`programId`) for other deployments. */
+/**
+ * Default program id for helpers that take an optional `programId`: the IDL's address, which is the devnet deployment.
+ * Anything that can run on mainnet must pass `programId` explicitly (`programIdForCluster(cluster)`), never rely on this.
+ */
 declare const PROGRAM_ID: PublicKey;
+type SolanaCluster = "devnet" | "mainnet-beta";
+/**
+ * The deployments, one id per cluster. The two binaries differ only in `declare_id!` (cargo feature `mainnet`), so they share
+ * this IDL and every instruction layout. Generated and synced by chain/scripts/mainnet-program-id.ts.
+ */
+declare const PROGRAM_IDS: Readonly<Record<SolanaCluster, PublicKey>>;
+declare function programIdForCluster(cluster: string): PublicKey;
 declare const PYTH_RECEIVER_PROGRAM_ID: PublicKey;
 declare const PYTH_PUSH_ORACLE_PROGRAM_ID: PublicKey;
 declare const PUMP_PROGRAM_ID: PublicKey;
@@ -3260,4 +3270,4 @@ type Pixel = {
 declare const IDL: Idl;
 declare const coder: BorshCoder<string, string>;
 
-export { ASSOCIATED_TOKEN_PROGRAM_ID, COMPUTE_BUDGET_PROGRAM_ID, IDL, PROGRAM_ID, PUMP_AMM_PROGRAM_ID, PUMP_PROGRAM_ID, PYTH_PUSH_ORACLE_PROGRAM_ID, PYTH_RECEIVER_PROGRAM_ID, PayMode, type Pixel, type PixelEvent, type PixelEventName, SYSTEM_PROGRAM_ID, TOKEN_2022_PROGRAM_ID, TOKEN_PROGRAM_ID, WSOL_MINT, adPda, adPdaForBlock, associatedTokenAddress, auctionAdPda, auctionPda, buybackVaultPda, canvasPda, coder, configPda, decodeEventData, normalizeEvent, parseEvents, pythPriceFeedAccount };
+export { ASSOCIATED_TOKEN_PROGRAM_ID, COMPUTE_BUDGET_PROGRAM_ID, IDL, PROGRAM_ID, PROGRAM_IDS, PUMP_AMM_PROGRAM_ID, PUMP_PROGRAM_ID, PYTH_PUSH_ORACLE_PROGRAM_ID, PYTH_RECEIVER_PROGRAM_ID, PayMode, type Pixel, type PixelEvent, type PixelEventName, SYSTEM_PROGRAM_ID, type SolanaCluster, TOKEN_2022_PROGRAM_ID, TOKEN_PROGRAM_ID, WSOL_MINT, adPda, adPdaForBlock, associatedTokenAddress, auctionAdPda, auctionPda, buybackVaultPda, canvasPda, coder, configPda, decodeEventData, normalizeEvent, parseEvents, programIdForCluster, pythPriceFeedAccount };

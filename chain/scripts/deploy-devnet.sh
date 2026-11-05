@@ -54,6 +54,7 @@ fi
 if [[ $EXECUTE -eq 1 ]]; then anchor build; fi
 SO="target/deploy/pixel.so"
 [[ -f "$SO" ]] || { echo "missing $SO, run anchor build" >&2; exit 1; }
+node scripts/check-so-id.mjs "$SO" "$PROGRAM_ID" || { echo "rebuild without --features mainnet: anchor build" >&2; exit 1; }
 SIZE=$(wc -c <"$SO" | tr -d ' ')
 # Solana CLI errors can echo the URL, so their stderr is discarded here.
 RENT="$(solana rent $((SIZE * 2 + 45)) --url "$URL" 2>/dev/null | head -1 || true)"
@@ -61,17 +62,6 @@ BAL="$(solana balance "$(solana address -k "$WALLET")" --url "$URL" 2>/dev/null 
 echo "so size: $SIZE bytes; upper-bound programdata rent (2x size): ${RENT:-n/a}"
 echo "balance: ${BAL:-n/a}"
 
-cat <<'WARN'
-
-LAUNCH REQUIREMENT (audit M-2.1): `initialize` requires admin == upgrade authority, so whoever holds that key can
-upgrade the program and take the buyback vault and auction escrow. Before mainnet, move BOTH the upgrade authority
-and the admin role to a timelocked Squads multisig:
-  solana program set-upgrade-authority <PROGRAM_ID> --new-upgrade-authority <SQUADS_VAULT> (after initialize)
-  propose_admin(<SQUADS_VAULT>) + accept_admin from the multisig
-or make the program immutable (--final). Devnet is exempt.
-WARN
-
-echo
 echo "deploy command (URL redacted):"
 echo "  solana program deploy $SO --program-id $PROGRAM_KP --keypair $WALLET --upgrade-authority $ADMIN --url <$URL_LABEL>"
 if [[ $EXECUTE -eq 0 ]]; then

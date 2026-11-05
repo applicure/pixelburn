@@ -15,6 +15,7 @@ PAYER=keys/deployer.json; ADMIN=keys/admin.json; PROGRAM_ID=A4uaXC9sU3UrbqcPZL4Z
 AUTH="$(solana program show "$PROGRAM_ID" --url "$URL" | awk '/Authority/{print $2}')"
 LEN="$(solana program show "$PROGRAM_ID" --url "$URL" | awk '/Data Length/{print $3}')"
 NEW="$(wc -c < "$SO" | tr -d ' ')"
+node scripts/check-so-id.mjs "$SO" "$PROGRAM_ID" || { echo "rebuild without --features mainnet: anchor build" >&2; exit 1; }
 echo "rpc: $LABEL | authority on-chain: $AUTH | admin key: $(solana address -k $ADMIN)"
 [[ "$AUTH" == "$(solana address -k $ADMIN)" ]] || { echo "upgrade authority mismatch" >&2; exit 1; }
 EXTEND=0; if (( NEW > LEN )); then EXTEND=$(( NEW - LEN + 16384 )); fi   # + 16 KiB headroom for future upgrades

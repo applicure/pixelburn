@@ -2,6 +2,7 @@ import {
   ASSOCIATED_TOKEN_PROGRAM_ID,
   COMPUTE_BUDGET_PROGRAM_ID,
   PROGRAM_ID,
+  PROGRAM_IDS,
   PUMP_AMM_PROGRAM_ID,
   PUMP_PROGRAM_ID,
   PYTH_PUSH_ORACLE_PROGRAM_ID,
@@ -10,8 +11,9 @@ import {
   TOKEN_2022_PROGRAM_ID,
   TOKEN_PROGRAM_ID,
   WSOL_MINT,
-  pixel_default
-} from "./chunk-IN65ZUDS.js";
+  pixel_default,
+  programIdForCluster
+} from "./chunk-A7Z6UCEA.js";
 import {
   applyTokenDiscount,
   assertU64,
@@ -897,6 +899,7 @@ export {
   PRICE_PER_BLOCK_USD_MICRO,
   PRICE_SCALE,
   PROGRAM_ID,
+  PROGRAM_IDS,
   PROJECT_NAME,
   PUMP_AMM_PROGRAM_ID,
   PUMP_PROGRAM_ID,
@@ -985,6 +988,7 @@ export {
   poolSpotPriceQ,
   priceSourceAccounts,
   priorityFeeLamports,
+  programIdForCluster,
   proposeAdminIx,
   pythPriceFeedAccount,
   quoteLamports,

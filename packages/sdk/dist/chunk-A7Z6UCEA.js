@@ -3108,6 +3108,15 @@ var pixel_default = {
 
 // src/constants.ts
 var PROGRAM_ID = new PublicKey(pixel_default.address);
+var PROGRAM_IDS = {
+  devnet: new PublicKey("A4uaXC9sU3UrbqcPZL4ZJMd2aKzmo5Rq4yDvRm8gpTS"),
+  "mainnet-beta": new PublicKey("C44yH6k1btWPyRhyE3ub855RnCrBFgZqfjB8waFq7yu9")
+};
+function programIdForCluster(cluster) {
+  const id = Object.hasOwn(PROGRAM_IDS, cluster) ? PROGRAM_IDS[cluster] : void 0;
+  if (!id) throw new Error(`no pixel program on cluster "${cluster}"`);
+  return id;
+}
 var PYTH_RECEIVER_PROGRAM_ID = new PublicKey("rec5EKMGg6MxZYaMdyBfgwp4d5rB9T1VQH5pJv5LtFJ");
 var PYTH_PUSH_ORACLE_PROGRAM_ID = new PublicKey("pythWSnswVUd12oZpeFP8e9CVaEqJg25g1Vtc2biRsT");
 var PUMP_PROGRAM_ID = new PublicKey("6EF8rrecthR5Dkzon8Nwu78hRvfCKubJ14M5uBEwF6P");
@@ -3122,6 +3131,8 @@ var COMPUTE_BUDGET_PROGRAM_ID = new PublicKey("ComputeBudget11111111111111111111
 export {
   pixel_default,
   PROGRAM_ID,
+  PROGRAM_IDS,
+  programIdForCluster,
   PYTH_RECEIVER_PROGRAM_ID,
   PYTH_PUSH_ORACLE_PROGRAM_ID,
   PUMP_PROGRAM_ID,
@@ -3133,4 +3144,4 @@ export {
   SYSTEM_PROGRAM_ID,
   COMPUTE_BUDGET_PROGRAM_ID
 };
-//# sourceMappingURL=chunk-IN65ZUDS.js.map
+//# sourceMappingURL=chunk-A7Z6UCEA.js.map

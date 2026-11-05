@@ -12,6 +12,9 @@ pixel = "A4uaXC9sU3UrbqcPZL4ZJMd2aKzmo5Rq4yDvRm8gpTS"
 [programs.devnet]
 pixel = "A4uaXC9sU3UrbqcPZL4ZJMd2aKzmo5Rq4yDvRm8gpTS"
 
+[programs.mainnet]
+pixel = "C44yH6k1btWPyRhyE3ub855RnCrBFgZqfjB8waFq7yu9"
+
 [provider]
 cluster = "localnet"
 wallet = "~/.config/solana/id.json"
