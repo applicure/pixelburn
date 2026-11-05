@@ -5,7 +5,7 @@ import { fmtCompact, fmtSol, tokensToWhole } from "@/lib/format";
 import type { FeedItem } from "@/lib/types";
 
 function line(f: FeedItem) {
-  if (f.type === "buyback") return `Buyback: ${fmtSol(f.lamportsIn, 1)} SOL, ${fmtCompact(tokensToWhole(f.tokensBurned))} ${BRAND.ticker} burned`;
+  if (f.type === "buyback") return `Buyback: ${fmtSol(f.lamportsIn, 2)} SOL, ${fmtCompact(tokensToWhole(f.tokensBurned))} ${BRAND.ticker} burned`;
   if (f.type === "bid") return `Auction bid: ${fmtSol(f.lamports, 1)} SOL`;
   return f.payMode === "token"
     ? `${f.title} took ${f.w}×${f.h}, burned ${fmtCompact(tokensToWhole(f.tokensBurned))} ${BRAND.ticker}`

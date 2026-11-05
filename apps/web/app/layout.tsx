@@ -4,7 +4,7 @@ import "./globals.css";
 import { SiteNav } from "@/components/ui/SiteNav";
 import { SmoothScroll } from "@/components/ui/SmoothScroll";
 import { SkewGuard } from "@/components/ui/SkewGuard";
-import { BRAND, SITE_URL } from "@/lib/config";
+import { BRAND, CLUSTER, SITE_URL, USE_MOCK } from "@/lib/config";
 
 const anybody = Anybody({ subsets: ["latin"], axes: ["wdth"], variable: "--font-anybody", display: "swap" });
 // body face: "optional" so a slow first load keeps the metric-matched fallback instead of reflowing the hero (CLS)
@@ -49,6 +49,11 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <SmoothScroll />
         <SkewGuard />
         <SiteNav />
+        {CLUSTER !== "mainnet-beta" && !USE_MOCK && (
+          <p className="pointer-events-none fixed bottom-3 left-1/2 z-40 w-max max-w-[calc(100vw-2rem)] -translate-x-1/2 border border-flame bg-soot px-3 py-1.5 text-center text-[0.75rem] text-heat">
+            Test network, not launched yet. All figures here are test data, no real money.
+          </p>
+        )}
         {children}
       </body>
     </html>
