@@ -259,6 +259,12 @@ def main():
             coolify("PATCH", f"/applications/{uuid}", patch)
             print("  domains patched")
         for op, key, value, preview, _ in ops:
+            if op == "create":
+                # Coolify's POST creates the production and preview rows together, so the second create would 409
+                rows = coolify("GET", f"/applications/{uuid}/envs")
+                if any(e["key"] == key and bool(e.get("is_preview")) == preview and e.get("value") == value for e in rows):
+                    print(f"  exists {key} [{'preview' if preview else 'production'}]")
+                    continue
             body = {"key": key, "value": value, "is_preview": preview, "is_literal": False}
             coolify("POST" if op == "create" else "PATCH", f"/applications/{uuid}/envs", body)
             print(f"  {op} {key} [{'preview' if preview else 'production'}]")
