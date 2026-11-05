@@ -60,7 +60,7 @@ function Pending() {
             </div>
           </div>
           <div className="relative mt-8 h-4 bg-char" aria-hidden>
-            <div className="absolute inset-y-0 left-0 bg-[linear-gradient(90deg,#b3200e,#ff5b14_70%,#ffc23d)]" style={{ width: `${(sold / AUCTION_THRESHOLD_BLOCKS) * 100}%` }} />
+            <div className="absolute inset-y-0 left-0 bg-[linear-gradient(90deg,#b3200e,#ff6400_70%,#ffc23d)]" style={{ width: `${(sold / AUCTION_THRESHOLD_BLOCKS) * 100}%` }} />
           </div>
           <p className="mt-2 flex justify-between text-[0.8rem] text-ash">
             <span className="num">{fmtInt(sold)} sold</span>

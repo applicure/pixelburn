@@ -87,8 +87,8 @@ await page.addInitScript(
     const account = { address, publicKey, chains: ["solana:devnet"], features: ["solana:signTransaction"], label: "Live test" };
     const wallet = {
       version: "1.0.0",
-      name: "Pixel Burn Test Wallet",
-      icon: "data:image/svg+xml;base64," + btoa('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 10 10"><rect width="10" height="10" fill="#ff5b14"/></svg>'),
+      name: "Pixel Frame Test Wallet",
+      icon: "data:image/svg+xml;base64," + btoa('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 10 10"><rect width="10" height="10" fill="#ff6400"/></svg>'),
       chains: ["solana:devnet"],
       accounts: [],
       features: {
@@ -136,7 +136,7 @@ if (MODE === "token") {
 await page.getByRole("button", { name: "Connect wallet" }).click();
 await page.waitForTimeout(700);
 await shot("02-wallet-picker");
-await page.getByRole("button", { name: /Pixel Burn Test Wallet/ }).click();
+await page.getByRole("button", { name: /Pixel Frame Test Wallet/ }).click();
 await page.waitForTimeout(2500);
 await shot("03-sheet-ready");
 if (DRY) {

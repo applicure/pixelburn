@@ -19,7 +19,7 @@ Env (`.env.example`). Client (baked at build): `NEXT_PUBLIC_API_URL` (unset = mo
 ## Deploy (Coolify, Docker, Traefik TLS)
 
 - `apps/web/Dockerfile`, **build context = repo root**:
-  `docker build -f apps/web/Dockerfile --build-arg NEXT_PUBLIC_API_URL=https://api.pixelburn.applicure.io --build-arg NEXT_PUBLIC_SOLANA_CLUSTER=devnet -t pixelburn-web .`
+  `docker build -f apps/web/Dockerfile --build-arg NEXT_PUBLIC_API_URL=https://api.pixelframe.tech --build-arg NEXT_PUBLIC_SITE_URL=https://pixelframe.tech --build-arg NEXT_PUBLIC_SOLANA_CLUSTER=devnet -t pixelburn-web .`
   Multi-stage on `node:24-slim`: pnpm install (manifests only, cached), `@mpb/sdk` build, Next `output: "standalone"`
   (`outputFileTracingRoot` = repo root), runtime runs `node apps/web/server.js` as `node` on port 3000.
   `HEALTHCHECK` uses node `fetch` against `GET /healthz` (no curl/wget in slim). `apps/web/Dockerfile.dockerignore`
@@ -48,21 +48,21 @@ Env (`.env.example`). Client (baked at build): `NEXT_PUBLIC_API_URL` (unset = mo
   CSS-only kinetic headline (Anybody width axis). Firing-log ticker. Scroll-pinned 2005 story: a canvas-drawn
   2005 homage page that chars and burns away in a WebGL dissolve shader to reveal 2026. Money-flow canvas
   (SOL splits 50/50 into a cobalt treasury vessel and a firebox; buyback events trigger an ember flare and a
-  status card). Pay-in-$PIXEL section with a live dual quote (SOL vs $PIXEL −10%) that refreshes with a
+  status card). Pay-in-$PXL section with a live dual quote (SOL vs $PXL −10%) that refreshes with a
   countdown. Live odometers + animated firing log (SSE). Auction teaser with pyrometric witness cones that
   slump as % sold rises. FAQ. Footer whose sign-off widens with scroll.
 - **/canvas**: full-screen 2D-canvas explorer: wheel/trackpad/pinch zoom around the cursor, drag pan with
   momentum projection and rubber-banding, minimap (click/drag to jump), per-ad hover tooltip, "leaving site"
   confirm dialog, select mode with block-snapped rectangle, sold blocks shaded, overlap shown as hatched red,
-  live price in USD/SOL/$PIXEL. Keyboard: arrows move a block cursor, Shift+arrows grow the selection, +/−/0
+  live price in USD/SOL/$PXL. Keyboard: arrows move a block cursor, Shift+arrows grow the selection, +/−/0
   zoom/fit, S toggles mode, Enter buys / opens ad, Esc clears; status announced via a live region.
   `?select=1&w=8&h=5` (from the landing converter) auto-finds and selects a free spot of that size.
 - **Purchase sheet**: right drawer on desktop, bottom sheet on mobile with drag-to-dismiss (flick projected
   with d=0.998). Image upload/drop, crop/position at the exact `w*10 × h*10` px with zoom and arrow-key nudge,
-  1:1 preview; title (≤64) and https link (≤200) validation; SOL | $PIXEL −10% toggle; quote with countdown
+  1:1 preview; title (≤64) and https link (≤200) validation; SOL | $PXL −10% toggle; quote with countdown
   ring; wallet connect (Phantom/Solflare/Backpack via wallet-standard, install links when missing, demo
   wallet in mock mode); step list (upload → build → sign → confirm); success state with odometer, ember burst
-  and a 1200×630 share card ("My ad burned X $PIXEL") with Share on X / Save card.
+  and a 1200×630 share card ("My ad burned X $PXL") with Share on X / Save card.
 - **/burns**: totals as odometers, supply bar, cumulative "firing curve" (stacked direct vs buyback burns,
   crosshair tooltip), treasury transparency (SOL raised → treasury / buyback vault / spent / waiting, plus
   program addresses), buyback table, leaderboard.
@@ -108,7 +108,7 @@ Not exercised against a live cluster from this workstream (no deployed program /
   (`components/auction/LiveAuction.tsx`) that mounts the wallet layer. Min next bid = `minNextBid` from the pure
   `@mpb/sdk/quote` subpath (2.6 KB, no web3.js/Anchor; doesn't rely on the bundler honouring `sideEffects`).
 - **Token payment gating** (`lib/tokenStatus.ts`): the SOL quote always runs and carries `tokenPaymentStatus`,
-  `tokenBlocksAvailable` and `tokenPricedBy` for the exact w×h. When it isn't `ok`, the $PIXEL option is disabled
+  `tokenBlocksAvailable` and `tokenPricedBy` for the exact w×h. When it isn't `ok`, the $PXL option is disabled
   with one honest line per reason (not_seeded, warming_up, stale, deviation, hourly_cap with a "pay in SOL or split
   into ads of up to N blocks" suggestion, source_unavailable while the token migrates from the curve to PumpSwap, unknown/future = unavailable). `slow_ema` pricing shows a hint that
   buyers burn more than spot implies. The landing widget and the /canvas selection bar show the same state.
@@ -167,7 +167,7 @@ When nothing is sold (`soldBlocks === 0`), or the wall is under 2% sold (`< 200`
   46 ms; the simulated 3.2 s is the model charging the preloaded display + body webfonts (~100 KB) to the text LCP.
   Getting the simulated number under 2.5 s would need smaller font files (static, non-variable cut of Anybody).
 - Copy policy: the site never claims "every pixel burns". SOL purchases: half to treasury, half to buyback-and-burn.
-  $PIXEL purchases: every token paid is burned. Hero, share card, footer, metadata and auction copy follow this.
+  $PXL purchases: every token paid is burned. Hero, share card, footer, metadata and auction copy follow this.
 - Landing scroll story uses `position: sticky` + motion `useScroll`, not GSAP (GSAP was dropped to save weight).
 - The WebGL hero has no explicit context-loss handling; it falls back to the 2D canvas only when WebGL2 is
   missing at mount.

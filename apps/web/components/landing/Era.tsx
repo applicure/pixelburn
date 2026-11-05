@@ -35,7 +35,7 @@ void main(){
   float edge = smoothstep(0.0, 0.022, d);
   vec3 toast = mix(c.rgb, c.rgb * vec3(0.78, 0.55, 0.32), uHeat);
   vec3 col = mix(vec3(0.10, 0.035, 0.015), toast, scorch);
-  vec3 fire = mix(vec3(1.0, 0.97, 0.9), vec3(1.0, 0.36, 0.08), smoothstep(0.0, 0.016, d));
+  vec3 fire = mix(vec3(1.0, 0.961, 0.863), vec3(1.0, 0.392, 0.0), smoothstep(0.0, 0.016, d));
   col = mix(fire, col, edge);
   o = vec4(col, 1.0);
 }`;

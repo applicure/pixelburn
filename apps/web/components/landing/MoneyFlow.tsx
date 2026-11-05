@@ -31,9 +31,9 @@ function along(p: P) {
 function heatColor(h: number, a: number) {
   // white-heat → cone → flame → cherry as h goes 0 → 1
   const stops = [
-    [255, 246, 232],
+    [255, 245, 220],
     [255, 194, 61],
-    [255, 91, 20],
+    [255, 100, 0],
     [179, 32, 14],
   ];
   const x = Math.min(0.999, Math.max(0, h)) * 3;
@@ -94,7 +94,7 @@ export function MoneyFlow() {
       // guide lines
       ctx.lineWidth = 1;
       ctx.setLineDash([2, 6]);
-      ctx.strokeStyle = "rgba(255,246,232,.18)";
+      ctx.strokeStyle = "rgba(255,245,220,.18)";
       ctx.beginPath();
       ctx.moveTo(SRC.x * W, SRC.y * H);
       ctx.lineTo(SPLIT.x * W, SPLIT.y * H);
@@ -105,7 +105,7 @@ export function MoneyFlow() {
       ctx.stroke();
       ctx.setLineDash([]);
       // splitter
-      ctx.fillStyle = "#fff6e8";
+      ctx.fillStyle = "#fff5dc";
       const s = 7;
       ctx.beginPath();
       ctx.moveTo(SPLIT.x * W, SPLIT.y * H - s);
@@ -127,11 +127,11 @@ export function MoneyFlow() {
       const fx = R.end.x * W, fy = R.end.y * H;
       const g = ctx.createRadialGradient(fx, fy + H * 0.12, 4, fx, fy + H * 0.1, Math.min(W * 0.17, H * 0.3) * (1 + glow * 0.6));
       g.addColorStop(0, `rgba(255,194,61,${0.55 + glow * 0.45})`);
-      g.addColorStop(0.4, `rgba(255,91,20,${0.35 + glow * 0.4})`);
+      g.addColorStop(0.4, `rgba(255,100,0,${0.35 + glow * 0.4})`);
       g.addColorStop(1, "rgba(179,32,14,0)");
       ctx.fillStyle = g;
       ctx.fillRect(0, 0, W, H);
-      ctx.strokeStyle = "rgba(255,91,20,.9)";
+      ctx.strokeStyle = "rgba(255,100,0,.9)";
       ctx.lineWidth = 2;
       ctx.beginPath();
       ctx.moveTo(fx - W * 0.11, fy + 6);
@@ -208,7 +208,7 @@ export function MoneyFlow() {
         const q = along(p);
         const x = q.x * W + (p.t > 0.4 ? p.jitter * ((p.t - 0.4) / 0.6) : 0);
         const y = q.y * H;
-        if (p.t < 0.4) ctx.fillStyle = "#fff6e8";
+        if (p.t < 0.4) ctx.fillStyle = "#fff5dc";
         else if (p.side < 0) ctx.fillStyle = p.t > 0.75 ? "#7f93ff" : "#c9d0ff";
         else ctx.fillStyle = heatColor(((p.t - 0.4) / 0.6) * 0.7, 1);
         ctx.fillRect(x - p.size / 2, y - p.size / 2, p.size, p.size);

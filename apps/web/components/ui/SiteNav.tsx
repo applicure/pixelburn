@@ -3,7 +3,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
-import { IconClose, IconMenu, Mark } from "./icons";
+import { IconClose, IconMenu, Mark, Wordmark } from "./icons";
 import { useLive } from "@/lib/store";
 import { BRAND } from "@/lib/config";
 
@@ -39,11 +39,9 @@ export function SiteNav() {
         className={`flex h-14 items-center gap-4 px-4 sm:px-6 ${onCanvas ? "bg-soot/80 backdrop-blur-md" : "bg-soot/70 backdrop-blur-xl"}`}
         style={{ WebkitBackdropFilter: "blur(18px) saturate(140%)" }}
       >
-        <Link href="/" className="group flex items-center gap-2.5" aria-label={`${BRAND.name}, home`}>
-          <Mark size={18} />
-          <span className="font-display text-[1.05rem] font-extrabold leading-none tracking-[-0.02em] transition-[font-variation-settings] duration-500 [font-variation-settings:'wdth'_112] group-hover:[font-variation-settings:'wdth'_150]">
-            Pixel Burn
-          </span>
+        <Link href="/" className="flex shrink-0 items-center gap-2.5" aria-label={`${BRAND.name}, home`}>
+          <Mark unit={2} />
+          <Wordmark unit={1} />
         </Link>
 
         {pct !== null && (

@@ -35,7 +35,7 @@ function Live({ a }: { a: AuctionState }) {
   return (
     <>
       <section className="relative overflow-hidden pb-16 pt-16 sm:pt-24" aria-labelledby="auc-title">
-        <div aria-hidden className="pointer-events-none absolute inset-0 -z-10 bg-[radial-gradient(70%_60%_at_50%_110%,rgba(255,91,20,.45),rgba(179,32,14,.18)_45%,transparent_75%)]" />
+        <div aria-hidden className="pointer-events-none absolute inset-0 -z-10 bg-[radial-gradient(70%_60%_at_50%_110%,rgba(255,100,0,.45),rgba(179,32,14,.18)_45%,transparent_75%)]" />
         <div className="mx-auto max-w-[1400px] px-4 sm:px-6">
           <h1 id="auc-title" className="font-black text-[clamp(2.6rem,7vw,6rem)] [font-variation-settings:'wdth'_120]">
             The final firing is live.

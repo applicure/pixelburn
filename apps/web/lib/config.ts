@@ -3,11 +3,16 @@
  * Mirrors @mpb/sdk constants; when the SDK lands these should be re-exported from it.
  */
 export const BRAND = {
-  name: "The Million Pixel Burn",
-  shortName: "Pixel Burn",
-  ticker: "$PIXEL",
-  tickerBare: "PIXEL",
+  name: "Pixel Frame",
+  shortName: "Pixel Frame",
+  ticker: "$PXL",
+  tickerBare: "PXL",
 } as const;
+
+export const SECURITY_CONTACT = "team@pixelframe.tech";
+
+/** Public origin of this site: metadataBase and absolute OG/Twitter URLs. Build-time (NEXT_PUBLIC_*), see docs/domain-cutover.md. */
+export const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL?.replace(/\/$/, "") || "https://pixelframe.tech";
 
 export const GRID = 100; // blocks per side
 export const BLOCK_PX = 10; // pixels per block side
@@ -25,7 +30,7 @@ export const QUOTE_TTL_MS = 30_000;
 
 export const API_URL = process.env.NEXT_PUBLIC_API_URL?.replace(/\/$/, "") || "";
 export const USE_MOCK = !API_URL;
-/** The only client env besides NEXT_PUBLIC_API_URL. RPC itself is proxied same-origin via /api/rpc (server env SOLANA_RPC). */
+/** Client env, with NEXT_PUBLIC_API_URL and NEXT_PUBLIC_SITE_URL. RPC itself is proxied same-origin via /api/rpc (server env SOLANA_RPC). */
 export const CLUSTER = (process.env.NEXT_PUBLIC_SOLANA_CLUSTER || "devnet") as "devnet" | "mainnet-beta";
 /** Same-origin JSON-RPC proxy. web3.js needs an absolute URL. */
 // The `cluster` hint matters: wallet adapters derive the wallet-standard chain from the endpoint URL

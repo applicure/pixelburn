@@ -161,7 +161,7 @@ export function ImageCropper({ w, h, onChange }: { w: number; h: number; onChang
           <label className="text-[0.82rem] text-ash" htmlFor="zoom">
             Zoom
           </label>
-          <input id="zoom" type="range" min={1} max={3} step={0.01} value={zoom} onChange={(e) => setZoom(+e.target.value)} className="flex-1 accent-[#ff5b14]" />
+          <input id="zoom" type="range" min={1} max={3} step={0.01} value={zoom} onChange={(e) => setZoom(+e.target.value)} className="flex-1 accent-[#ff6400]" />
           <button type="button" className="text-[0.82rem] text-ash underline underline-offset-2 hover:text-heat" onClick={() => input.current?.click()}>
             Replace
           </button>

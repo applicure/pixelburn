@@ -95,15 +95,15 @@ export function BurnChart({ feed, stats, now }: { feed: FeedItem[]; stats: Stats
               {new Date(t).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
             </text>
           ))}
-          <path d={area((p) => p.buyback, () => 0)} fill="#ff5b14" opacity="0.9" />
+          <path d={area((p) => p.buyback, () => 0)} fill="#ff6400" opacity="0.9" />
           <path d={area((p) => p.buyback + p.direct, (p) => p.buyback)} fill="#ffc23d" opacity="0.9" />
           {/* 2px surface gap between the stacked fills */}
           <path d={step((p) => p.buyback)} fill="none" stroke="#000" strokeWidth="2" />
-          <path d={step((p) => p.buyback + p.direct)} fill="none" stroke="#fff6e8" strokeWidth="2" />
+          <path d={step((p) => p.buyback + p.direct)} fill="none" stroke="#fff5dc" strokeWidth="2" />
           {hp && (
             <g>
-              <line x1={X(hp.t)} x2={X(hp.t)} y1={pad.t} y2={H - pad.b} stroke="#fff6e8" strokeOpacity=".5" />
-              <circle cx={X(hp.t)} cy={Y(hp.buyback + hp.direct)} r="5" fill="#fff6e8" stroke="#000" strokeWidth="2" />
+              <line x1={X(hp.t)} x2={X(hp.t)} y1={pad.t} y2={H - pad.b} stroke="#fff5dc" strokeOpacity=".5" />
+              <circle cx={X(hp.t)} cy={Y(hp.buyback + hp.direct)} r="5" fill="#fff5dc" stroke="#000" strokeWidth="2" />
             </g>
           )}
         </svg>

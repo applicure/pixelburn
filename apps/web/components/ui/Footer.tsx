@@ -17,7 +17,7 @@ export function Footer() {
       <div className="mx-auto max-w-[1600px] px-4 sm:px-6">
         <div className="grid gap-10 sm:grid-cols-2 lg:grid-cols-4">
           <div>
-            <Mark size={26} />
+            <Mark unit={3} />
             <p className="mt-4 max-w-[30ch] text-[0.92rem] text-ash">
               {BRAND.name}. A tribute to the 2005 Million Dollar Homepage by {HISTORY_2005.founder}, not affiliated with it.
             </p>
@@ -27,10 +27,11 @@ export function Footer() {
             <Link className="hover:text-flame" href="/canvas?select=1">Buy pixels</Link>
             <Link className="hover:text-flame" href="/burns">Burns and treasury</Link>
             <Link className="hover:text-flame" href="/auction">Final auction</Link>
+            <Link className="hover:text-flame" href="/security">Security</Link>
           </nav>
           <div className="text-[0.85rem] text-ash sm:col-span-2">
             <p>
-              {BRAND.ticker} is a placeholder ticker. Nothing on this site is financial advice. Purchases are permanent
+              Nothing on this site is financial advice. Purchases are permanent
               on-chain; this site only displays moderated ads.
             </p>
             {USE_MOCK && (

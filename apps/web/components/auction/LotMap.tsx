@@ -21,7 +21,7 @@ export function LotMap() {
     for (let i = 0; i < GRID * GRID; i++) {
       if (bitGet(occ, i)) continue;
       const x = (i % GRID) * 10, y = Math.floor(i / GRID) * 10;
-      ctx.fillStyle = (i * 7919) % 5 === 0 ? "#ffc23d" : "#ff5b14";
+      ctx.fillStyle = (i * 7919) % 5 === 0 ? "#ffc23d" : "#ff6400";
       ctx.globalAlpha = 0.16;
       ctx.fillRect(x + 1, y + 1, 8, 8);
     }

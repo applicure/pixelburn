@@ -1,4 +1,5 @@
 /** Authored icon set: 24px grid, 1.75 stroke, square caps (blocks are square). */
+import { MARK_GRID, MARK_PATH, MARK_PIXEL, WORDMARK_GRID, WORDMARK_PATH } from "@/lib/brandPaths";
 import type { SVGProps } from "react";
 
 type P = SVGProps<SVGSVGElement> & { size?: number };
@@ -63,20 +64,35 @@ export const IconFlame = ({ size, ...p }: P) => (
   <svg {...base(size)} {...p}><path d="M12 21c-4 0-6.5-2.6-6.5-6.2C5.5 10 10 8.5 10 3c3.5 2 5 5 4.5 8 1-.6 1.7-1.6 2-2.8 1.3 1.6 2 3.5 2 5.6 0 4.2-2.6 7.2-6.5 7.2z" /><path d="M12 21c-1.7 0-2.8-1.1-2.8-2.7 0-2 2-2.8 2.3-5 1.6 1.2 3.3 2.8 3.3 5 0 1.6-1.1 2.7-2.8 2.7z" /></svg>
 );
 
-/** The mark: a flame built from 10×10 blocks. */
-export function Mark({ size = 28, className }: { size?: number; className?: string }) {
-  const cells: [number, number, string][] = [
-    [2, 0, "var(--color-cone)"],
-    [1, 1, "var(--color-flame)"], [2, 1, "var(--color-cone)"],
-    [1, 2, "var(--color-flame)"], [2, 2, "var(--color-heat)"], [3, 2, "var(--color-flame)"],
-    [0, 3, "var(--color-cherry)"], [1, 3, "var(--color-flame)"], [2, 3, "var(--color-cone)"], [3, 3, "var(--color-flame)"],
-    [0, 4, "var(--color-cherry)"], [1, 4, "var(--color-cherry)"], [2, 4, "var(--color-flame)"], [3, 4, "var(--color-cherry)"],
-  ];
+/** The logo: the frame P with its centre pixel, on an 11×13 grid. `unit` is CSS px per grid cell; whole numbers stay crisp. */
+export function Mark({ unit = 2, className }: { unit?: number; className?: string }) {
   return (
-    <svg width={size} height={size * 1.25} viewBox="0 0 40 50" className={className} aria-hidden>
-      {cells.map(([x, y, c]) => (
-        <rect key={`${x}-${y}`} x={x * 10} y={y * 10} width={10} height={10} fill={c} />
-      ))}
+    <svg
+      width={MARK_GRID.w * unit}
+      height={MARK_GRID.h * unit}
+      viewBox={`0 0 ${MARK_GRID.w} ${MARK_GRID.h}`}
+      shapeRendering="crispEdges"
+      className={className}
+      aria-hidden
+    >
+      <path d={MARK_PATH} fill="var(--color-flame)" fillRule="evenodd" />
+      <rect x={MARK_PIXEL.x} y={MARK_PIXEL.y} width={MARK_PIXEL.w} height={MARK_PIXEL.h} fill="var(--color-heat)" />
+    </svg>
+  );
+}
+
+/** "PIXEL FRAME" in the logo's pixel letters, no font involved. Decorative: give the parent an accessible name. */
+export function Wordmark({ unit = 1, className }: { unit?: number; className?: string }) {
+  return (
+    <svg
+      width={WORDMARK_GRID.w * unit}
+      height={WORDMARK_GRID.h * unit}
+      viewBox={`0 0 ${WORDMARK_GRID.w} ${WORDMARK_GRID.h}`}
+      shapeRendering="crispEdges"
+      className={className}
+      aria-hidden
+    >
+      <path d={WORDMARK_PATH} fill="var(--color-heat)" />
     </svg>
   );
 }

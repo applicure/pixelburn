@@ -91,7 +91,7 @@ export function Hero() {
         className="pointer-events-none absolute inset-0 -z-10"
         style={{
           background:
-            "radial-gradient(60% 40% at 62% 100%, rgba(255,91,20,.38), rgba(179,32,14,.16) 45%, transparent 75%)",
+            "radial-gradient(60% 40% at 62% 100%, rgba(255,100,0,.38), rgba(179,32,14,.16) 45%, transparent 75%)",
         }}
       />
       <div className="mx-auto grid max-w-[1600px] grid-cols-1 items-center gap-y-6 px-4 sm:px-6 lg:min-h-[calc(100svh-3.5rem)] lg:grid-cols-12 lg:gap-x-8">
@@ -100,7 +100,7 @@ export function Hero() {
           <div className="tile-grid absolute inset-[3%] opacity-60" aria-hidden />
           {poster && (
             <div className="absolute inset-[3%] transition-opacity duration-700" style={{ opacity: sceneOn ? 0 : 1 }}>
-              <LiveCanvas className="h-full w-full shadow-[0_30px_120px_-20px_rgba(255,91,20,.45)]" />
+              <LiveCanvas className="h-full w-full shadow-[0_30px_120px_-20px_rgba(255,100,0,.45)]" />
             </div>
           )}
           {gl && <KilnScene assembled={small} claim={claim} onReady={() => setSceneOn(true)} />}

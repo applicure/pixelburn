@@ -53,7 +53,7 @@ export function PayWithToken() {
   const micro = quoteUsd(w, h);
   const lamports = solUsd > 0 ? quoteLamports(micro, solUsd).toString() : null;
   const tokens = tokUsd > 0 ? quoteTokens(micro, tokUsd).toString() : null;
-  // one SOL quote per size (no auto-refresh) tells us whether $PIXEL can pay for this size right now
+  // one SOL quote per size (no auto-refresh) tells us whether $PXL can pay for this size right now
   const box = useRef<HTMLDivElement>(null);
   const inView = useInView(box, { margin: "200px" });
   const gate = useQuote(w, h, "sol", inView, false);

@@ -116,7 +116,7 @@ export function BurnsPage() {
     <main id="main" className="pt-14">
       {/* headline numbers */}
       <section className="relative overflow-hidden pb-16 pt-16 sm:pt-24" aria-labelledby="burns-title">
-        <div aria-hidden className="pointer-events-none absolute inset-x-0 top-0 -z-10 h-[120%] bg-[radial-gradient(70%_60%_at_20%_0%,rgba(255,91,20,.22),transparent_70%)]" />
+        <div aria-hidden className="pointer-events-none absolute inset-x-0 top-0 -z-10 h-[120%] bg-[radial-gradient(70%_60%_at_20%_0%,rgba(255,100,0,.22),transparent_70%)]" />
         <div className="mx-auto max-w-[1400px] px-4 sm:px-6">
           <KineticHeading as="h1" lines={["Burned,", "on the record."]} className="font-black text-[clamp(2.4rem,9.4vw,8.5rem)] leading-[0.92]" rest={96} />
           <p className="mt-6 max-w-[52ch] text-heat/85">
@@ -160,7 +160,7 @@ export function BurnsPage() {
           <div className="mt-6">
             <Bar
               parts={[
-                { v: stats ? tokensToWhole(stats.tokensBurnedBuyback) : 0, c: "#ff5b14", label: "burned via buyback" },
+                { v: stats ? tokensToWhole(stats.tokensBurnedBuyback) : 0, c: "#ff6400", label: "burned via buyback" },
                 { v: stats ? tokensToWhole(stats.tokensBurnedDirect) : 0, c: "#ffc23d", label: "burned directly" },
                 { v: supply0 - burned, c: "#1c1714", label: "not burned by the billboard" },
               ]}
@@ -235,7 +235,7 @@ export function BurnsPage() {
             <Bar
               parts={[
                 { v: lamportsToSol(toT), c: "#2b47e8", label: "treasury" },
-                { v: lamportsToSol(spent), c: "#ff5b14", label: "spent on buyback" },
+                { v: lamportsToSol(spent), c: "#ff6400", label: "spent on buyback" },
                 { v: lamportsToSol(waiting), c: "#b3200e", label: "waiting in the buyback vault" },
               ]}
             />
@@ -382,7 +382,7 @@ function EmptyCurve() {
         ))}
         <line x1="0" x2="100" y1="96" y2="96" stroke="#9a9087" strokeWidth="1.5" strokeDasharray="4 6" vectorEffect="non-scaling-stroke" />
       </svg>
-      <span className="absolute bottom-[4%] right-0 block h-3 w-3 -translate-y-1/2 translate-x-1/2 animate-[flicker_2s_infinite] bg-flame shadow-[0_0_18px_4px_rgba(255,91,20,.55)]" aria-hidden />
+      <span className="absolute bottom-[4%] right-0 block h-3 w-3 -translate-y-1/2 translate-x-1/2 animate-[flicker_2s_infinite] bg-flame shadow-[0_0_18px_4px_rgba(255,100,0,.55)]" aria-hidden />
       <figcaption className="absolute left-0 top-[18%] max-w-[34ch]">
         <p className="font-display text-[clamp(1.5rem,3vw,2.2rem)] font-black leading-none [font-variation-settings:'wdth'_100]">The curve starts at zero.</p>
         <p className="mt-2 text-[0.92rem] text-ash">It climbs with the first {BRAND.ticker}-paid block and steps up with every buyback.</p>

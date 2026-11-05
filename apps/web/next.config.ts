@@ -45,6 +45,13 @@ const securityHeaders = [
   { key: "Cross-Origin-Opener-Policy", value: "same-origin-allow-popups" },
 ];
 
+/**
+ * Former hosts redirect here once the domain moves (build args, docs/domain-cutover.md). Temporary so it can be undone.
+ * /api/rpc and /_next stay served so tabs opened before the move keep working until their next navigation.
+ */
+const legacyHosts = (process.env.LEGACY_SITE_HOSTS ?? "").split(",").map((h) => h.trim()).filter(Boolean);
+const siteUrl = process.env.NEXT_PUBLIC_SITE_URL?.replace(/\/$/, "") || "https://pixelframe.tech";
+
 const nextConfig: NextConfig = {
   reactStrictMode: true,
   poweredByHeader: false,
@@ -59,6 +66,14 @@ const nextConfig: NextConfig = {
   },
   async headers() {
     return [{ source: "/:path*", headers: securityHeaders }];
+  },
+  async redirects() {
+    return legacyHosts.map((host) => ({
+      source: "/:path((?!api/|_next/|healthz).*)",
+      has: [{ type: "host" as const, value: host.replace(/\./g, "\\.") }],
+      destination: `${siteUrl}/:path`,
+      permanent: false,
+    }));
   },
 };
 

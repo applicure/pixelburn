@@ -21,7 +21,7 @@ export interface BuyParams {
   imageUri: string;
   imageSha256: string; // hex, 32 bytes
   payMode: PayMode;
-  /** slippage guards from the quote: max_lamports for SOL, max_tokens for $PIXEL */
+  /** slippage guards from the quote: max_lamports for SOL, max_tokens for $PXL */
   maxLamports?: bigint;
   maxTokens?: bigint;
   /** preview URL so the mock can draw the user's image immediately */

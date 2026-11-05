@@ -58,7 +58,7 @@ export function Controller() {
             <div className="bg-soot py-6 pr-6 sm:col-span-2">
               <div className="relative h-3 w-full bg-char" aria-hidden>
                 <motion.div
-                  className="absolute inset-y-0 left-0 bg-[linear-gradient(90deg,#b3200e,#ff5b14_60%,#ffc23d)]"
+                  className="absolute inset-y-0 left-0 bg-[linear-gradient(90deg,#b3200e,#ff6400_60%,#ffc23d)]"
                   initial={false}
                   animate={{ width: `${pct}%` }}
                   transition={reduce ? { duration: 0 } : { type: "spring", bounce: 0, duration: 1.2 }}

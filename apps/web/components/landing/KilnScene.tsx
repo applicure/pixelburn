@@ -79,7 +79,7 @@ const FRAG = /* glsl */ `
 
   vec3 ramp(float h) {
     vec3 cherry = vec3(0.70, 0.125, 0.055);
-    vec3 flame  = vec3(1.0, 0.357, 0.078);
+    vec3 flame  = vec3(1.0, 0.392, 0.0);
     vec3 cone   = vec3(1.0, 0.76, 0.24);
     vec3 white  = vec3(1.0, 0.965, 0.91);
     vec3 c = mix(cherry, flame, smoothstep(0.0, 0.35, h));
@@ -97,7 +97,7 @@ const FRAG = /* glsl */ `
     float border = step(0.09, min(edge.x, edge.y));
     float flick = 0.5 + 0.5 * sin(uTime * (0.7 + vSeed * 1.3) + vSeed * 40.0);
     vec3 clay = mix(vec3(0.035, 0.028, 0.024), vec3(0.085, 0.066, 0.056), border);
-    clay += vec3(1.0, 0.36, 0.08) * 0.035 * flick * border;
+    clay += vec3(1.0, 0.392, 0.0) * 0.035 * flick * border;
 
     vec3 fired = mix(clay, tex.rgb, sold);
     vec3 ember = ramp(clamp(vHeat * 1.15 - vSeed * 0.15, 0.0, 1.0));
@@ -138,7 +138,7 @@ const EMBER_FRAG = /* glsl */ `
   void main() {
     vec2 c = gl_PointCoord - 0.5;
     if (max(abs(c.x), abs(c.y)) > 0.5) discard;
-    vec3 hot = mix(vec3(1.0, 0.85, 0.5), vec3(1.0, 0.36, 0.08), vLife);
+    vec3 hot = mix(vec3(1.0, 0.85, 0.5), vec3(1.0, 0.392, 0.0), vLife);
     hot = mix(hot, vec3(0.7, 0.12, 0.05), smoothstep(0.6, 1.0, vLife));
     fragColor = vec4(hot, (1.0 - vLife) * 0.9);
   }

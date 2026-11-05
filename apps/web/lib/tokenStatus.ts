@@ -1,5 +1,5 @@
 /**
- * $PIXEL payment availability. Sources: /api/quote `tokenPaymentStatus` (snake_case, services) and the SDK's
+ * $PXL payment availability. Sources: /api/quote `tokenPaymentStatus` (snake_case, services) and the SDK's
  * `TokenPricingUnavailableError.reason` (camelCase). Both map to one honest message for the UI.
  * Unknown values are treated as unavailable (services passes new on-chain reasons through).
  */

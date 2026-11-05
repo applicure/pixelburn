@@ -231,7 +231,7 @@ export const Viewport = forwardRef<ViewportHandle, Props>(function Viewport(p, r
       ctx.fillRect(0, 0, w, h);
 
       // kiln shelf shadow under the billboard
-      ctx.fillStyle = "rgba(255,91,20,0.07)";
+      ctx.fillStyle = "rgba(255,100,0,0.07)";
       ctx.fillRect(x - 6, y - 6, CANVAS_PX * s + 12, CANVAS_PX * s + 12);
       ctx.fillStyle = "#16110e";
       ctx.fillRect(x, y, CANVAS_PX * s, CANVAS_PX * s);
@@ -243,7 +243,7 @@ export const Viewport = forwardRef<ViewportHandle, Props>(function Viewport(p, r
       // block grid once blocks are big enough to see
       const bs = BLOCK_PX * s;
       if (bs >= 7) {
-        ctx.strokeStyle = `rgba(255,246,232,${Math.min(0.1, (bs - 7) / 60)})`;
+        ctx.strokeStyle = `rgba(255,245,220,${Math.min(0.1, (bs - 7) / 60)})`;
         ctx.lineWidth = 1;
         ctx.beginPath();
         const x0 = Math.max(0, Math.floor(-x / bs)), x1 = Math.min(GRID, Math.ceil((w - x) / bs));
@@ -272,7 +272,7 @@ export const Viewport = forwardRef<ViewportHandle, Props>(function Viewport(p, r
         const r = P.flash;
         ctx.fillStyle = `rgba(255,194,61,${0.5 * k})`;
         ctx.fillRect(x + r.x * bs, y + r.y * bs, r.w * bs, r.h * bs);
-        ctx.strokeStyle = `rgba(255,246,232,${k})`;
+        ctx.strokeStyle = `rgba(255,245,220,${k})`;
         ctx.lineWidth = 2;
         ctx.strokeRect(x + r.x * bs - 2, y + r.y * bs - 2, r.w * bs + 4, r.h * bs + 4);
       }
@@ -288,7 +288,7 @@ export const Viewport = forwardRef<ViewportHandle, Props>(function Viewport(p, r
           ctx.beginPath();
           ctx.rect(rx, ry, rw, rh);
           ctx.clip();
-          ctx.strokeStyle = "rgba(255,91,20,0.8)";
+          ctx.strokeStyle = "rgba(255,100,0,0.8)";
           ctx.lineWidth = 1.5;
           for (let k = -rh; k < rw; k += 8) {
             ctx.moveTo(rx + k, ry + rh);
@@ -297,16 +297,16 @@ export const Viewport = forwardRef<ViewportHandle, Props>(function Viewport(p, r
           ctx.stroke();
           ctx.restore();
         }
-        ctx.strokeStyle = free ? "#ffc23d" : "#ff5b14";
+        ctx.strokeStyle = free ? "#ffc23d" : "#ff6400";
         ctx.lineWidth = 2;
         ctx.strokeRect(rx - 1, ry - 1, rw + 2, rh + 2);
         // corner ticks
-        ctx.fillStyle = free ? "#ffc23d" : "#ff5b14";
+        ctx.fillStyle = free ? "#ffc23d" : "#ff6400";
         for (const [cx, cy] of [[rx, ry], [rx + rw, ry], [rx, ry + rh], [rx + rw, ry + rh]]) ctx.fillRect(cx - 4, cy - 4, 8, 8);
       }
       if (P.cursor) {
         const c = P.cursor;
-        ctx.strokeStyle = "#fff6e8";
+        ctx.strokeStyle = "#fff5dc";
         ctx.lineWidth = 2;
         ctx.setLineDash([4, 3]);
         ctx.strokeRect(x + c.x * bs - 1, y + c.y * bs - 1, bs + 2, bs + 2);

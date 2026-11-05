@@ -76,7 +76,7 @@ function Embers() {
         <motion.span
           key={p.i}
           className="absolute bottom-0 block"
-          style={{ left: `${p.x}%`, width: p.s, height: p.s, background: p.i % 3 ? "#ff5b14" : "#ffc23d" }}
+          style={{ left: `${p.x}%`, width: p.s, height: p.s, background: p.i % 3 ? "#ff6400" : "#ffc23d" }}
           initial={{ y: 0, opacity: 1 }}
           animate={{ y: -520 - p.s * 20, x: p.drift, opacity: 0 }}
           transition={{ duration: p.d + 1, delay: p.delay, ease: [0.16, 1, 0.3, 1] }}
@@ -172,7 +172,7 @@ function SheetBody({ rect, onClose, onPurchased }: { rect: Rect; onClose(): void
   const [step, setStep] = useState<BuyStep | "upload">("upload");
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<{ sig: string; burned: bigint; card: string | null } | null>(null);
-  // the SOL quote always runs: it carries the $PIXEL payment status for this exact size
+  // the SOL quote always runs: it carries the $PXL payment status for this exact size
   const solQ = useQuote(rect.w, rect.h, "sol", phase === "form");
   const tokenStatus = normTokenStatus(solQ.quote?.tokenPaymentStatus);
   const tokenOk = tokenStatus === "ok";
@@ -272,7 +272,7 @@ function SheetBody({ rect, onClose, onPurchased }: { rect: Rect; onClose(): void
             <IconShare size={18} /> Share on X
           </a>
           {result.card && (
-            <a className="btn-line justify-center" href={result.card} download="my-pixel-burn.png">
+            <a className="btn-line justify-center" href={result.card} download={`pixel-frame-${rect.x}-${rect.y}.png`}>
               <IconDownload size={18} /> Save card
             </a>
           )}

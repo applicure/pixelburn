@@ -1,5 +1,6 @@
 /** Renders the shareable "My ad burned X tokens" card (1200×630, OG size) to a PNG data URL. */
 import { BRAND } from "@/lib/config";
+import { MARK_GRID, MARK_PATH, MARK_PIXEL } from "@/lib/brandPaths";
 
 export function renderShareCard(opts: { image: string | null; burned: string; w: number; h: number; x: number; y: number; title: string; tokenMode: boolean }) {
   return new Promise<string>((resolve) => {
@@ -17,7 +18,7 @@ export function renderShareCard(opts: { image: string | null; burned: string; w:
       ctx.fillRect(0, 0, 1200, 630);
       // heat floor
       const g = ctx.createRadialGradient(840, 700, 20, 840, 700, 640);
-      g.addColorStop(0, "rgba(255,91,20,.65)");
+      g.addColorStop(0, "rgba(255,100,0,.65)");
       g.addColorStop(0.5, "rgba(179,32,14,.25)");
       g.addColorStop(1, "rgba(0,0,0,0)");
       ctx.fillStyle = g;
@@ -43,21 +44,32 @@ export function renderShareCard(opts: { image: string | null; burned: string; w:
       ctx.fillStyle = "#ffc23d";
       ctx.font = `900 ${opts.burned.length > 9 ? 92 : 112}px ${display}`;
       ctx.fillText(opts.burned, 546, 300);
-      ctx.fillStyle = "#fff6e8";
+      ctx.fillStyle = "#fff5dc";
       ctx.font = `800 64px ${display}`;
       ctx.fillText(BRAND.ticker, 550, 375);
       ctx.fillStyle = "#9a9087";
       ctx.font = `400 22px ${mono}`;
       ctx.fillText(`${opts.w}×${opts.h} blocks at ${opts.x},${opts.y}`, 550, 440);
-      ctx.fillStyle = "#fff6e8";
+      ctx.fillStyle = "#fff5dc";
       ctx.font = `600 26px ${sans}`;
       ctx.fillText(opts.title.slice(0, 40), 550, 480);
       // footer
-      ctx.fillStyle = "#ff5b14";
+      ctx.fillStyle = "#ff6400";
       ctx.fillRect(0, 590, 1200, 40);
+      // the mark needs its black ground: orange on the orange band would vanish
+      ctx.fillStyle = "#000";
+      ctx.fillRect(70, 590, 40, 40);
+      ctx.save();
+      ctx.translate(70 + (40 - MARK_GRID.w * 2) / 2, 590 + (40 - MARK_GRID.h * 2) / 2);
+      ctx.scale(2, 2);
+      ctx.fillStyle = "#ff6400";
+      ctx.fill(new Path2D(MARK_PATH), "evenodd");
+      ctx.fillStyle = "#fff5dc";
+      ctx.fillRect(MARK_PIXEL.x, MARK_PIXEL.y, MARK_PIXEL.w, MARK_PIXEL.h);
+      ctx.restore();
       ctx.fillStyle = "#000";
       ctx.font = `800 22px ${display}`;
-      ctx.fillText(BRAND.name, 70, 618);
+      ctx.fillText(BRAND.name, 124, 618);
       ctx.font = `500 20px ${sans}`;
       const t = "A million pixels. Half of every dollar burns.";
       ctx.fillText(t, 1130 - ctx.measureText(t).width, 618);
