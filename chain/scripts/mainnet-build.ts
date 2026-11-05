@@ -10,7 +10,7 @@ import { execSync, spawnSync } from "node:child_process";
 import { copyFileSync, existsSync, mkdirSync, readFileSync, renameSync, statSync } from "node:fs";
 import { resolve } from "node:path";
 import { PublicKey } from "@solana/web3.js";
-import { DEVNET_PROGRAM_ID, chainDir, die, hasCommand, main, parseArgs, programId, readState, redact, repoDir, runMode, sha256File, writeState } from "./mainnet-lib.ts";
+import { BASE_IMAGE, DEVNET_PROGRAM_ID, chainDir, die, hasCommand, main, parseArgs, programId, readState, redact, repoDir, runMode, sha256File, writeState } from "./mainnet-lib.ts";
 
 const docker = () => { try { execSync("docker info", { stdio: "ignore", timeout: 15_000 }); return true; } catch { return false; } };
 
@@ -21,7 +21,7 @@ main(async () => {
   const out = resolve(chainDir, "target/mainnet/pixel.so");
   const deploySo = resolve(chainDir, "target/deploy/pixel.so");
   const st = readState(mode);
-  const reproducible = docker() && hasCommand("solana-verify");
+  const reproducible = docker() && hasCommand("solana-verify") && !mode.rehearsal;
   console.log(`Docker + solana-verify available: ${reproducible ? "yes, reproducible build" : "NO: a reproducible build isn't possible on this machine right now"}`);
 
   const check = async (path: string) => {
@@ -38,7 +38,7 @@ main(async () => {
       console.log(`earlier build: ${st.build.path.replace(`${repoDir}/`, "")} ${st.build.bytes} B, sha256 ${sha256} ${sha256 === st.build.sha256 ? "(matches the record)" : "(DOES NOT MATCH THE RECORD)"}, commit ${st.build.commit.slice(0, 10)}, verifiable: ${st.build.verifiable}`);
       if (sha256 !== st.build.sha256) process.exit(1);
     }
-    console.log("DRY RUN: nothing built. It would run: " + (reproducible ? "solana-verify build . --library-name pixel -- --features mainnet" : "(refuses without --allow-unverifiable-build) cargo build-sbf --features mainnet"));
+    console.log("DRY RUN: nothing built. It would run: " + (reproducible ? `solana-verify build <chain dir> --library-name pixel --base-image ${BASE_IMAGE} -- --features mainnet` : "(refuses without --allow-unverifiable-build) cargo build-sbf --features mainnet"));
     return;
   }
   const dirty = execSync("git status --porcelain -- chain/programs chain/Cargo.lock chain/Cargo.toml chain/Anchor.toml chain/rust-toolchain.toml", { cwd: repoDir, encoding: "utf8" }).trim();
@@ -51,7 +51,7 @@ main(async () => {
   if (existsSync(deploySo)) copyFileSync(deploySo, backup);
   try {
     const [cmd, cargs] = reproducible && !args.has("allow-unverifiable-build")
-      ? ["solana-verify", ["build", ".", "--library-name", "pixel", "--", "--features", "mainnet"]] as const
+      ? ["solana-verify", ["build", chainDir, "--library-name", "pixel", "--base-image", BASE_IMAGE, "--", "--features", "mainnet"]] as const
       : ["cargo", ["build-sbf", "--features", "mainnet"]] as const;
     console.log(`running: ${cmd} ${cargs.join(" ")}`);
     const r = spawnSync(cmd, [...cargs], { cwd: chainDir, stdio: "inherit" });

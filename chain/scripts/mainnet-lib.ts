@@ -38,6 +38,8 @@ export const MAINNET_ROLES = {
 } as const;
 
 export const COIN = { name: "Pixel Frame", symbol: "PXL" } as const;
+/** solana-verify can't derive an image from this Cargo.lock (solana-program 5.2.0 has no image), so it's pinned here, in the verified build and in the registry job. */
+export const BASE_IMAGE = "solanafoundation/solana-verifiable-build:3.1.14";
 export const REPO_URL = "https://github.com/applicure/pixelburn";
 export const TOKEN_INITIAL_SUPPLY = "1000000000000000"; // pump.fun: 1e9 tokens x 1e6
 

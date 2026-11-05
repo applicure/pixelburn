@@ -7,7 +7,7 @@
  *   node mainnet-registry.ts [--execute --mainnet-i-understand]
  */
 import { spawnSync } from "node:child_process";
-import { REPO_URL, connect, die, hasCommand, keypath, main, markStep, parseArgs, programId, readState, redact, roles, runMode } from "./mainnet-lib.ts";
+import { BASE_IMAGE, REPO_URL, connect, die, hasCommand, keypath, main, markStep, parseArgs, programId, readState, redact, roles, runMode } from "./mainnet-lib.ts";
 
 main(async () => {
   const args = parseArgs();
@@ -19,7 +19,7 @@ main(async () => {
   const uploader = roles(mode).launch.toBase58();
   console.log(`cluster   ${label}\nmode      ${mode.execute ? "EXECUTE" : "DRY RUN"}\nprogram   ${pid}\nrepo      ${REPO_URL}\ncommit    ${st.build?.commit ?? "(no build recorded)"}\nverifiable build: ${st.build?.verifiable ?? "n/a"}`);
   if (!hasCommand("solana-verify")) die("solana-verify isn't installed");
-  const verifyArgs = (commit: string) => ["verify-from-repo", REPO_URL, "--url", url, "--program-id", pid, "--commit-hash", commit, "--library-name", "pixel", "--mount-path", "chain", "--keypair", keypath(mode, "launch"), "--skip-prompt", "--", "--features", "mainnet"];
+  const verifyArgs = (commit: string) => ["verify-from-repo", REPO_URL, "--url", url, "--program-id", pid, "--commit-hash", commit, "--library-name", "pixel", "--base-image", BASE_IMAGE, "--mount-path", "chain", "--keypair", keypath(mode, "launch"), "--skip-prompt", "--", "--features", "mainnet"];
   const show = (a: string[]) => a.map((x) => (x === url ? "<rpc>" : x)).join(" ");
   const submit = ["remote", "submit-job", "--url", url, "--program-id", pid, "--uploader", uploader];
   if (!mode.execute) {

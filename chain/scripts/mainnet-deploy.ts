@@ -10,7 +10,7 @@
 import { PublicKey } from "@solana/web3.js";
 import { existsSync } from "node:fs";
 import { readFileSync } from "node:fs";
-import { BUFFER_HEADER, connect, die, ensureKey, explorer, keypath, loadKey, main, markStep, maxLenFor, parseArgs, priorityMicroLamports, programDataAddress, parseProgramData, programId, readState, roles, runMode, solanaCli, sol } from "./mainnet-lib.ts";
+import { BUFFER_HEADER, DEVNET_PROGRAM_ID, connect, die, ensureKey, explorer, keypath, loadKey, main, markStep, maxLenFor, parseArgs, priorityMicroLamports, programDataAddress, parseProgramData, programId, readState, roles, runMode, sha256File, sleep, solanaCli, sol } from "./mainnet-lib.ts";
 
 main(async () => {
   const args = parseArgs();
@@ -48,6 +48,10 @@ main(async () => {
 
   if (!st.build) { if (mode.execute) die("no build recorded: run mainnet-build first"); console.log("no build recorded yet; run mainnet-build first"); return; }
   const so = readFileSync(st.build.path);
+  // The id in the actual binary decides, not the source: a default build at this address would fail every call, with the rent already spent.
+  if (!so.includes(pid.toBuffer())) die(`${st.build.path} doesn't embed ${pid.toBase58()}: rebuild with mainnet-build (--features mainnet)`);
+  if (so.includes(new PublicKey(DEVNET_PROGRAM_ID).toBuffer())) die(`${st.build.path} embeds the devnet program id: refusing to deploy`);
+  if ((await sha256File(st.build.path)) !== st.build.sha256) die(`${st.build.path} no longer matches the recorded build hash: rebuild`);
   const maxLen = maxLenFor(so.length);
   const micro = await priorityMicroLamports(c);
   console.log(`so        ${so.length} B, sha256 ${st.build.sha256}, verifiable: ${st.build.verifiable}\nmax-len   ${maxLen}\npriority  ${micro} microLamports/CU`);
@@ -58,8 +62,12 @@ main(async () => {
   }
   const buffer = ensureKey(mode, "buffer").pubkey;
   const writeBuf = ["program", "write-buffer", st.build.path, "--buffer", keypath(mode, "buffer"), "--buffer-authority", launchPath, "--keypair", launchPath, "--use-rpc", "--with-compute-unit-price", String(micro), "--max-sign-attempts", "20"];
-  solanaCli(url, writeBuf);
-  const onchain = await c.getAccountInfo(buffer);
+  const complete = bufferAcc && Buffer.compare(bufferAcc.data.subarray(BUFFER_HEADER, BUFFER_HEADER + so.length), so) === 0;
+  if (complete) console.log("buffer is already complete: skipping the write");
+  else solanaCli(url, writeBuf);
+  // An RPC can lag the validator the CLI just wrote through.
+  let onchain = await c.getAccountInfo(buffer);
+  for (let i = 0; i < 15 && (!onchain || onchain.data.length < BUFFER_HEADER + so.length); i++) { await sleep(2_000); onchain = await c.getAccountInfo(buffer); }
   if (!onchain) die("buffer missing after write-buffer");
   const written = onchain.data.subarray(BUFFER_HEADER);
   if (Buffer.compare(written.subarray(0, so.length), so) !== 0) die("buffer content differs from the .so: re-run to rewrite the differing chunks");

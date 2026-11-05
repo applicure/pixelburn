@@ -107,7 +107,8 @@ main(async () => {
 
   const ix = initializeIx({
     admin: r.launch, tokenMint: mint, tokenProgram: check.tokenProgram!, treasury: r.treasury, keeper: r.keeper, pythFeedIdHex: SOL_USD_FEED_ID, priceSource: { kind: "bondingCurve", curve: check.curve },
-    maxPriceAgeSecs: INIT_PARAMS.maxPriceAgeSecs, buybackCapLamportsPerHour: INIT_PARAMS.buybackCapLamportsPerHour, buybackMaxSlippageBps: INIT_PARAMS.buybackMaxSlippageBps,
+    // Devnet's sponsored Pyth account can sit idle for minutes; rehearsal only.
+    maxPriceAgeSecs: mode.rehearsal && strArg(args, "max-price-age-secs") ? BigInt(strArg(args, "max-price-age-secs")!) : INIT_PARAMS.maxPriceAgeSecs, buybackCapLamportsPerHour: INIT_PARAMS.buybackCapLamportsPerHour, buybackMaxSlippageBps: INIT_PARAMS.buybackMaxSlippageBps,
     initialTokenEmaPriceSol: seed, tokenBlocksCapPerHour: INIT_PARAMS.tokenBlocksCapPerHour, programId: pid,
   });
   const units = 200_000;

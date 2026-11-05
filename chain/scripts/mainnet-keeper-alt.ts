@@ -23,7 +23,7 @@ main(async () => {
   for (const entry of [4, 8, 16, 32]) {
     const recentSlot = hashes.data.readBigUInt64LE(8 + 40 * entry);
     const [ix, addr] = AddressLookupTableProgram.createLookupTable({ authority: r.keeper, payer: r.keeper, recentSlot });
-    const { tx, lastValidBlockHeight } = await buildTx(c, r.keeper, [ix], { units: 10_000, microLamports: await priorityMicroLamports(c) });
+    const { tx, lastValidBlockHeight } = await buildTx(c, r.keeper, [ix], { units: 60_000, microLamports: await priorityMicroLamports(c) });
     const sim = await simulate(c, tx);
     console.log(`simulate  ${sim.ok ? "ok" : `ERR ${JSON.stringify(sim.err)}`} (recent slot entry ${entry})`);
     if (!sim.ok) continue;
