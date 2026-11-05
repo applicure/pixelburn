@@ -126,9 +126,10 @@ export class LocalFirstFetcher implements ImageFetcher {
     private readonly publicBaseUrl: string,
     private readonly readLocal: (name: string) => Promise<Buffer | null>,
     private readonly inner: ImageFetcher,
+    private readonly aliases: readonly string[] = [],
   ) {}
   async fetch(url: string, maxBytes: number): Promise<Buffer> {
-    const name = localFileName(url, this.publicBaseUrl);
+    const name = localFileName(url, this.publicBaseUrl, this.aliases);
     if (name) {
       const b = await this.readLocal(name);
       if (!b) throw new Error("local file missing");

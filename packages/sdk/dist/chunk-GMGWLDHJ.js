@@ -1,6 +1,6 @@
 // src/params.ts
-var TOKEN_SYMBOL = "PIXEL";
-var PROJECT_NAME = "The Million Pixel Burn";
+var TOKEN_SYMBOL = "PXL";
+var PROJECT_NAME = "Pixel Frame";
 var CONFIG_SEED = "config";
 var CANVAS_SEED = "canvas";
 var BUYBACK_VAULT_SEED = "buyback_vault";
@@ -100,4 +100,4 @@ export {
   MAX_LINK_LEN,
   MAX_IMAGE_URI_LEN
 };
-//# sourceMappingURL=chunk-ISWIB77O.js.map
+//# sourceMappingURL=chunk-GMGWLDHJ.js.map

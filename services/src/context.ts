@@ -81,10 +81,10 @@ export async function buildContext(cfg: Config, o: Overrides = {}) {
   const storage: Storage = cfg.IRYS_KEY
     ? new IrysStorage(cfg.IRYS_KEY, cfg.IRYS_NETWORK, cfg.IRYS_RPC_URL ?? cfg.rpcUrl, log)
     : localFiles;
-  const resolveImageUrl = makeImageUrlResolver(cfg.ARWEAVE_GATEWAY, cfg.publicBaseUrl);
+  const resolveImageUrl = makeImageUrlResolver(cfg.ARWEAVE_GATEWAY, cfg.publicBaseUrl, cfg.publicBaseUrlAliases);
 
   const allowedHosts = [...cfg.IMAGE_HOSTS.split(",").map((s) => s.trim()).filter(Boolean), new URL(cfg.publicBaseUrl).host];
-  const fetcher = o.fetcher ?? new LocalFirstFetcher(cfg.publicBaseUrl, (n) => localFiles.read(n), new HttpImageFetcher(allowedHosts));
+  const fetcher = o.fetcher ?? new LocalFirstFetcher(cfg.publicBaseUrl, (n) => localFiles.read(n), new HttpImageFetcher(allowedHosts), cfg.publicBaseUrlAliases);
 
   const composer = new Composer(db, fetcher, resolveImageUrl, path.join(dataDir, "cache"), log);
   const moderation = new ModerationService({

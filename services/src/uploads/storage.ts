@@ -66,7 +66,7 @@ export class IrysStorage implements Storage {
     const receipt = await irys.upload(bytes, {
       tags: [
         { name: "Content-Type", value: contentType },
-        { name: "App-Name", value: "million-pixel-burn" },
+        { name: "App-Name", value: "pixel-frame" },
         { name: "Sha256", value: sha },
       ],
     });
@@ -80,15 +80,16 @@ export class IrysStorage implements Storage {
 const LOCAL_HOSTS = new Set(["localhost", "127.0.0.1", "0.0.0.0", "[::1]"]);
 
 /**
- * If `uri` points at a dev-storage file (`/files/<sha256>.<ext>`) on this API (PUBLIC_API_URL)
- * or on a localhost URL (e.g. data seeded before PUBLIC_API_URL was set), return the file name.
+ * If `uri` points at a dev-storage file (`/files/<sha256>.<ext>`) on this API (PUBLIC_API_URL), on a former
+ * origin of this API (PUBLIC_API_URL_ALIASES: the URI is immutable on-chain, the domain isn't) or on a
+ * localhost URL (e.g. data seeded before PUBLIC_API_URL was set), return the file name.
  */
-export function localFileName(uri: string, publicBaseUrl: string): string | null {
+export function localFileName(uri: string, publicBaseUrl: string, aliases: readonly string[] = []): string | null {
   try {
     const u = new URL(uri);
     const m = /^\/files\/([a-f0-9]{64}\.(?:png|webp|jpg))$/.exec(u.pathname);
     if (!m) return null;
-    if (u.origin === new URL(publicBaseUrl).origin || LOCAL_HOSTS.has(u.hostname)) return m[1]!;
+    if (u.origin === new URL(publicBaseUrl).origin || aliases.includes(u.origin) || LOCAL_HOSTS.has(u.hostname)) return m[1]!;
   } catch {
     /* not a URL */
   }
@@ -96,11 +97,11 @@ export function localFileName(uri: string, publicBaseUrl: string): string | null
 }
 
 /** Map an on-chain image_uri to a URL a browser (or the composer) can fetch. */
-export function makeImageUrlResolver(arweaveGateway: string, publicBaseUrl: string) {
+export function makeImageUrlResolver(arweaveGateway: string, publicBaseUrl: string, aliases: readonly string[] = []) {
   return (uri: string): string => {
     if (uri.startsWith("ar://")) return `${arweaveGateway.replace(/\/$/, "")}/${uri.slice(5)}`;
-    // Dev-storage files are always served from PUBLIC_API_URL, never a stale localhost origin.
-    const local = localFileName(uri, publicBaseUrl);
+    // Dev-storage files are always served from PUBLIC_API_URL, never a stale localhost or former origin.
+    const local = localFileName(uri, publicBaseUrl, aliases);
     if (local) return `${publicBaseUrl}/files/${local}`;
     return uri;
   };

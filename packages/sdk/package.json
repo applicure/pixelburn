@@ -1,7 +1,7 @@
 {
   "name": "@mpb/sdk",
   "version": "0.1.0",
-  "description": "The Million Pixel Burn: TS client for the `pixel` Solana program (constants, PDAs, quote math, decoders, events, ix builders).",
+  "description": "Pixel Frame: TS client for the `pixel` Solana program (constants, PDAs, quote math, decoders, events, ix builders).",
   "type": "module",
   "sideEffects": false,
   "main": "./dist/index.js",

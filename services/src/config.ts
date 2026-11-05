@@ -15,7 +15,8 @@ const EnvSchema = z.object({
   NODE_ENV: z.string().default("development"),
   PORT: z.coerce.number().int().default(8787),
   HOST: z.string().default("0.0.0.0"),
-  PUBLIC_API_URL: optStr, // e.g. https://api.pixelburn.applicure.io ; defaults to http://localhost:PORT
+  PUBLIC_API_URL: optStr, // e.g. https://api.pixelframe.tech ; defaults to http://localhost:PORT
+  PUBLIC_API_URL_ALIASES: optStr, // comma list of former API origins: stored /files/ URIs on them keep resolving (docs/domain-cutover.md)
   PUBLIC_BASE_URL: optStr, // legacy alias of PUBLIC_API_URL
   CORS_ORIGINS: optStr, // comma-separated allowed origins, or *
   WEB_ORIGIN: optStr, // legacy alias of CORS_ORIGINS
@@ -100,6 +101,7 @@ const EnvSchema = z.object({
 
 export type Config = z.infer<typeof EnvSchema> & {
   publicBaseUrl: string;
+  publicBaseUrlAliases: string[];
   rpcUrl: string;
   wsUrl: string;
   /** Labelled same-cluster RPCs the indexer may ask when the primary lacks a tx's history. */
@@ -143,6 +145,7 @@ export function loadConfig(env: Record<string, string | undefined> = process.env
     rpcUrl,
     wsUrl,
     historyRpcFallbacks,
+    publicBaseUrlAliases: (parsed.PUBLIC_API_URL_ALIASES ?? "").split(",").map((o) => o.trim()).filter(Boolean).map((o) => new URL(o).origin),
     corsOrigins: (parsed.CORS_ORIGINS ?? parsed.WEB_ORIGIN ?? "http://localhost:3000").split(",").map((o) => o.trim().replace(/\/$/, "")).filter(Boolean),
   };
   registerConfigSecrets(cfg);

@@ -456,7 +456,7 @@ Every successful pump.fun coin graduates: when the curve's real token reserves h
 - **Migration is pump's job: treat our `migrate` as "wait for pump".** pump.fun's own bot migrated our devnet coin 18 s after `complete` (at 13:33:02, `7qhZTHxJ…`), and our permissionless call was an idempotent no-op. On mainnet this is pump's standard flow. The runbook therefore *waits* for the canonical pool to exist (poll `getAccountInfo(canonicalPool)`). `graduate-devnet.ts migrate` exists only as a devnet fallback.
 - **Expect a boost wave right after graduation.** `migrate_v2` created a PumpSwap *boost* (`InitBoost`, positive `virtual_quote_reserves`). pump's boost crank then ran `BoostBuyAndBurn` 30× over about 6 minutes, buying about 35.5M tokens (~3.5% of supply) out of the pool and burning them. Effects:
   - Spot rose about +43% in minutes. Token payments correctly paused (`deviation`) for about 4 minutes after warm-up, and buybacks are blocked by the backstop while spot is above the band.
-  - Total supply drops with no pixel event. Stats must separate "burned by The Million Pixel Burn" (`Canvas.tokens_burned_*`, verifiable from our events) from "total supply reduction (incl. pump boost)".
+  - Total supply drops with no pixel event. Stats must separate "burned by Pixel Frame" (`Canvas.tokens_burned_*`, verifiable from our events) from "total supply reduction (incl. pump boost)".
   - The slow EMA prices token buyers conservatively during the wave (devnet: `pricedBy: slowEma`, buyer burned about 40% more tokens than spot implied).
 - **Admin switch latency.** The mainnet admin is a Squads multisig. The token-payment gap is (wait for pump's migration) + (multisig approval) + (≥ 10-minute warm-up) + (any boost-induced deviation). Pre-build the `set_price_source` proposal (the pool address is deterministic: `canonicalPumpPoolPda(mint)`) and have signers on call.
 - **Keeper sizing on thin pools.** A post-graduation pool can be very thin. The keeper caps estimated impact at about 1% per buy and skips while spot is near the band. The on-chain backstop enforces ≤ fast EMA × 1.12 regardless.
@@ -491,6 +491,8 @@ Every successful pump.fun coin graduates: when the curve's real token reserves h
 
 ## Mainnet launch checklist (DOC ONLY, nothing here has been run; every mainnet step needs explicit sign-off)
 
+> **Owner decision, 2026-11-05: no multisig.** The Squads and timelock steps below (section 1 and the references to it) are not the plan any more and were kept only as the record of the recommendation. The checklist has not been reworked for a single-key setup; do that before relying on it.
+
 Constraint that shapes the order: `initialize` requires **admin == upgrade authority** at init time (audit fix for init front-running). So:
 1. Deploy with a hot **launch key** as upgrade authority.
 2. Initialize with that same key as admin.
@@ -506,7 +508,8 @@ Total exposure window: minutes.
   - an explicit `--mainnet-i-understand` flag;
   - dry run by default;
   - an RPC from `MAINNET_RPC_URL` only (never `SOLANA_RPC` by accident).
-- [x] `security_txt!` embedded (crate `solana-security-txt` =1.1.3, `lib.rs`; .so grows to 579,968 B, still fits the extended devnet programdata). **Placeholder values** (`security@applicure.io`, `https://pixelburn.applicure.io`, repo URL, policy URL): confirm with the customer before the verified build. Pending the auditor's glance; to be batched into the next devnet upgrade.
+- [x] `security_txt!` embedded (crate `solana-security-txt` =1.1.3, `lib.rs`; .so grows to 579,968 B, still fits the extended devnet programdata). Source values, not yet deployed (batched with the next program upgrade): name `Pixel Frame (pixel)`, contact `team@pixelframe.tech`, project `https://pixelframe.tech`, policy `https://pixelframe.tech/security`. **Still a placeholder:** `source_code`, confirm before the verified build (`docs/domain-cutover.md`). Pending the auditor's glance; to be batched into the next devnet upgrade.
+- [ ] **Token metadata** for the pump.fun launch: name `Pixel Frame`, symbol `PXL`, image `brand/token-image-1000.png`. It is immutable once created, so check all three in the create tx before signing.
 - [ ] **Program id (decided: fresh, generated offline; do NOT reuse `A4uaXC9s…`).** On an offline machine, run `solana-keygen new -o pixel-mainnet.json`. Then set `declare_id!`, `Anchor.toml [programs.mainnet]`, `anchor keys sync`, the verified rebuild, and SDK `sync-idl`. The SDK's default `PROGRAM_ID` then becomes the mainnet id, and devnet users pass `programId` explicitly (or we ship a cluster-keyed map: decide before the switch).
 
 ### 1. Squads multisig + timelock (upgrade authority and admin)

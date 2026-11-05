@@ -1,8 +1,8 @@
 use anchor_lang::prelude::*;
 
-/// Ticker placeholder. The only place in the program that names the token.
+/// Ticker. The only place in the program that names the token.
 #[constant]
-pub const TOKEN_SYMBOL: &str = "PIXEL";
+pub const TOKEN_SYMBOL: &str = "PXL";
 
 // ---------------------------------------------------------------- PDA seeds
 #[constant]

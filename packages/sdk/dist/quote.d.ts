@@ -1,9 +1,9 @@
 export { F as FixedPrice, R as Rect, T as TokenPricingStatus, a as applyTokenDiscount, b as assertValidRect, c as blockCoords, d as blockIndex, e as buyPriceQ, f as countSet, g as emaUpdate, h as emptyBitmap, i as estimateBurnForSolPurchase, j as fixedToNumber, k as freeBlocks, l as isBlockSet, m as isRectFree, n as isValidRect, o as lamportsToTokens, p as markRect, q as minNextBid, r as quoteLamports, s as quoteTokens, t as quoteTokensExact, u as quoteUsd, v as rectBlockCount, w as rectBlocks, x as slowEmaUpdate, y as splitSol, z as spotPriceQ, A as tokenBlocksAvailable, B as tokenPricingStatus, C as tokenUsdFromPriceQ, D as validateAdContent, E as withSlippage, G as withinBand } from './quote-Dr1cW5Ot.js';
 
 /** Pure constants: no @solana/web3.js, no IDL. Safe for the side-effect-free `@mpb/sdk/quote` entry. */
-/** Ticker placeholder. Rename here only. */
-declare const TOKEN_SYMBOL = "PIXEL";
-declare const PROJECT_NAME = "The Million Pixel Burn";
+/** Ticker. Rename here only. */
+declare const TOKEN_SYMBOL = "PXL";
+declare const PROJECT_NAME = "Pixel Frame";
 declare const CONFIG_SEED = "config";
 declare const CANVAS_SEED = "canvas";
 declare const BUYBACK_VAULT_SEED = "buyback_vault";

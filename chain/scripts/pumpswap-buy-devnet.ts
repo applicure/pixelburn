@@ -1,6 +1,6 @@
 /**
  * Devnet only: buy the pixel token (PXTEST) on its canonical PumpSwap pool with a test wallet (e.g. for the web
- * wallet test's $PIXEL leg). DRY RUN by default: prints quote, estimated price impact and what it does to
+ * wallet test's $PXL leg). DRY RUN by default: prints quote, estimated price impact and what it does to
  * token-payment pricing, then simulates. Sends only with --execute.
  *
  *   BUY_SOL=0.05 BUYER_KEYPAIR=../keys/buyer.json node pumpswap-buy-devnet.ts            # dry run

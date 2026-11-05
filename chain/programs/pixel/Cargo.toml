@@ -1,7 +1,7 @@
 [package]
 name = "pixel"
 version = "0.1.0"
-description = "The Million Pixel Burn on-chain program"
+description = "Pixel Frame on-chain program"
 edition.workspace = true
 rust-version.workspace = true
 

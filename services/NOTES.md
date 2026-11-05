@@ -1,6 +1,6 @@
 # @mpb/services: notes
 
-The HTTP API, indexer, moderation, composer, uploads, pricing and keeper for The Million Pixel Burn.
+The HTTP API, indexer, moderation, composer, uploads, pricing and keeper for Pixel Frame (formerly The Million Pixel Burn).
 Contract: `/SPEC.md` ("Services API").
 
 ## How to run
@@ -27,7 +27,7 @@ Point the web app at it with `NEXT_PUBLIC_API_URL=http://localhost:8787`. Local 
 
 ## Deploy (Coolify, Docker + Traefik TLS)
 
-Target: `https://api.pixelburn.applicure.io`. One image definition, `services/Dockerfile`, with three
+Live at `https://api.pixelburn.applicure.io`, moving to `https://api.pixelframe.tech` (`docs/domain-cutover.md`). One image definition, `services/Dockerfile`, with three
 build targets. **Build context = repo root**: the build needs the workspace `pnpm-lock.yaml`, and
 `packages/` is copied in so `@mpb/sdk` gets installed and built as soon as services depends on it
 (`pnpm --filter "@mpb/services..."`). Excludes: BuildKit uses `services/Dockerfile.dockerignore`, and
@@ -69,8 +69,9 @@ docker build -f services/Dockerfile --target keeper  -t mpb-keeper .
   liveness check.
 - **Image URLs**: `imageUrl` and `previewUrl` for dev-storage files are always built from
   `PUBLIC_API_URL`. URIs stored with a localhost origin (e.g. seeded before the URL was set) are
-  rewritten, and the moderation worker and composer read them from `/data/files`. Arweave/Irys URIs
-  are untouched.
+  rewritten, and the moderation worker and composer read them from `/data/files`. So are URIs on a
+  former API origin listed in `PUBLIC_API_URL_ALIASES` (`image_uri` is immutable on-chain, the domain
+  isn't: `docs/domain-cutover.md`). Arweave/Irys URIs are untouched.
 - **Traefik**: set `TRUST_PROXY=1`. The rate limiter then keys on the first `X-Forwarded-For` hop,
   which Traefik sets from the real client.
 - **Persistent data**: mount a volume at **`/data`** (`DATA_DIR`) on the api. `files/` holds

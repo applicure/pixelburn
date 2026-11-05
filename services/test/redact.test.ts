@@ -3,6 +3,7 @@ import { clearSecrets, redact, redactValue } from "../src/lib/redact.js";
 import { loadConfig } from "../src/config.js";
 import { createLogger } from "../src/lib/log.js";
 import { makeImageUrlResolver } from "../src/uploads/storage.js";
+import { LocalFirstFetcher } from "../src/moderation/checks.js";
 import { vi } from "vitest";
 
 afterEach(() => clearSecrets());
@@ -32,11 +33,15 @@ describe("secret redaction + infra env", () => {
     expect(main.rpcUrl).toBe("https://mainnet.helius-rpc.com/?api-key=hkey-123456");
     const ovr = loadConfig({ SOLANA_RPC: "https://qn.example/k/", RPC_URL: "http://127.0.0.1:8899", WS_URL: "ws://127.0.0.1:8900" });
     expect([ovr.rpcUrl, ovr.wsUrl]).toEqual(["http://127.0.0.1:8899", "ws://127.0.0.1:8900"]);
-    expect(loadConfig({ CORS_ORIGINS: "https://pixelburn.applicure.io/, http://localhost:3000" }).corsOrigins).toEqual([
-      "https://pixelburn.applicure.io",
+    expect(loadConfig({ CORS_ORIGINS: "https://pixelframe.tech/, http://localhost:3000" }).corsOrigins).toEqual([
+      "https://pixelframe.tech",
       "http://localhost:3000",
     ]);
-    expect(loadConfig({ PUBLIC_API_URL: "https://api.pixelburn.applicure.io/" }).publicBaseUrl).toBe("https://api.pixelburn.applicure.io");
+    expect(loadConfig({ PUBLIC_API_URL: "https://api.pixelframe.tech/" }).publicBaseUrl).toBe("https://api.pixelframe.tech");
+    expect(loadConfig({ PUBLIC_API_URL_ALIASES: "https://api.pixelburn.applicure.io/, https://old.example" }).publicBaseUrlAliases).toEqual([
+      "https://api.pixelburn.applicure.io",
+      "https://old.example",
+    ]);
   });
 });
 
@@ -67,9 +72,25 @@ describe("log output", () => {
 describe("PUBLIC_API_URL image URLs", () => {
   it("serves dev-storage files from PUBLIC_API_URL, never a stale localhost origin", () => {
     const sha = "a".repeat(64);
-    const r = makeImageUrlResolver("https://arweave.net", "https://api.pixelburn.applicure.io");
-    expect(r(`http://localhost:8788/files/${sha}.png`)).toBe(`https://api.pixelburn.applicure.io/files/${sha}.png`);
+    const r = makeImageUrlResolver("https://arweave.net", "https://api.pixelframe.tech");
+    expect(r(`http://localhost:8788/files/${sha}.png`)).toBe(`https://api.pixelframe.tech/files/${sha}.png`);
     expect(r("ar://abc")).toBe("https://arweave.net/abc");
     expect(r(`https://evil.example/files/${sha}.png`)).toBe(`https://evil.example/files/${sha}.png`); // foreign hosts untouched
+  });
+
+  it("keeps ads whose on-chain URI names a former API origin (domain move)", async () => {
+    const sha = "b".repeat(64);
+    const old = `https://api.pixelburn.applicure.io/files/${sha}.png`;
+    const aliases = ["https://api.pixelburn.applicure.io"];
+    const r = makeImageUrlResolver("https://arweave.net", "https://api.pixelframe.tech", aliases);
+    expect(r(old)).toBe(`https://api.pixelframe.tech/files/${sha}.png`);
+    // and without the alias the URI goes out untouched: the case the cutover must avoid
+    expect(makeImageUrlResolver("https://arweave.net", "https://api.pixelframe.tech")(old)).toBe(old);
+    // moderation and the composer read it from disk instead of hitting the SSRF allow-list
+    const file = Buffer.from("png");
+    const inner = { fetch: async () => { throw new Error("image host not allowed"); } };
+    const local = new LocalFirstFetcher("https://api.pixelframe.tech", async () => file, inner, aliases);
+    await expect(local.fetch(old, 100)).resolves.toBe(file);
+    await expect(new LocalFirstFetcher("https://api.pixelframe.tech", async () => file, inner).fetch(old, 100)).rejects.toThrow("not allowed");
   });
 });

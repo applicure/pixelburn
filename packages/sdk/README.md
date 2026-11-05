@@ -1,6 +1,6 @@
 # @mpb/sdk
 
-TS client for the `pixel` program (The Million Pixel Burn). ESM + types; `@solana/web3.js` v1.
+TS client for the `pixel` program (Pixel Frame, formerly The Million Pixel Burn). ESM + types; `@solana/web3.js` v1.
 
 ```ts
 import { buildBuyWithSolIxs, isRectFree, quoteUsd, quoteLamports, parseEvents, fetchCanvas } from "@mpb/sdk";

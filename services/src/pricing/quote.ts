@@ -4,7 +4,7 @@ import { microToUsd, quoteUsd, tokenUsdPerToken } from "../lib/quote-math.js";
 import { TokenPricingUnavailable, type SolPriceSource, type TokenPrice, type TokenPriceSource } from "./prices.js";
 
 /**
- * Whether paying in $PIXEL is possible right now, from the SDK's tokenPricingStatus (the same gate
+ * Whether paying in $PXL is possible right now, from the SDK's tokenPricingStatus (the same gate
  * buy_with_token applies). SDK reasons are mapped camelCase -> snake_case generically, so new
  * on-chain reasons (e.g. hourlyCap -> hourly_cap) flow through without a services change.
  * "unknown" = the token price could not be read at all.

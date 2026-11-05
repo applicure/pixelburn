@@ -8,7 +8,7 @@ var pixel_default = {
     name: "pixel",
     version: "0.1.0",
     spec: "0.1.0",
-    description: "The Million Pixel Burn on-chain program"
+    description: "Pixel Frame on-chain program"
   },
   instructions: [
     {
@@ -3088,7 +3088,7 @@ var pixel_default = {
         "Ticker placeholder. The only place in the program that names the token."
       ],
       type: "string",
-      value: '"PIXEL"'
+      value: '"PXL"'
     },
     {
       name: "TOTAL_BLOCKS",
@@ -3133,4 +3133,4 @@ export {
   SYSTEM_PROGRAM_ID,
   COMPUTE_BUDGET_PROGRAM_ID
 };
-//# sourceMappingURL=chunk-7I5M3O36.js.map
+//# sourceMappingURL=chunk-IN65ZUDS.js.map

@@ -87,7 +87,7 @@ describe("QuoteService", () => {
       get: async () => ({ spot, ema, source: "test", unavailable: { reason: "warmingUp", detail: "EMA warm-up 3/10 cranks" } }),
     }, 6);
     await expect(warming.quote(1, 1, "token")).rejects.toMatchObject({ reason: "warming_up" });
-    const sol = await warming.quote(1, 1, "sol"); // SOL payments unaffected, status explains why $PIXEL is off
+    const sol = await warming.quote(1, 1, "sol"); // SOL payments unaffected, status explains why $PXL is off
     expect(sol.lamports).toBeDefined();
     expect(sol).toMatchObject({ tokenPaymentStatus: "warming_up", tokenPaymentDetail: "EMA warm-up 3/10 cranks" });
     const capped = new QuoteService(new StaticSolPrice(150), {

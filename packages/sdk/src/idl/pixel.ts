@@ -10,7 +10,7 @@ export type Pixel = {
     "name": "pixel",
     "version": "0.1.0",
     "spec": "0.1.0",
-    "description": "The Million Pixel Burn on-chain program"
+    "description": "Pixel Frame on-chain program"
   },
   "instructions": [
     {
@@ -3090,7 +3090,7 @@ export type Pixel = {
         "Ticker placeholder. The only place in the program that names the token."
       ],
       "type": "string",
-      "value": "\"PIXEL\""
+      "value": "\"PXL\""
     },
     {
       "name": "totalBlocks",

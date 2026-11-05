@@ -16,14 +16,14 @@ pub use state::*;
 
 declare_id!("A4uaXC9sU3UrbqcPZL4ZJMd2aKzmo5Rq4yDvRm8gpTS");
 
-// Embedded security contact (https://github.com/neodyme-labs/solana-security-txt). PLACEHOLDER values: confirm the
-// contact, policy and source URLs with the customer before the verified mainnet build.
+// Embedded security contact (https://github.com/neodyme-labs/solana-security-txt). Contact, project and policy are the
+// owner's. PLACEHOLDER: source_code, confirm it before the verified mainnet build (docs/domain-cutover.md).
 #[cfg(not(feature = "no-entrypoint"))]
 solana_security_txt::security_txt! {
-    name: "The Million Pixel Burn (pixel)",
-    project_url: "https://pixelburn.applicure.io",
-    contacts: "email:security@applicure.io",
-    policy: "https://pixelburn.applicure.io/security",
+    name: "Pixel Frame (pixel)",
+    project_url: "https://pixelframe.tech",
+    contacts: "email:team@pixelframe.tech",
+    policy: "https://pixelframe.tech/security",
     preferred_languages: "en,de",
     source_code: "https://github.com/applicure/pixelburn",
     source_release: "",

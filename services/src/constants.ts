@@ -1,9 +1,9 @@
 // Protocol constants mirrored from SPEC.md. When @mpb/sdk exports these, re-export
 // from there instead (see NOTES.md "Requests").
 
-/** Placeholder ticker. Rename here only. */
-export const TOKEN_TICKER = "PIXEL";
-export const PROJECT_NAME = "The Million Pixel Burn";
+/** Ticker. Rename here only. */
+export const TOKEN_TICKER = "PXL";
+export const PROJECT_NAME = "Pixel Frame";
 
 export const GRID = 100; // blocks per side
 export const BLOCK_PX = 10; // pixels per block side

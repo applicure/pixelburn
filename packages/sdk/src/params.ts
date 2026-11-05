@@ -1,7 +1,7 @@
 /** Pure constants: no @solana/web3.js, no IDL. Safe for the side-effect-free `@mpb/sdk/quote` entry. */
-/** Ticker placeholder. Rename here only. */
-export const TOKEN_SYMBOL = "PIXEL";
-export const PROJECT_NAME = "The Million Pixel Burn";
+/** Ticker. Rename here only. */
+export const TOKEN_SYMBOL = "PXL";
+export const PROJECT_NAME = "Pixel Frame";
 
 
 // ---------------------------------------------------------------- seeds

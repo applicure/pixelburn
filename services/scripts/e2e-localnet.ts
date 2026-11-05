@@ -277,7 +277,7 @@ async function main() {
     check("quote sol returns lamports", /^\d+$/.test(qSol.lamports), `lamports=${qSol.lamports}`);
     const warmQuote = await getJson("/api/quote?w=3&h=1&mode=token");
     check("token quote refused while EMA warms up (503 warming_up)", warmQuote.status === 503 && warmQuote.body.tokenPaymentStatus === "warming_up", JSON.stringify(warmQuote.body));
-    check("SOL quote explains $PIXEL status (tokenPaymentStatus)", qSol.tokenPaymentStatus === "warming_up", `${qSol.tokenPaymentStatus}: ${qSol.tokenPaymentDetail}`);
+    check("SOL quote explains $PXL status (tokenPaymentStatus)", qSol.tokenPaymentStatus === "warming_up", `${qSol.tokenPaymentStatus}: ${qSol.tokenPaymentDetail}`);
 
     const content = (u: { uri: string; sha256: string }, title: string, link: string) => ({ title, link, imageUri: u.uri, imageSha256: u.sha256 });
     await send(conn, [buyWithSolIx({
