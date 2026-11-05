@@ -124,6 +124,9 @@ export function assertClusterConsistent(e: { SOLANA_CLUSTER: "devnet" | "mainnet
   if (e.PROGRAM_ID === PROGRAM_IDS[other].toBase58()) {
     throw new Error(`PROGRAM_ID is the ${other} program but SOLANA_CLUSTER=${e.SOLANA_CLUSTER}`);
   }
+  if (e.SOLANA_CLUSTER === "mainnet-beta" && e.PROGRAM_ID && e.PROGRAM_ID !== PROGRAM_IDS["mainnet-beta"].toBase58()) {
+    throw new Error(`PROGRAM_ID ${e.PROGRAM_ID} is not the mainnet program ${PROGRAM_IDS["mainnet-beta"].toBase58()}`);
+  }
   const wantIrys = e.SOLANA_CLUSTER === "mainnet-beta" ? "mainnet" : "devnet";
   if (e.IRYS_KEY && e.IRYS_NETWORK !== wantIrys) {
     throw new Error(`IRYS_NETWORK=${e.IRYS_NETWORK} with SOLANA_CLUSTER=${e.SOLANA_CLUSTER}: set IRYS_NETWORK=${wantIrys}`);

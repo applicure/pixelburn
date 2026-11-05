@@ -15,7 +15,7 @@ import { OnlinePumpSdk, PUMP_SDK, getBuyTokenAmountFromSolAmount } from "@pump-f
 import { OnlinePumpAmmSdk, PUMP_AMM_SDK } from "@pump-fun/pump-swap-sdk";
 import { associatedTokenAddress, buildBuyTx, fetchCanvas, fetchConfig, readSpotPriceQ, tokenPricingStatus } from "@mpb/sdk";
 import BN from "bn.js";
-import { buildTx, connect, die, explorer, loadKey, main, parseArgs, programId, roles, runMode, sendAndConfirm, simulate, solToLamports, stringifyBig, strArg } from "./mainnet-lib.ts";
+import { buildTx, connect, die, explorer, loadKey, main, parseArgs, programId, roles, runMode, sendAndConfirm, simulate, solToLamports, stringifyBig, strArg, toVersioned } from "./mainnet-lib.ts";
 
 main(async () => {
   const args = parseArgs();
@@ -75,10 +75,11 @@ main(async () => {
     content: { title: strArg(args, "title") ?? "Pixel Frame", link: strArg(args, "link") ?? "https://pixelframe.tech", imageUri, imageSha256 },
   });
   console.log(`quote     ${stringifyBig(built.quote).replace(/\s+/g, " ")}`);
-  const sim = await c.simulateTransaction(built.transaction, { sigVerify: false, replaceRecentBlockhash: true });
+  const vtx = toVersioned(built.transaction);
+  const sim = await c.simulateTransaction(vtx, { sigVerify: false, replaceRecentBlockhash: true });
   console.log(`simulate  ${sim.value.err ? `ERR ${JSON.stringify(sim.value.err)}` : `ok, ${sim.value.unitsConsumed} CU`}`);
   if (sim.value.err) { console.log((sim.value.logs ?? []).slice(-5).join("\n")); throw new Error("simulation failed"); }
   if (!mode.execute) { console.log("DRY RUN: nothing sent"); return; }
-  const sig = await sendAndConfirm(c, built.transaction, built.lastValidBlockHeight, [loadKey(mode, "launch")]);
+  const sig = await sendAndConfirm(c, vtx, built.lastValidBlockHeight, [loadKey(mode, "launch")]);
   console.log(`bought ${explorer(mode, "tx", sig)}`);
 });

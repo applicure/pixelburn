@@ -430,7 +430,6 @@ ADMIN_KEYPAIR=../keys/admin.json MINT=<mint> PRICE_SOURCE=curve:<curve> \
 ### Rollback / safety
 - `set_paused(true)` is the brake.
 - The program is upgradeable by `keys/admin.json` (devnet only).
-- **The mainnet launch requirement still applies:** upgrade authority and admin go to a timelocked Squads multisig, or the program is made immutable.
 - Nothing in this plan touches mainnet; all scripts refuse mainnet URLs.
 
 ## Graduation runbook: bonding curve → PumpSwap
@@ -458,7 +457,7 @@ Every successful pump.fun coin graduates: when the curve's real token reserves h
   - Spot rose about +43% in minutes. Token payments correctly paused (`deviation`) for about 4 minutes after warm-up, and buybacks are blocked by the backstop while spot is above the band.
   - Total supply drops with no pixel event. Stats must separate "burned by Pixel Frame" (`Canvas.tokens_burned_*`, verifiable from our events) from "total supply reduction (incl. pump boost)".
   - The slow EMA prices token buyers conservatively during the wave (devnet: `pricedBy: slowEma`, buyer burned about 40% more tokens than spot implied).
-- **Admin switch latency.** The mainnet admin is a Squads multisig. The token-payment gap is (wait for pump's migration) + (multisig approval) + (≥ 10-minute warm-up) + (any boost-induced deviation). Pre-build the `set_price_source` proposal (the pool address is deterministic: `canonicalPumpPoolPda(mint)`) and have signers on call.
+- **Admin switch latency.** The admin is the launch key. The token-payment gap is (wait for pump's migration) + (60 s median) + (≥ 10-minute warm-up) + (any boost-induced deviation). See `mainnet-graduation.ts`.
 - **Keeper sizing on thin pools.** A post-graduation pool can be very thin. The keeper caps estimated impact at about 1% per buy and skips while spot is near the band. The on-chain backstop enforces ≤ fast EMA × 1.12 regardless.
 
 ### Steps (devnet script `chain/scripts/graduate-devnet.ts`; every step is dry-run by default)
@@ -472,7 +471,7 @@ Every successful pump.fun coin graduates: when the curve's real token reserves h
 4. **Switch.**
    - Admin calls `set_price_source(Pool{pool, base_vault, quote_vault}, initial_ema = pool spot)`, with the spot read as `poolSpotPriceQ`: vault quote + `virtual_quote_reserves` over vault base.
    - Script: `node graduate-devnet.ts switch --execute`. It refuses while the curve is not complete or the pool doesn't exist yet.
-   - On mainnet the admin is the Squads multisig, so this transaction is proposed there. Have it pre-built and signers on call: the gap lasts as long as the multisig takes.
+   - On mainnet: `mainnet-graduation.ts`.
 5. **Warm-up.** The keeper cranks every 30–60 s. Token payments resume when `tokenPricingStatus` is ok (≥ 10 cranks over ≥ 600 s). The first crank requires pool spot within ±25% of the seed; if the price moved more than that, re-seed (step 4 again).
 6. **Keeper.** Switch buyback routing from the curve (`PUMP_SDK.buyInstructions`) to PumpSwap (`@pump-fun/pump-swap-sdk`). Indexer: `TokenPriceUpdated` continues as before. Update `/api/stats` market data to read the pool.
 
@@ -489,113 +488,55 @@ Every successful pump.fun coin graduates: when the curve's real token reserves h
   8. a keeper buyback via PumpSwap (needs the pump-swap SDK route: services' keeper, or a small addition to `devnet-verify.ts`)
 - **Cost:** ≈ 0.05 SOL plus fees from the deployer (5.27 SOL available).
 
-## Mainnet launch checklist (DOC ONLY, nothing here has been run; every mainnet step needs explicit sign-off)
+## Mainnet launch checklist
 
-> **Owner decision, 2026-11-05: no multisig.** The Squads and timelock steps below (section 1 and the references to it) are not the plan any more and were kept only as the record of the recommendation. The checklist has not been reworked for a single-key setup; do that before relying on it.
+Scripts: `chain/scripts/mainnet-*.ts`. Launch-day runbook with timings: `docs/mainnet-cutover.md`. Every mainnet send needs `--execute --mainnet-i-understand`, the RPC comes only from `MAINNET_RPC_URL`, and the genesis hash is checked first.
 
-Constraint that shapes the order: `initialize` requires **admin == upgrade authority** at init time (audit fix for init front-running). So:
-1. Deploy with a hot **launch key** as upgrade authority.
-2. Initialize with that same key as admin.
-3. Hand both roles to multisigs in the same session (step 1 below).
+**Accepted risk (owner decision, 2026-11-05):** no multisig and no timelock. One key, the launch wallet `8FLcVCzs…`, is deployer, upgrade authority and config admin, and stays so. Whoever holds it can upgrade the program and take the buyback vault and auction escrow at any moment, with no delay. The site says so.
 
-Total exposure window: minutes.
+### 0. Before anything
+- The commit to ship is pushed to the public repo and the auditor has signed off on it.
+- **Program id:** `C44yH6k1btWPyRhyE3ub855RnCrBFgZqfjB8waFq7yu9`, key at `keys/mainnet/program.json`. It sits behind cargo feature `mainnet`; the default build stays the devnet program.
+  - **Don't run `anchor keys sync`:** it rewrites the first `declare_id!`, which is the devnet one. `scripts/mainnet-program-id.ts --sync` keeps lib.rs, Anchor.toml and the SDK map in step.
+  - **Don't use `anchor build -- --features mainnet`:** its key check compares `target/deploy/pixel-keypair.json` with the first `declare_id!`, not the feature's. `scripts/mainnet-build.ts` builds it, and checks the id in the binary.
+  - **No `sync-idl` is needed:** the two builds differ only in the id. The SDK's `PROGRAM_ID` stays the devnet id, and code that can run on mainnet uses `programIdForCluster(cluster)`.
 
-### 0. Prerequisites (go / no-go)
-- [ ] The commit to ship is tagged. `anchor test` (11 + 53 at 9665023) and SDK tests are green on that commit, and the auditor has signed off on the exact commit.
-- [ ] A **mainnet script set** exists and is reviewed (**deferred: written only after the customer confirms launch parameters**). Today's scripts are deliberately devnet-only (genesis guard), and no mainnet script is written yet. Requirements:
-  - separate files (`mainnet-*.ts`);
-  - hard guard on the mainnet genesis hash `5eykt4UsFv8P8NJdTREpY1vzqKqZKvdpKuc147dw2N9d`;
-  - an explicit `--mainnet-i-understand` flag;
-  - dry run by default;
-  - an RPC from `MAINNET_RPC_URL` only (never `SOLANA_RPC` by accident).
-- [x] `security_txt!` embedded (crate `solana-security-txt` =1.1.3, `lib.rs`; .so grows to 579,968 B, still fits the extended devnet programdata). Source values, not yet deployed (batched with the next program upgrade): name `Pixel Frame (pixel)`, contact `team@pixelframe.tech`, project `https://pixelframe.tech`, policy `https://pixelframe.tech/security`. **Still a placeholder:** `source_code`, confirm before the verified build (`docs/domain-cutover.md`). Pending the auditor's glance; to be batched into the next devnet upgrade.
-- [ ] **Token metadata** for the pump.fun launch: name `Pixel Frame`, symbol `PXL`, image `brand/token-image-1000.png`. It is immutable once created, so check all three in the create tx before signing.
-- [ ] **Program id (decided: fresh, generated offline; do NOT reuse `A4uaXC9s…`).** On an offline machine, run `solana-keygen new -o pixel-mainnet.json`. Then set `declare_id!`, `Anchor.toml [programs.mainnet]`, `anchor keys sync`, the verified rebuild, and SDK `sync-idl`. The SDK's default `PROGRAM_ID` then becomes the mainnet id, and devnet users pass `programId` explicitly (or we ship a cluster-keyed map: decide before the switch).
-
-### 1. Squads multisig + timelock (upgrade authority and admin)
-Two multisigs with different timelocks, because the admin needs to act fast (pause, graduation switch) while upgrades should be slow. **Members and thresholds are the customer's decision. The table is our recommendation, marked "customer to confirm".**
-
-| role | Squads v4 multisig | threshold | timelock | why |
-|---|---|---|---|---|
-| **upgrade authority** | `UPGRADE_MS` | 3-of-5 *(customer to confirm)* | **48 h** *(customer to confirm)* | an upgrade can take every lamport; the community gets 48 h to see it coming |
-| **config admin** | `OPS_MS` | 2-of-3 *(customer to confirm)* | 0–15 min *(customer to confirm)* | pause, `set_price_source` at graduation, `set_params`, `set_keeper`. Admin cannot withdraw funds; its worst case is collusion with a keeper, ≤ 50 SOL/h, visible on-chain. |
-
-- Treasury: a third address, ideally a Squads vault with no timelock (it only receives).
-- Commands (with `@sqds/multisig` v4 or the Squads app; the vault PDA is index 0 of each multisig):
-  ```bash
-  # after deploy + initialize with the launch key (keys never printed)
-  # a) upgrade authority -> UPGRADE_MS vault (Squads vault PDAs can't co-sign, hence the skip flag)
-  solana program set-upgrade-authority <PROGRAM_ID> \
-    --upgrade-authority launch-admin.json \
-    --new-upgrade-authority <UPGRADE_MS_VAULT> --skip-new-upgrade-authority-signer-check -u mainnet-beta
-  # b) config admin -> OPS_MS vault (two-step, in the program)
-  #    propose: launch key signs  proposeAdminIx({ admin: launchAdmin, newAdmin: OPS_MS_VAULT })
-  #    accept:  Squads vault tx   acceptAdminIx({ newAdmin: OPS_MS_VAULT })   (created, approved, executed in OPS_MS)
-  # c) verify, then destroy the launch key
-  solana program show <PROGRAM_ID> -u mainnet-beta        # Authority == UPGRADE_MS_VAULT
-  # fetchConfig(): admin == OPS_MS_VAULT, pendingAdmin == default
-  ```
-- Upgrades afterwards: `solana program write-buffer` → `set-buffer-authority` to `UPGRADE_MS_VAULT` → a Squads "program upgrade" tx, executable only after the 48 h timelock. Extend programdata beforehand if the .so grows (on CLI 3.x, `program extend` must be signed by the upgrade authority, so it also becomes a Squads tx).
+### 1. Sequence
+`mainnet-launch.ts`: preflight -> build -> fund -> keeper-alt -> deploy -> verify-deploy -> READY. Then the pre-launch switch of the services, the graduation watcher, the owner's coin launch on pump.fun, and `mainnet-init.ts --mint <mint>`.
 
 ### 2. Program verification
-- Build reproducibly: `solana-verify build --library-name pixel` from `chain/` (Docker, pinned toolchain), and **deploy exactly that .so**. A local `anchor build` .so will not hash-match a verified build.
-- Verify locally against the deployment: `solana-verify verify-from-repo -um --program-id <PROGRAM_ID> https://github.com/<org>/<repo> --commit-hash <TAG_SHA> --library-name pixel --mount-path chain`.
-- The **OtterSec registry** needs a verification PDA written by the upgrade authority. With Squads as authority:
-  - `solana-verify export-pda-tx … --uploader <UPGRADE_MS_VAULT>`, then execute it as a Squads tx. Note it is subject to the 48 h timelock, so do it before or right after the authority transfer, while the launch key still holds the authority.
-  - Then `solana-verify remote submit-job --program-id <PROGRAM_ID> --uploader <UPGRADE_MS_VAULT>`.
-- Also check what we checked on devnet: the sha256 of `solana program dump`, trimmed to the .so length, equals the verified .so, and the trailing bytes are zero.
+`mainnet-registry.ts`, after launch: `solana-verify verify-from-repo` writes the verification PDA, signed directly by the launch key, then `remote submit-job`. The image is pinned in `BASE_IMAGE`, because solana-verify can't derive one from this Cargo.lock.
 
-### 3. Mainnet initialize parameters
+### 3. Initialize parameters
 | param | value | note |
 |---|---|---|
-| `token_mint` / `token_program` | the real coin's mint; Token-2022 if created via pump `create_v2` | init detects the token program from the mint owner |
+| `token_mint` / `token_program` | the mint given to `mainnet-init.ts`, validated from chain | permanent: a wrong mint needs a new program deployment |
 | `price_source` | `BondingCurve{ PDA(["bonding-curve", mint], pump) }` | enforced canonical |
-| `initial_token_ema_price_sol` | **median of curve spot sampled every 10 s over ≥ 10 min** before init (off-chain, read-only) | never a single read: the program's seed band (±25% at the first crank) and warm-up (10 cranks / ≥ 600 s) are the backstop, but the input should already be robust. Abort if the sample's max/min ratio is > 1.25 (market too wild to seed). |
-| `max_price_age_secs` | 120 | the sponsored Pyth SOL/USD account updates about every 60 s |
-| `token_blocks_cap_per_hour` | **250** at launch, raise to 1000 after a week | bounds manipulation extraction during the first days |
-| `buyback_cap_lamports_per_hour` | 2 SOL at launch (hard max 50) | keeper burst ≤ cap; any 1 h ≤ 2 × cap |
-| `buyback_max_slippage_bps` | 1500 | the rate bar vs the fast EMA; the backstop separately enforces post-trade spot ≤ fast EMA × 1.12 |
-| treasury | Squads treasury vault | fund to rent-exempt (init.ts-style step) |
-| keeper | dedicated keeper pubkey (§5) | |
+| `initial_token_ema_price_sol` | median of curve spot over at most 60 s | dispersion is reported, not fatal. The seed uses the latest reads if the market left the median; 0 if the curve already completed |
+| `max_price_age_secs` | 120 | |
+| `token_blocks_cap_per_hour` | 250 at launch, raise to 1000 after a week | |
+| `buyback_cap_lamports_per_hour` | 2 SOL at launch (hard max 50) | |
+| `buyback_max_slippage_bps` | 1500 | |
+| treasury | `FCgCSkEB…` | funded to rent-exemption by `mainnet-fund.ts`; no script reads its key |
+| keeper | `EKVJrMEs…` | float 0.5 SOL |
 
-- After init, the keeper cranks every 45 s. Token payments open once `tokenPricingStatus` is ok, about 10 minutes later; SOL payments are live immediately.
-- Launch-day smoke test: one 1×1 SOL buy and one 1×1 token buy, from a team wallet.
+**Token payments:** `EMA_WARMUP_CRANKS` (10) and `EMA_WARMUP_SECS` (600) are compile-time constants, not configurable. The clock starts at the first crank that passes the seed band, so token payments open about 10.5 min after initialize at best, later for each re-seed, and restart with the same wait after graduation. `mainnet-guard.ts` re-seeds through `set_price_source` until a first crank lands. SOL payments use none of this.
 
-### 4. Graduation (mainnet) with a pre-built multisig tx
-- The pool address is deterministic before graduation: `canonicalPumpPoolPda(mint)`, and the vaults are its ATAs. Pre-compute these and store them in the ops runbook at launch.
-- The seed (pool spot) is only known after migration, and Squads freezes tx contents at proposal time. So **pre-build the tooling, not the tx**: a reviewed script `mainnet-graduation-propose.ts` that waits for `curve.complete` and for the canonical pool to exist (pump's bot migrates within seconds; we never call migrate on mainnet). It then reads the pool spot (median over 60 s, aborting on more than 10% dispersion during the boost wave), builds `setPriceSourceIx(Pool, seed)`, creates the vault tx + proposal in `OPS_MS`, and pages the signers.
-- With a 0–15 min ops timelock, the token-payment gap is migration (seconds) + approval + timelock + ≥ 10 min warm-up + any boost-wave deviation pause (≈ 4–6 min on devnet). SOL payments are unaffected throughout.
-- The first crank after the switch checks pool spot within ±25% of the seed. If the boost wave moved it further, it fails `EmaSeedMismatch` and ops re-proposes with a fresh seed.
-- Keeper: on `curve.complete`, stop releases and refund any outstanding release. After the switch, route buybacks via PumpSwap. The backstop blocks spend buybacks while spot is above fast EMA × 1.12.
-- Stats: label pump boost burns as external; the headline is our program's burns only.
+### 4. Graduation
+`mainnet-graduation.ts`. We never call migrate on mainnet; pump's bot does. **Decision:** the launch key is the upgrade authority, so it never goes on a server.
+- `watch` reads no key and can run anywhere. It writes a proposal (pool, vaults, 60 s median seed) that `execute` re-validates and sends from the owner's machine.
+- `watch --auto-execute --execute --mainnet-i-understand` does both unattended, so it runs only on the owner's machine. It can send only `set_price_source` to the pool derived from the on-chain mint, with a seed the samples agree on within 10%. On more dispersion it sends nothing and samples again.
+
+Run the auto watcher from before the coin launch. The token-payment gap is migration + median (60 s) + warm-up (10 min) + any pause from pump's boost wave. SOL payments are unaffected. Keeper: on `curve.complete` it stops releases; after the switch it routes via PumpSwap, without a restart. Stats label pump's boost burns as external.
 
 ### 5. Keeper key handling
-- Use a dedicated hot key, used for nothing else. Keep it in the deployment secret store (Coolify secret, file mode 600), never in git or logs. Services already never prints it.
-- Float: ≤ 0.5 SOL for fees and one-time rents. Release SOL passes through the key only within the atomic release→swap→record tx, so nothing should stay outstanding.
-- Monitoring and alerts:
-  - `buyback_outstanding_lamports > 0` for more than 15 min;
-  - any `BuybackWrittenOff`;
-  - cranks failing more than 5 min in a row;
-  - EMA age over 10 min;
-  - keeper balance under 0.1 SOL.
-- Rotation: `set_keeper(new)` from `OPS_MS`, which also writes off any outstanding release so a lost or compromised key can't block rotation. Rotate on any suspicion, and at least quarterly.
-- Worst case for a compromised keeper: the hourly bucket (burst ≤ cap, sustained ≤ cap/h). Pause (`set_paused`) is the brake.
+- A dedicated hot key, used for nothing else, kept in the deployment secret store. Float 0.5 SOL.
+- Alerts: `buyback_outstanding_lamports > 0` for more than 15 min; any `BuybackWrittenOff`; cranks failing more than 5 min in a row; EMA age over 10 min; keeper balance under 0.1 SOL.
+- Rotation: `set_keeper(new)` from the launch key, which also writes off any outstanding release.
+- Worst case for a compromised keeper: the hourly bucket. Pause (`set_paused`) is the brake.
 
-### 6. SOL funding (mainnet rent = (bytes + 128) × 6,960 lamports)
-| item | SOL | note |
-|---|---|---|
-| program deploy: buffer (temporary) | 4.03 | refunded after deploy |
-| programdata (exact size 579,541 B) | 4.03 | **5.04** with 25% headroom for future upgrades (recommended `--max-len`) |
-| deploy tx fees + priority | ~0.05 | ~600 write txs |
-| **deployer peak** | **≈ 9.2** | net ≈ 5.1 after the buffer refund |
-| initialize (config 0.0047 + canvas 0.0101 + vault 0.0009) + treasury rent | ~0.02 | launch key |
-| Squads: 2–3 multisigs + vault txs (authority transfer, accept_admin, verify PDA) | ~0.1 | |
-| keeper float | 0.5 | |
-| launch smoke tests | ~1.1 + tokens | one 1×1 SOL buy ≈ $100 |
-| **total to have ready** | **≈ 11 SOL** | of which ≈ 5 is locked as program rent |
-
-- Final-auction rents are paid by whoever starts or settles it: auction 0.0101 and the lot ad 0.0051.
-- Ad rent (0.0051) is paid by each buyer.
+### 6. SOL
+Rent comes from the RPC, and `mainnet-preflight.ts` prints the real numbers and fails if they don't fit. Read 2026-11-05 at a 579,936-byte .so: peak 7.33 SOL while deploying (buffer 2.95, refunded; programdata 3.68 with 25% headroom), net 4.38 after the refund, smoke tests 2.13 (optional), so 5.49 of the 12 SOL is left. The coin is the owner's own cost on pump.fun.
 
 ## Deploy (devnet, dry-run by default)
 ```bash
@@ -613,7 +554,6 @@ RPC (all chain scripts, via `scripts/devnet-rpc.ts`; the shell deploy script mir
 - **`SOLANA_RPC` is deliberately ignored**: in the root `.env` it is the QuickNode **mainnet** endpoint.
 - **Hard guard:** every script checks `getGenesisHash()` (or `solana genesis-hash`) at startup and exits 1 unless it equals devnet's `EtWTRABZaYq6iMfeYKouRu166VU2xqa1wcaWoxPkrZBG`. Verified: a mainnet or testnet URL in `DEVNET_RPC_URL` → `REFUSING…`, exit 1. `SOLANA_RPC=<mainnet>` set → scripts still run on devnet.
 - The URL and key are never printed. Errors are redacted (`api-key=<redacted>`), and the deploy command is shown with `--url <label>`.
-- `deploy-devnet.sh` prints the M-2.1 launch requirement: before mainnet, move the upgrade authority and admin to a timelocked Squads multisig, or make the program immutable.
 
 ## Requests
 - **Root (done by the lead)**: the override below is now in `pnpm-workspace.yaml`. With it the receiver loads in Node (verified in the workspace). `@pythnetwork/pyth-solana-receiver` → `@pythnetwork/solana-utils` → `jito-ts` pulls

@@ -26,7 +26,7 @@ main(async () => {
     else { console.log(`  FAIL  ${name} = ${a}, expected ${b}`); fails.push(name); }
   };
   if (what === "deploy") {
-    if (!st.build) die("no build recorded");
+    if (!st.build) { if (!mode.execute) { console.log("no build recorded yet: nothing to check"); return; } die("no build recorded"); }
     const prog = await c.getAccountInfo(pid);
     if (!prog?.executable) { if (!mode.execute) { console.log("program not deployed yet: nothing to check"); return; } die("program not deployed"); }
     const pd = await c.getAccountInfo(programDataAddress(pid));

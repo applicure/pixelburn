@@ -14,7 +14,7 @@ import { OnlinePumpSdk, PUMP_SDK, bondingCurvePda, getBuySolAmountFromTokenAmoun
 import { WSOL_MINT, buildBuyTx, parseBondingCurve } from "@mpb/sdk";
 import BN from "bn.js";
 import { existsSync, readFileSync } from "node:fs";
-import { buildTx, connect, die, ensureKey, keypath, loadKey, main, parseArgs, programId, roles, runMode, sendAndConfirm, sleep, sol, solToLamports, solanaCli, strArg } from "./mainnet-lib.ts";
+import { buildTx, connect, die, ensureKey, keypath, loadKey, main, parseArgs, programId, roles, runMode, sendAndConfirm, sleep, sol, solToLamports, solanaCli, strArg, toVersioned } from "./mainnet-lib.ts";
 
 main(async () => {
   const args = parseArgs();
@@ -82,7 +82,7 @@ main(async () => {
     const t = trader();
     const built = await buildBuyTx(c, { mode: "sol", buyer: t.publicKey, rect: { x: Number(strArg(args, "x")), y: Number(strArg(args, "y")), w: 1, h: 1 }, programId: programId(mode),
       content: { title: "Rehearsal", link: "https://pixelframe.tech", imageUri: "ar://rehearsal", imageSha256: new Uint8Array(32) } });
-    const sig = await sendAndConfirm(c, built.transaction, built.lastValidBlockHeight, [t]);
+    const sig = await sendAndConfirm(c, toVersioned(built.transaction), built.lastValidBlockHeight, [t]);
     console.log(`SOL buy ok in ${Date.now() - t0} ms: ${sig}`);
     return;
   }

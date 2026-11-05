@@ -10,7 +10,7 @@
  * Pure helpers (median, dispersion, budget) have no side effects and are unit-tested in mainnet-lib.test.ts.
  */
 import {
-  type AddressLookupTableAccount, ComputeBudgetProgram, Connection, Keypair, PublicKey, TransactionInstruction, TransactionMessage, VersionedTransaction,
+  type AddressLookupTableAccount, ComputeBudgetProgram, Connection, Keypair, PublicKey, Transaction, TransactionInstruction, TransactionMessage, VersionedTransaction,
 } from "@solana/web3.js";
 import bs58 from "bs58";
 import { execFileSync, spawnSync } from "node:child_process";
@@ -434,6 +434,9 @@ export async function sendRobust(
   throw new Error(`transaction didn't land in ${o.attempts ?? 6} attempts`);
 }
 
+/** buildBuyTx returns a legacy Transaction; the helpers here sign and simulate versioned ones. */
+export const toVersioned = (tx: Transaction) => new VersionedTransaction(tx.compileMessage());
+
 export async function simulate(c: Connection, tx: VersionedTransaction): Promise<{ ok: boolean; err: unknown; units?: number; logs: string[] }> {
   const sim = await c.simulateTransaction(tx, { sigVerify: false, replaceRecentBlockhash: true });
   return { ok: !sim.value.err, err: sim.value.err, units: sim.value.unitsConsumed, logs: sim.value.logs ?? [] };
@@ -445,7 +448,7 @@ export const explorer = (mode: RunMode, kind: "tx" | "address", id: string) =>
 /** Standard wrapper: prints errors redacted and sets the exit code. */
 export function main(fn: () => Promise<void>) {
   fn().catch((e: unknown) => {
-    console.error(redact(e instanceof Error ? e.message : String(e)));
+    console.error(redact(e instanceof Error ? (process.env.MPB_TRACE ? String(e.stack) : e.message) : String(e)));
     process.exit(1);
   });
 }
