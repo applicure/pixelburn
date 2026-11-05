@@ -253,7 +253,7 @@ export function MoneyFlow() {
           </h2>
           <p className="mt-6 max-w-[44ch] text-heat/85">
             Every SOL purchase splits in the same transaction. Half lands in the treasury. The other half goes to the
-            buyback vault, which can only do one thing: buy {BRAND.ticker} on the market and burn it.
+            buyback vault. The program spends it on one thing: buying {BRAND.ticker} on the market and burning it.
           </p>
           {stats && BigInt(stats.lamportsRaised) === 0n ? (
             <FirstBlockSplit solUsd={stats.solPriceUsd} tokenUsd={stats.tokenPriceUsd} />

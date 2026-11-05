@@ -14,7 +14,7 @@ type Addr = { label: string; value: string | null; note: string };
 const ADDR_NOTES: Addr[] = [
   { label: "Program", value: null, note: "The billboard program. Holds the canvas bitmap and every ad record." },
   { label: "Treasury", value: null, note: "Receives 50% of SOL purchases." },
-  { label: "Buyback vault", value: null, note: `A program account. Its SOL can only buy ${BRAND.ticker} and burn it.` },
+  { label: "Buyback vault", value: null, note: `A program account. The program spends its SOL only on buying ${BRAND.ticker} and burning it.` },
   { label: `${BRAND.ticker} mint`, value: null, note: "Supply shrinks with every burn." },
 ];
 

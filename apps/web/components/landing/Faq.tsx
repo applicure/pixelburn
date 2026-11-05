@@ -15,7 +15,11 @@ const QA: { q: string; a: string }[] = [
   },
   {
     q: "Where does the money go?",
-    a: `SOL payments split in the purchase transaction: 50% to the treasury, 50% to a buyback vault that can only buy ${BRAND.ticker} and burn it. ${BRAND.ticker} payments are burned in full, in the same transaction.`,
+    a: `SOL payments split in the purchase transaction: 50% to the treasury, 50% to a buyback vault that the program spends only on buying ${BRAND.ticker} and burning it. ${BRAND.ticker} payments are burned in full, in the same transaction.`,
+  },
+  {
+    q: "Can the team change the program?",
+    a: "Yes. The program is upgradeable, and one team-held key controls upgrades and settings. There is no multisig or timelock, so those rules hold unless that key changes them. Every upgrade is public on-chain.",
   },
   {
     q: "Where is my image stored?",

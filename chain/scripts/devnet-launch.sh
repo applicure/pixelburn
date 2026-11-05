@@ -3,7 +3,7 @@
 set -euo pipefail
 cd "$(dirname "$0")"
 LOG=../devnet-log.json
-OUT="${MPB_OUT_DIR:-/private/tmp/claude-501/-Users-applicure-gn-Projects-Crypto-milliondollarproject/e9f3b0e3-ea41-4f2e-a58a-66a2b3b9cf94/scratchpad/devnet-run}"; mkdir -p "$OUT"
+OUT="${MPB_OUT_DIR:-${TMPDIR:-/tmp}/mpb-devnet-run}"; mkdir -p "$OUT"
 wait_s() { node -e "setTimeout(()=>{}, $1*1000)"; }
 step() { echo "-- $*"; "$@" || echo "!! FAILED: $*"; }
 addlog() { node -e '

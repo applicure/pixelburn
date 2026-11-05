@@ -1,6 +1,6 @@
 # Pixel Frame — Build Spec (v1)
 
-Single source of truth for all workstreams. Concept doc: https://claude.ai/artifact/963Uuce5kamMkGVLJWthEM
+Single source of truth for all workstreams.
 If you must deviate from a contract here, write it in your workstream's `NOTES.md` under "Deviations from SPEC" — never silently.
 
 Name **Pixel Frame**, ticker **$PXL** (formerly The Million Pixel Burn, $PIXEL). Keep them in ONE config constant per package. Internal identifiers such as `pixel` and `@mpb/*` keep their names: see `brand/README.md`.
